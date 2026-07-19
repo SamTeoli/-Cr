@@ -78,7 +78,7 @@ namespace HaveABreak.Cards
             return null;
         }
 
-        private void SetOccupant(EnemyFieldPosition position, string enemyId)
+        internal void SetOccupant(EnemyFieldPosition position, string enemyId)
         {
             switch (position)
             {
