@@ -96,7 +96,8 @@ namespace HaveABreak.Cards
         MonsterDestroyed,
         StatusApplied,
         AttackCompleted,
-        MainEffectCompleted
+        MainEffectCompleted,
+        EnemyMoved
     }
 
     public enum EffectProcessingStage
