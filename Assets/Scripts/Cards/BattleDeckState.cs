@@ -109,7 +109,15 @@ namespace HaveABreak.Cards
 
         public bool TryDiscard(string battleCardId, out CardZoneMoveFailure failure)
         {
-            return zones.TryMove(battleCardId, CardZone.Graveyard, out failure);
+            BattleCardInstance card = zones.Find(battleCardId);
+            if (card == null)
+            {
+                failure = CardZoneMoveFailure.CardNotFound;
+                return false;
+            }
+
+            CardZone destination = card.IsTemporary ? CardZone.Banished : CardZone.Graveyard;
+            return zones.TryMove(battleCardId, destination, out failure);
         }
 
         public bool TryBanish(string battleCardId, out CardZoneMoveFailure failure)

@@ -76,6 +76,11 @@ namespace HaveABreak.Editor
                 ValidateBattleDeckDraw(true);
             }
 
+            if (GUILayout.Button("Validate Card Play And Mana"))
+            {
+                ValidateCardPlayAndMana(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -486,6 +491,127 @@ namespace HaveABreak.Editor
             }
 
             return result;
+        }
+
+        private static bool ValidateCardPlayAndMana(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool hasC08 = cards.TryGetValue("C08", out CardData c08);
+            bool hasC11 = cards.TryGetValue("C11", out CardData c11);
+            bool valid = hasC01 && hasC05 && hasC08 && hasC11;
+            if (!valid)
+            {
+                Debug.LogError("Card play validation requires C01, C05, C08 and C11.");
+            }
+            else
+            {
+                BattleCardPlayState monsterPlay = CreateValidationPlayState(5, 500, c01);
+                BattleCardInstance monster = monsterPlay.Deck.Zones.GetCards(CardZone.Hand)[0];
+                valid &= monsterPlay.TryPreviewPlay(monster.Ids.BattleCardId, out CardPlayPreview monsterPreview, out _) &&
+                         monsterPlay.Mana.CurrentMana == 5 &&
+                         monster.Zone == CardZone.Hand;
+                valid &= monsterPlay.TryConfirmPlay(monsterPreview, out CardPlayFailure monsterFailure) &&
+                         monsterFailure == CardPlayFailure.None &&
+                         monster.Zone == CardZone.MonsterField &&
+                         monsterPlay.Mana.CurrentMana == 2;
+
+                BattleCardPlayState skillPlay = CreateValidationPlayState(2, 510, c05);
+                BattleCardInstance skill = skillPlay.Deck.Zones.GetCards(CardZone.Hand)[0];
+                valid &= skillPlay.TryPreviewPlay(skill.Ids.BattleCardId, out CardPlayPreview skillPreview, out _);
+                valid &= skillPlay.TryConfirmPlay(skillPreview, out _) &&
+                         skill.Zone == CardZone.Graveyard &&
+                         skillPlay.Deck.Zones.Count(CardZone.SkillField) == 0 &&
+                         skillPlay.Mana.CurrentMana == 1;
+
+                BattleCardPlayState trapPlay = CreateValidationPlayState(1, 520, c08);
+                BattleCardInstance trap = trapPlay.Deck.Zones.GetCards(CardZone.Hand)[0];
+                valid &= trapPlay.TryPreviewPlay(trap.Ids.BattleCardId, out CardPlayPreview trapPreview, out _);
+                valid &= trapPlay.TryConfirmPlay(trapPreview, out _) &&
+                         trap.Zone == CardZone.SkillField &&
+                         trapPlay.Mana.CurrentMana == 0;
+
+                BattleCardPlayState barrierPlay = CreateValidationPlayState(5, 530, c11, c11);
+                List<BattleCardInstance> barriers = barrierPlay.Deck.Zones.GetCards(CardZone.Hand);
+                valid &= barrierPlay.TryPreviewPlay(barriers[0].Ids.BattleCardId, out CardPlayPreview barrierPreview, out _);
+                valid &= barrierPlay.TryConfirmPlay(barrierPreview, out _);
+                int manaBeforeDuplicate = barrierPlay.Mana.CurrentMana;
+                valid &= !barrierPlay.TryPreviewPlay(barriers[1].Ids.BattleCardId, out _, out CardPlayFailure duplicateFailure) &&
+                         duplicateFailure == CardPlayFailure.DuplicateBarrier &&
+                         barrierPlay.Mana.CurrentMana == manaBeforeDuplicate &&
+                         barriers[1].Zone == CardZone.Hand;
+
+                BattleCardPlayState insufficient = CreateValidationPlayState(2, 540, c01);
+                BattleCardInstance expensive = insufficient.Deck.Zones.GetCards(CardZone.Hand)[0];
+                valid &= !insufficient.TryPreviewPlay(expensive.Ids.BattleCardId, out _, out CardPlayFailure manaFailure) &&
+                         manaFailure == CardPlayFailure.NotEnoughMana &&
+                         insufficient.Mana.CurrentMana == 2 &&
+                         expensive.Zone == CardZone.Hand;
+
+                BattleCardPlayState stale = CreateValidationPlayState(5, 550, c01, c01, c01, c01);
+                List<BattleCardInstance> monsterHand = stale.Deck.Zones.GetCards(CardZone.Hand);
+                BattleCardInstance staleTarget = monsterHand[0];
+                valid &= stale.TryPreviewPlay(staleTarget.Ids.BattleCardId, out CardPlayPreview stalePreview, out _);
+                for (int i = 1; i <= BattleCardZoneState.MaximumMonsterFieldSize; i++)
+                {
+                    valid &= stale.Deck.Zones.TryMove(monsterHand[i].Ids.BattleCardId, CardZone.MonsterField, out _);
+                }
+
+                valid &= !stale.TryConfirmPlay(stalePreview, out CardPlayFailure staleFailure) &&
+                         staleFailure == CardPlayFailure.DestinationFull &&
+                         stale.Mana.CurrentMana == 5 &&
+                         staleTarget.Zone == CardZone.Hand;
+
+                BattleManaState turnMana = new(BattleManaState.DefaultMaximumMana);
+                turnMana.EndPlayerTurn();
+                valid &= turnMana.CurrentMana == 0;
+                turnMana.StartPlayerTurn();
+                valid &= turnMana.CurrentMana == BattleManaState.DefaultMaximumMana;
+
+                CardInstanceIds temporaryIds = new(c05.CatalogCardId, null, "BATTLE-TEMP-PLAY", "INSTANT-TEMP-PLAY");
+                BattleCardInstance temporarySkill = new(c05, temporaryIds, 1, CardZone.DrawPile);
+                BattleDeckState temporaryDeck = new(new[] { temporarySkill }, 77);
+                temporaryDeck.DrawStartingHand();
+                BattleCardPlayState temporaryPlay = new(temporaryDeck, 1);
+                valid &= temporaryPlay.TryPreviewPlay(temporarySkill.Ids.BattleCardId, out CardPlayPreview temporaryPreview, out _);
+                valid &= temporaryPlay.TryConfirmPlay(temporaryPreview, out _) &&
+                         temporarySkill.Zone == CardZone.Banished;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Card play and mana validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Card Play And Mana Validation",
+                    valid ? "Card play and mana passed." : "Card play and mana failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static BattleCardPlayState CreateValidationPlayState(
+            int maximumMana,
+            int startingSequence,
+            params CardData[] sources)
+        {
+            List<BattleCardInstance> instances = new(sources.Length);
+            for (int i = 0; i < sources.Length; i++)
+            {
+                instances.Add(CreateValidationInstance(sources[i], startingSequence + i, CardZone.DrawPile));
+            }
+
+            BattleDeckState deck = new(instances, startingSequence);
+            deck.DrawStartingHand();
+            return new BattleCardPlayState(deck, maximumMana);
         }
 
         private static List<CardData> FindAllCards()

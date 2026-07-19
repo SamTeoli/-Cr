@@ -44,6 +44,18 @@ namespace HaveABreak.Cards
         ZoneMoveFailed
     }
 
+    public enum CardPlayFailure
+    {
+        None,
+        InvalidPreview,
+        CardNotFound,
+        CardNotInHand,
+        NotEnoughMana,
+        DestinationFull,
+        DuplicateBarrier,
+        ZoneMoveFailed
+    }
+
     public enum EffectTrigger
     {
         None,
