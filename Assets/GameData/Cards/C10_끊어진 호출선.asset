@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 708408edbe633c24ebdc2323a2430e26, type: 3}
+  m_Name: C10_끊어진 호출선
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.TrapCardData
+  catalogCardId: C10
+  displayName: "끊어진 호출선"
+  rarity: 1
+  manaCost: 2
+  rulesText: "아군에게 영향을 주는 다음 적 능력 1개를 무효화한다. 일반 공격은 제외한다."
+  detailedRulesText: "최종 대상이나 효과 범위에 아군 몬스터 또는 플레이어가 포함되는 적 능력만 무효화합니다. 능력의 비용·사용 횟수·행동은 반환하지 않습니다."
+  artwork: {fileID: 0}
+  baseEnchantSlots: 1
+  role: "능력 무효 / 제어"
+  sourceVersion: "v0.4 / 2026-07-17"
+  sourceDocument: "카드 모음집 · C01~C12"
+  levels:
+  - level: 1
+    manaCost: 2
+    attack: 0
+    health: 0
+    rulesText: "다음 적 능력 1개 무효 / 일반 공격 제외"
+  - level: 2
+    manaCost: 1
+    attack: 0
+    health: 0
+    rulesText: "효과 동일"
+  - level: 3
+    manaCost: 1
+    attack: 0
+    health: 0
+    rulesText: "능력 출처 적에게 약화 1"
+  - level: 4
+    manaCost: 1
+    attack: 0
+    health: 0
+    rulesText: "범위 능력이 아군을 포함하면 발동 가능"
+  - level: 5
+    manaCost: 1
+    attack: 0
+    health: 0
+    rulesText: "전투당 1회 발동 후 패로 회수"
+  effects: []
+  activatesAtEnemyTurnStart: 1

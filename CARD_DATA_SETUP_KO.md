@@ -6,8 +6,9 @@
 2. 첫 임포트가 끝날 때까지 기다린다.
 3. Console에 빨간 컴파일 오류가 없는지 확인한다.
 4. 상단 메뉴 `Have a Break > Card Data Tools`를 연다.
-5. 시험용 `C01` 카드를 하나 생성한다.
-6. `Validate Cards`, `Rebuild Card Database`를 차례로 실행한다.
+5. Project 창의 `Assets/GameData/Cards`에서 C01~C12 카드 12종을 확인한다.
+6. `Validate Cards`를 실행해 `Validation passed (12 card(s))`를 확인한다.
+7. 필요하면 `Rebuild Card Database`를 실행해 데이터베이스를 다시 갱신한다.
 
 ## 생성되는 위치
 

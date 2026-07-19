@@ -17,3 +17,11 @@
 
 ID 계층은 수록카드ID(`CatalogCardId`), 보유카드ID(`OwnedCardId`),
 전투카드ID(`BattleCardId`), 전투 중 임시 생성·복제용 `InstantId` 순으로 분리한다.
+
+## 시험 카드 C01~C12
+
+`Assets/GameData/Cards`에 Google Docs `카드 모음집 · C01~C12` v0.4를 기준으로 한
+시험 카드 12종이 등록되어 있다. 각 에셋은 기본 카드 정보와 레벨 1~5의 비용·공격력·
+생명력·효과 문구를 보유한다. `CardDatabase.asset`에도 C01부터 C12까지 ID 순으로 연결되어
+있다. 효과 문구는 기획 원문을 보존한 데이터이며 실제 전투 효과 실행기는 후속 단계에서
+연결한다.

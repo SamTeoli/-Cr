@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c696f5f18c03ae44392de92db629b906, type: 3}
+  m_Name: C03_좌석 수리공
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.MonsterCardData
+  catalogCardId: C03
+  displayName: "좌석 수리공"
+  rarity: 0
+  manaCost: 2
+  rulesText: "플레이어 턴 종료 시 이번 턴 공격하지 않았다면 방어 3을 얻는다."
+  detailedRulesText: "공격 선언이 아니라 모든 타격과 사후 검사가 끝난 공격 완료 기록을 확인합니다. 공격이 무효화되거나 대상 상실로 완료되지 않았다면 공격하지 않은 것으로 처리합니다."
+  artwork: {fileID: 0}
+  baseEnchantSlots: 1
+  role: "방어 / 공격 유예 / 반격"
+  sourceVersion: "v0.4 / 2026-07-17"
+  sourceDocument: "카드 모음집 · C01~C12"
+  levels:
+  - level: 1
+    manaCost: 2
+    attack: 1
+    health: 5
+    rulesText: "플레이어 턴 종료 시 공격하지 않았다면 방어 3을 얻습니다."
+  - level: 2
+    manaCost: 2
+    attack: 1
+    health: 6
+    rulesText: "효과 동일"
+  - level: 3
+    manaCost: 2
+    attack: 1
+    health: 6
+    rulesText: "획득 방어 4"
+  - level: 4
+    manaCost: 2
+    attack: 2
+    health: 6
+    rulesText: "효과 동일"
+  - level: 5
+    manaCost: 2
+    attack: 2
+    health: 7
+    rulesText: "이 효과로 방어를 얻을 때 반격 1도 획득"
+  effects: []
+  attack: 1
+  health: 5

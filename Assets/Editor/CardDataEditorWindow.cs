@@ -144,6 +144,16 @@ namespace HaveABreak.Editor
                     Debug.LogError($"Card name is empty: {AssetDatabase.GetAssetPath(card)}", card);
                     valid = false;
                 }
+
+                if (card.Levels.Count > 0)
+                {
+                    int[] levels = card.Levels.Select(item => item.Level).OrderBy(level => level).ToArray();
+                    if (!levels.SequenceEqual(new[] { 1, 2, 3, 4, 5 }))
+                    {
+                        Debug.LogError($"Card must contain exactly one entry for levels 1-5: {card.CatalogCardId}", card);
+                        valid = false;
+                    }
+                }
             }
 
             foreach (IGrouping<string, CardData> duplicate in cards
