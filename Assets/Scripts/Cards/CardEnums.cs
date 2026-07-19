@@ -139,6 +139,13 @@ namespace HaveABreak.Cards
         ZoneMoveFailed
     }
 
+    public enum StateBasedCheckFailure
+    {
+        None,
+        ParentEventNotFound,
+        ZoneMoveFailed
+    }
+
     public enum EffectTrigger
     {
         None,

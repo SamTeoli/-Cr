@@ -106,6 +106,11 @@ namespace HaveABreak.Editor
                 ValidateMonsterDamageAndHealing(true);
             }
 
+            if (GUILayout.Button("Validate Monster Destruction Check"))
+            {
+                ValidateMonsterDestructionCheck(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -1311,6 +1316,122 @@ namespace HaveABreak.Editor
                 operation: operation,
                 targetBattleCardId: targetBattleCardId,
                 value: value);
+        }
+
+        private static bool ValidateMonsterDestructionCheck(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool valid = hasC01;
+            if (!valid)
+            {
+                Debug.LogError("Monster destruction validation requires C01.");
+            }
+            else
+            {
+                BattleDeckState deck = new(CreateValidationDeck(c01, c01, 3, 1900), 1900);
+                deck.DrawStartingHand();
+                List<BattleCardInstance> fieldCards = deck.Zones.GetCards(CardZone.Hand);
+                BattleMonsterRegistry monsters = new();
+                for (int i = 0; i < fieldCards.Count; i++)
+                {
+                    valid &= deck.Zones.TryMove(fieldCards[i].Ids.BattleCardId, CardZone.MonsterField, out _);
+                    valid &= monsters.TryAdd(fieldCards[i], out _);
+                }
+
+                BattleMonsterState firstDestroyed = monsters.Find(fieldCards[0].Ids.BattleCardId);
+                BattleMonsterState survivor = monsters.Find(fieldCards[1].Ids.BattleCardId);
+                BattleMonsterState secondDestroyed = monsters.Find(fieldCards[2].Ids.BattleCardId);
+                firstDestroyed.ApplyDamage(firstDestroyed.CurrentHealth + 10);
+                secondDestroyed.ApplyDamage(secondDestroyed.CurrentHealth);
+
+                BattleEventLog eventLog = new();
+                BattleEventRecord damageRoot = eventLog.Record(
+                    BattleEventType.DamageApplied,
+                    "ValidationDamage",
+                    "VALIDATION-SOURCE",
+                    "VALIDATION-SOURCE",
+                    firstDestroyed.BattleCardId,
+                    beforeValue: firstDestroyed.MaximumHealth,
+                    afterValue: 0);
+                BattleStateBasedChecker checker = new(deck, monsters, eventLog);
+                valid &= checker.TryResolveMonsterDestruction(
+                    damageRoot.EventId,
+                    out List<BattleEventRecord> destructionEvents,
+                    out StateBasedCheckFailure destructionFailure) &&
+                         destructionFailure == StateBasedCheckFailure.None &&
+                         destructionEvents.Count == 2 &&
+                         destructionEvents[0].TargetId == firstDestroyed.BattleCardId &&
+                         destructionEvents[1].TargetId == secondDestroyed.BattleCardId &&
+                         destructionEvents.All(item =>
+                             item.EventType == BattleEventType.MonsterDestroyed &&
+                             item.ParentEventId == damageRoot.EventId &&
+                             item.FromZone == CardZone.MonsterField &&
+                             item.ToZone == CardZone.Graveyard) &&
+                         firstDestroyed.Card.Zone == CardZone.Graveyard &&
+                         secondDestroyed.Card.Zone == CardZone.Graveyard &&
+                         survivor.Card.Zone == CardZone.MonsterField &&
+                         monsters.Find(firstDestroyed.BattleCardId) == null &&
+                         monsters.Find(secondDestroyed.BattleCardId) == null &&
+                         monsters.Find(survivor.BattleCardId) == survivor;
+
+                valid &= checker.TryResolveMonsterDestruction(
+                    damageRoot.EventId, out List<BattleEventRecord> repeatedEvents, out _) &&
+                         repeatedEvents.Count == 0;
+
+                survivor.ApplyDamage(survivor.CurrentHealth);
+                int eventsBeforeInvalidParent = eventLog.Events.Count;
+                valid &= !checker.TryResolveMonsterDestruction(
+                    "EVENT-NOT-FOUND", out _, out StateBasedCheckFailure parentFailure) &&
+                         parentFailure == StateBasedCheckFailure.ParentEventNotFound &&
+                         survivor.Card.Zone == CardZone.MonsterField &&
+                         monsters.Find(survivor.BattleCardId) == survivor &&
+                         eventLog.Events.Count == eventsBeforeInvalidParent;
+                valid &= checker.TryResolveMonsterDestruction(
+                    damageRoot.EventId, out List<BattleEventRecord> survivorEvents, out _) &&
+                         survivorEvents.Count == 1 &&
+                         survivor.Card.Zone == CardZone.Graveyard;
+
+                CardInstanceIds temporaryIds = new(
+                    c01.CatalogCardId, null, "BATTLE-DESTROY-TEMP", "INSTANT-DESTROY-TEMP");
+                BattleCardInstance temporaryCard = new(c01, temporaryIds, 1, CardZone.DrawPile);
+                BattleDeckState temporaryDeck = new(new[] { temporaryCard }, 2000);
+                temporaryDeck.DrawStartingHand();
+                temporaryDeck.Zones.TryMove(temporaryCard.Ids.BattleCardId, CardZone.MonsterField, out _);
+                BattleMonsterRegistry temporaryMonsters = new();
+                temporaryMonsters.TryAdd(temporaryCard, out BattleMonsterState temporaryMonster);
+                temporaryMonster.ApplyDamage(temporaryMonster.CurrentHealth);
+                BattleEventLog temporaryLog = new();
+                BattleEventRecord temporaryRoot = temporaryLog.Record(
+                    BattleEventType.DamageApplied, "ValidationDamage", "VALIDATION-SOURCE",
+                    "VALIDATION-SOURCE", temporaryCard.Ids.BattleCardId);
+                BattleStateBasedChecker temporaryChecker = new(
+                    temporaryDeck, temporaryMonsters, temporaryLog);
+                valid &= temporaryChecker.TryResolveMonsterDestruction(
+                    temporaryRoot.EventId, out List<BattleEventRecord> temporaryEvents, out _) &&
+                         temporaryEvents.Count == 1 &&
+                         temporaryEvents[0].ToZone == CardZone.Banished &&
+                         temporaryCard.Zone == CardZone.Banished &&
+                         temporaryMonsters.Find(temporaryCard.Ids.BattleCardId) == null;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Monster destruction check validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Monster Destruction Check Validation",
+                    valid ? "Monster destruction check passed." : "Monster destruction check failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
         }
 
         private static List<CardData> FindAllCards()

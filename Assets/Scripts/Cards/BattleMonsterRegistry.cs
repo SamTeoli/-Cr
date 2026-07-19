@@ -35,5 +35,11 @@ namespace HaveABreak.Cards
             return monsters.Find(monster => monster != null &&
                 string.Equals(monster.BattleCardId, battleCardId, StringComparison.OrdinalIgnoreCase));
         }
+
+        public bool TryRemove(string battleCardId, out BattleMonsterState removed)
+        {
+            removed = Find(battleCardId);
+            return removed != null && monsters.Remove(removed);
+        }
     }
 }
