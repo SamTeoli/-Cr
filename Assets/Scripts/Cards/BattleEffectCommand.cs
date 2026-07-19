@@ -16,6 +16,10 @@ namespace HaveABreak.Cards
         [SerializeField] private bool allowRepeatedTrigger;
         [SerializeField, Min(1)] private int maximumRegistrationsPerEvent = 1;
         [SerializeField] private int creationOrder;
+        [SerializeField] private EffectOperation operation;
+        [SerializeField] private string targetBattleCardId;
+        [SerializeField] private CardZone destinationZone;
+        [SerializeField] private bool hasDestinationZone;
 
         public BattleEffectCommand(
             string effectId,
@@ -26,7 +30,11 @@ namespace HaveABreak.Cards
             BattleEventType triggerEventType,
             AftermathEffectPriority aftermathPriority = AftermathEffectPriority.SourceCard,
             bool allowRepeatedTrigger = false,
-            int maximumRegistrationsPerEvent = 1)
+            int maximumRegistrationsPerEvent = 1,
+            EffectOperation operation = EffectOperation.None,
+            string targetBattleCardId = null,
+            CardZone destinationZone = CardZone.DrawPile,
+            bool hasDestinationZone = false)
         {
             this.effectId = effectId?.Trim();
             this.sourceId = sourceId?.Trim();
@@ -37,6 +45,10 @@ namespace HaveABreak.Cards
             this.aftermathPriority = aftermathPriority;
             this.allowRepeatedTrigger = allowRepeatedTrigger;
             this.maximumRegistrationsPerEvent = Mathf.Max(1, maximumRegistrationsPerEvent);
+            this.operation = operation;
+            this.targetBattleCardId = targetBattleCardId?.Trim();
+            this.destinationZone = destinationZone;
+            this.hasDestinationZone = hasDestinationZone;
         }
 
         public string EffectId => effectId;
@@ -49,6 +61,10 @@ namespace HaveABreak.Cards
         public bool AllowRepeatedTrigger => allowRepeatedTrigger;
         public int MaximumRegistrationsPerEvent => maximumRegistrationsPerEvent;
         public int CreationOrder => creationOrder;
+        public EffectOperation Operation => operation;
+        public string TargetBattleCardId => targetBattleCardId;
+        public CardZone DestinationZone => destinationZone;
+        public bool HasDestinationZone => hasDestinationZone;
 
         internal void AssignCreationOrder(int value)
         {

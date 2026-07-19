@@ -125,6 +125,17 @@ namespace HaveABreak.Cards
         SelfRepeatBlocked
     }
 
+    public enum EffectExecutionFailure
+    {
+        None,
+        QueueEmpty,
+        SourceEventNotFound,
+        UnsupportedOperation,
+        TargetNotFound,
+        InvalidZoneTransition,
+        ZoneMoveFailed
+    }
+
     public enum EffectTrigger
     {
         None,

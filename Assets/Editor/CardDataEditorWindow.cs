@@ -96,6 +96,11 @@ namespace HaveABreak.Editor
                 ValidateBattleEventQueue(true);
             }
 
+            if (GUILayout.Button("Validate Card Move Effects"))
+            {
+                ValidateCardMoveEffects(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -1017,6 +1022,159 @@ namespace HaveABreak.Editor
                 required,
                 sourceEvent.EventType,
                 priority);
+        }
+
+        private static bool ValidateCardMoveEffects(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool valid = hasC01 && hasC05;
+            if (!valid)
+            {
+                Debug.LogError("Card move effect validation requires C01 and C05.");
+            }
+            else
+            {
+                BattleDeckState normalDeck = new(CreateValidationDeck(c01, c05, 2, 1400), 1400);
+                normalDeck.DrawStartingHand();
+                BattleCardInstance normalSkill = normalDeck.Zones.GetCards(CardZone.Hand)
+                    .First(card => card.SourceCard.CardType == CardType.Skill);
+                BattleEventLog normalLog = new();
+                BattleEventRecord normalRoot = normalLog.Record(
+                    BattleEventType.CardPlayed, "ValidationRoot", "C05",
+                    normalSkill.Ids.BattleCardId, null);
+                BattleEffectQueue normalQueue = new();
+                BattleEffectCommand normalMove = CreateMoveValidationCommand(
+                    "MOVE-NORMAL", normalRoot, normalSkill.Ids.BattleCardId, CardZone.Graveyard);
+                valid &= normalQueue.TryRegister(normalMove, normalRoot, out _);
+                BattleEffectExecutor normalExecutor = new(normalDeck, normalLog, normalQueue);
+                valid &= normalExecutor.TryExecuteNext(
+                    out BattleEffectCommand executedNormal,
+                    out BattleEventRecord normalMoveEvent,
+                    out EffectExecutionFailure normalFailure) &&
+                         executedNormal == normalMove &&
+                         normalFailure == EffectExecutionFailure.None &&
+                         normalSkill.Zone == CardZone.Graveyard &&
+                         normalMoveEvent.ParentEventId == normalRoot.EventId &&
+                         normalMoveEvent.SourceEffectId == "MOVE-NORMAL" &&
+                         normalMoveEvent.FromZone == CardZone.Hand &&
+                         normalMoveEvent.ToZone == CardZone.Graveyard &&
+                         normalLog.Events.Count == 2;
+                valid &= !normalExecutor.TryExecuteNext(out _, out _, out EffectExecutionFailure emptyFailure) &&
+                         emptyFailure == EffectExecutionFailure.QueueEmpty;
+
+                CardInstanceIds temporaryIds = new(
+                    c05.CatalogCardId, null, "BATTLE-MOVE-TEMP", "INSTANT-MOVE-TEMP");
+                BattleCardInstance temporarySkill = new(c05, temporaryIds, 1, CardZone.DrawPile);
+                BattleDeckState temporaryDeck = new(new[] { temporarySkill }, 1500);
+                temporaryDeck.DrawStartingHand();
+                BattleEventLog temporaryLog = new();
+                BattleEventRecord temporaryRoot = temporaryLog.Record(
+                    BattleEventType.CardPlayed, "ValidationRoot", "C05",
+                    temporarySkill.Ids.BattleCardId, null);
+                BattleEffectQueue temporaryQueue = new();
+                BattleEffectCommand temporaryMove = CreateMoveValidationCommand(
+                    "MOVE-TEMP", temporaryRoot, temporarySkill.Ids.BattleCardId, CardZone.Graveyard);
+                temporaryQueue.TryRegister(temporaryMove, temporaryRoot, out _);
+                BattleEffectExecutor temporaryExecutor = new(temporaryDeck, temporaryLog, temporaryQueue);
+                valid &= temporaryExecutor.TryExecuteNext(out _, out BattleEventRecord temporaryMoveEvent, out _) &&
+                         temporarySkill.Zone == CardZone.Banished &&
+                         temporaryMoveEvent.ToZone == CardZone.Banished;
+
+                BattleDeckState fullFieldDeck = new(
+                    CreateValidationDeck(c01, c01, 4, 1600), 1600);
+                fullFieldDeck.DrawStartingHand();
+                List<BattleCardInstance> monsterCards = fullFieldDeck.Zones.GetCards(CardZone.Hand);
+                for (int i = 0; i < BattleCardZoneState.MaximumMonsterFieldSize; i++)
+                {
+                    valid &= fullFieldDeck.Zones.TryMove(
+                        monsterCards[i].Ids.BattleCardId, CardZone.MonsterField, out _);
+                }
+
+                BattleCardInstance blockedMonster = monsterCards[3];
+                BattleEventLog blockedLog = new();
+                BattleEventRecord blockedRoot = blockedLog.Record(
+                    BattleEventType.CardPlayed, "ValidationRoot", "C01",
+                    blockedMonster.Ids.BattleCardId, null);
+                BattleEffectQueue blockedQueue = new();
+                BattleEffectCommand blockedMove = CreateMoveValidationCommand(
+                    "MOVE-BLOCKED", blockedRoot, blockedMonster.Ids.BattleCardId, CardZone.MonsterField);
+                blockedQueue.TryRegister(blockedMove, blockedRoot, out _);
+                BattleEffectExecutor blockedExecutor = new(fullFieldDeck, blockedLog, blockedQueue);
+                valid &= !blockedExecutor.TryExecuteNext(out _, out _, out EffectExecutionFailure blockedFailure) &&
+                         blockedFailure == EffectExecutionFailure.ZoneMoveFailed &&
+                         blockedMonster.Zone == CardZone.Hand &&
+                         blockedLog.Events.Count == 1;
+
+                BattleDeckState drawPileDeck = new(CreateValidationDeck(c01, c05, 1, 1700), 1700);
+                BattleCardInstance drawPileCard = drawPileDeck.Zones.GetCards(CardZone.DrawPile)[0];
+                BattleEventLog drawPileLog = new();
+                BattleEventRecord drawPileRoot = drawPileLog.Record(
+                    BattleEventType.CardMoved, "ValidationRoot", "C01",
+                    drawPileCard.Ids.BattleCardId, null);
+                BattleEffectQueue drawPileQueue = new();
+                BattleEffectCommand drawPileMove = CreateMoveValidationCommand(
+                    "MOVE-DECK", drawPileRoot, drawPileCard.Ids.BattleCardId, CardZone.Graveyard);
+                drawPileQueue.TryRegister(drawPileMove, drawPileRoot, out _);
+                BattleEffectExecutor drawPileExecutor = new(drawPileDeck, drawPileLog, drawPileQueue);
+                valid &= !drawPileExecutor.TryExecuteNext(out _, out _, out EffectExecutionFailure drawPileFailure) &&
+                         drawPileFailure == EffectExecutionFailure.InvalidZoneTransition &&
+                         drawPileCard.Zone == CardZone.DrawPile &&
+                         drawPileLog.Events.Count == 1;
+
+                BattleEffectQueue unsupportedQueue = new();
+                BattleEffectCommand unsupported = new(
+                    "DAMAGE-NOT-YET",
+                    "C05",
+                    normalRoot.EventId,
+                    EffectProcessingStage.MainEffect,
+                    true,
+                    normalRoot.EventType,
+                    operation: EffectOperation.Damage);
+                unsupportedQueue.TryRegister(unsupported, normalRoot, out _);
+                BattleEffectExecutor unsupportedExecutor = new(normalDeck, normalLog, unsupportedQueue);
+                valid &= !unsupportedExecutor.TryExecuteNext(
+                    out _, out _, out EffectExecutionFailure unsupportedFailure) &&
+                         unsupportedFailure == EffectExecutionFailure.UnsupportedOperation;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Card move effect validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Card Move Effect Validation",
+                    valid ? "Card move effects passed." : "Card move effects failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static BattleEffectCommand CreateMoveValidationCommand(
+            string effectId,
+            BattleEventRecord sourceEvent,
+            string targetBattleCardId,
+            CardZone destination)
+        {
+            return new BattleEffectCommand(
+                effectId,
+                "VALIDATION-SOURCE",
+                sourceEvent.EventId,
+                EffectProcessingStage.MainEffect,
+                true,
+                sourceEvent.EventType,
+                operation: EffectOperation.Move,
+                targetBattleCardId: targetBattleCardId,
+                destinationZone: destination,
+                hasDestinationZone: true);
         }
 
         private static List<CardData> FindAllCards()
