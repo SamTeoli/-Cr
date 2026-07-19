@@ -9,19 +9,30 @@ namespace HaveABreak.Cards
     {
         [SerializeField] private BattleDeckState deck;
         [SerializeField] private BattleManaState mana;
+        [SerializeField] private BattleCardEnchantRegistry enchants;
 
         private BattleCardPlayState()
         {
         }
 
         public BattleCardPlayState(BattleDeckState deck, int maximumMana = BattleManaState.DefaultMaximumMana)
+            : this(deck, maximumMana, null)
+        {
+        }
+
+        public BattleCardPlayState(
+            BattleDeckState deck,
+            int maximumMana,
+            BattleCardEnchantRegistry enchants)
         {
             this.deck = deck ?? throw new ArgumentNullException(nameof(deck));
             mana = new BattleManaState(maximumMana);
+            this.enchants = enchants;
         }
 
         public BattleDeckState Deck => deck;
         public BattleManaState Mana => mana;
+        public BattleCardEnchantRegistry Enchants => enchants;
 
         public bool TryPreviewPlay(
             string battleCardId,
@@ -35,7 +46,8 @@ namespace HaveABreak.Cards
             }
 
             CardZone destination = GetPlayDestination(card.SourceCard.CardType);
-            int manaCost = Mathf.Max(0, card.Resolved.ManaCost);
+            RunCardEnchantState cardEnchants = enchants?.Find(card.Ids.BattleCardId);
+            int manaCost = EnchantManaCostResolver.Resolve(card, cardEnchants);
             if (!mana.CanSpend(manaCost))
             {
                 failure = CardPlayFailure.NotEnoughMana;
