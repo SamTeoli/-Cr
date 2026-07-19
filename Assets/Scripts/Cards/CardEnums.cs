@@ -146,6 +146,13 @@ namespace HaveABreak.Cards
         ZoneMoveFailed
     }
 
+    public enum BattleOutcome
+    {
+        Ongoing,
+        Victory,
+        Defeat
+    }
+
     public enum EffectTrigger
     {
         None,

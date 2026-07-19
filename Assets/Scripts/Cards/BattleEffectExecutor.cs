@@ -10,6 +10,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleEventLog eventLog;
         [SerializeField] private BattleEffectQueue effectQueue;
         [SerializeField] private BattleMonsterRegistry monsters;
+        [SerializeField] private BattlePlayerState player;
 
         private BattleEffectExecutor()
         {
@@ -19,18 +20,21 @@ namespace HaveABreak.Cards
             BattleDeckState deck,
             BattleEventLog eventLog,
             BattleEffectQueue effectQueue,
-            BattleMonsterRegistry monsters = null)
+            BattleMonsterRegistry monsters = null,
+            BattlePlayerState player = null)
         {
             this.deck = deck ?? throw new ArgumentNullException(nameof(deck));
             this.eventLog = eventLog ?? throw new ArgumentNullException(nameof(eventLog));
             this.effectQueue = effectQueue ?? throw new ArgumentNullException(nameof(effectQueue));
             this.monsters = monsters;
+            this.player = player;
         }
 
         public BattleDeckState Deck => deck;
         public BattleEventLog EventLog => eventLog;
         public BattleEffectQueue EffectQueue => effectQueue;
         public BattleMonsterRegistry Monsters => monsters;
+        public BattlePlayerState Player => player;
 
         public bool TryExecuteNext(
             out BattleEffectCommand command,
@@ -139,33 +143,56 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            BattleMonsterState target = monsters?.Find(command.TargetBattleCardId);
-            if (target == null)
+            bool targetsPlayer = string.Equals(
+                command.TargetBattleCardId,
+                BattlePlayerState.PlayerTargetId,
+                StringComparison.OrdinalIgnoreCase);
+            BattleMonsterState monsterTarget = targetsPlayer
+                ? null
+                : monsters?.Find(command.TargetBattleCardId);
+            if ((targetsPlayer && player == null) || (!targetsPlayer && monsterTarget == null))
             {
                 failure = EffectExecutionFailure.CombatTargetNotFound;
                 return false;
             }
 
-            int beforeHealth = target.CurrentHealth;
+            int beforeHealth = targetsPlayer ? player.CurrentHealth : monsterTarget.CurrentHealth;
             if (healing)
             {
-                target.ApplyHealing(command.Value);
+                if (targetsPlayer)
+                {
+                    player.ApplyHealing(command.Value);
+                }
+                else
+                {
+                    monsterTarget.ApplyHealing(command.Value);
+                }
             }
             else
             {
-                target.ApplyDamage(command.Value);
+                if (targetsPlayer)
+                {
+                    player.ApplyDamage(command.Value);
+                }
+                else
+                {
+                    monsterTarget.ApplyDamage(command.Value);
+                }
             }
+
+            int afterHealth = targetsPlayer ? player.CurrentHealth : monsterTarget.CurrentHealth;
+            string targetId = targetsPlayer ? BattlePlayerState.PlayerTargetId : monsterTarget.BattleCardId;
 
             producedEvent = eventLog.Record(
                 healing ? BattleEventType.HealingApplied : BattleEventType.DamageApplied,
                 healing ? "EffectHealing" : "EffectDamage",
                 command.SourceId,
                 command.SourceId,
-                target.BattleCardId,
+                targetId,
                 parentEventId: sourceEvent.EventId,
                 sourceEffectId: command.EffectId,
                 beforeValue: beforeHealth,
-                afterValue: target.CurrentHealth);
+                afterValue: afterHealth);
             failure = EffectExecutionFailure.None;
             return true;
         }

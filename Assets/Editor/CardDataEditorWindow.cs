@@ -111,6 +111,11 @@ namespace HaveABreak.Editor
                 ValidateMonsterDestructionCheck(true);
             }
 
+            if (GUILayout.Button("Validate Player Health And Outcome"))
+            {
+                ValidatePlayerHealthAndOutcome(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -1428,6 +1433,132 @@ namespace HaveABreak.Editor
                 EditorUtility.DisplayDialog(
                     "Monster Destruction Check Validation",
                     valid ? "Monster destruction check passed." : "Monster destruction check failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static bool ValidatePlayerHealthAndOutcome(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool valid = hasC01;
+            if (!valid)
+            {
+                Debug.LogError("Player health validation requires C01.");
+            }
+            else
+            {
+                BattlePlayerState player = new(BattlePlayerState.DefaultMaximumHealth);
+                valid &= player.MaximumHealth == BattlePlayerState.DefaultMaximumHealth &&
+                         player.CurrentHealth == BattlePlayerState.DefaultMaximumHealth &&
+                         !player.IsDefeated;
+
+                BattleEnemyTracker enemies = new();
+                valid &= enemies.TryAdd("ENEMY-001") && enemies.TryAdd("ENEMY-002") &&
+                         !enemies.TryAdd("enemy-001") && enemies.Count == 2;
+                BattleOutcomeEvaluator outcome = new(player, enemies);
+                valid &= outcome.Evaluate() == BattleOutcome.Ongoing;
+
+                BattleDeckState deck = new(CreateValidationDeck(c01, c01, 1, 2100), 2100);
+                BattleEventLog eventLog = new();
+                BattleEventRecord root = eventLog.Record(
+                    BattleEventType.AttackDeclared,
+                    "PlayerHealthValidation",
+                    "ENEMY-001",
+                    "ENEMY-001",
+                    BattlePlayerState.PlayerTargetId);
+                BattleEffectQueue queue = new();
+                BattleEffectCommand damage = CreateHealthValidationCommand(
+                    "PLAYER-DAMAGE-7",
+                    root,
+                    BattlePlayerState.PlayerTargetId,
+                    EffectOperation.Damage,
+                    7);
+                BattleEffectCommand healing = CreateHealthValidationCommand(
+                    "PLAYER-HEAL-3",
+                    root,
+                    BattlePlayerState.PlayerTargetId,
+                    EffectOperation.Heal,
+                    3);
+                queue.TryRegister(damage, root, out _);
+                queue.TryRegister(healing, root, out _);
+                BattleEffectExecutor executor = new(deck, eventLog, queue, player: player);
+                valid &= executor.TryExecuteNext(out _, out BattleEventRecord damageEvent, out _) &&
+                         damageEvent.EventType == BattleEventType.DamageApplied &&
+                         damageEvent.TargetId == BattlePlayerState.PlayerTargetId &&
+                         damageEvent.BeforeValue == 30 &&
+                         damageEvent.AfterValue == 23 &&
+                         player.CurrentHealth == 23;
+                valid &= executor.TryExecuteNext(out _, out BattleEventRecord healingEvent, out _) &&
+                         healingEvent.EventType == BattleEventType.HealingApplied &&
+                         healingEvent.BeforeValue == 23 &&
+                         healingEvent.AfterValue == 26 &&
+                         player.CurrentHealth == 26 &&
+                         outcome.Evaluate() == BattleOutcome.Ongoing;
+
+                BattlePlayerState maximumHealthPlayer = new(30);
+                maximumHealthPlayer.SetMaximumHealth(35);
+                valid &= maximumHealthPlayer.MaximumHealth == 35 &&
+                         maximumHealthPlayer.CurrentHealth == 35;
+                maximumHealthPlayer.ApplyDamage(10);
+                maximumHealthPlayer.SetMaximumHealth(20);
+                valid &= maximumHealthPlayer.MaximumHealth == 20 &&
+                         maximumHealthPlayer.CurrentHealth == 20;
+                maximumHealthPlayer.SetMaximumHealth(25);
+                valid &= maximumHealthPlayer.MaximumHealth == 25 &&
+                         maximumHealthPlayer.CurrentHealth == 25;
+
+                BattleEffectQueue lethalQueue = new();
+                BattleEffectCommand lethal = CreateHealthValidationCommand(
+                    "PLAYER-DAMAGE-LETHAL",
+                    root,
+                    BattlePlayerState.PlayerTargetId,
+                    EffectOperation.Damage,
+                    999);
+                lethalQueue.TryRegister(lethal, root, out _);
+                BattleEffectExecutor lethalExecutor = new(deck, eventLog, lethalQueue, player: player);
+                valid &= lethalExecutor.TryExecuteNext(out _, out _, out _) &&
+                         player.CurrentHealth == 0 && player.IsDefeated;
+                valid &= enemies.TryRemove("ENEMY-001") && enemies.TryRemove("ENEMY-002") &&
+                         enemies.Count == 0 &&
+                         outcome.Evaluate() == BattleOutcome.Defeat;
+
+                BattlePlayerState winningPlayer = new(30);
+                BattleEnemyTracker winningEnemies = new();
+                winningEnemies.TryAdd("ENEMY-WIN");
+                BattleOutcomeEvaluator winningOutcome = new(winningPlayer, winningEnemies);
+                valid &= winningOutcome.Evaluate() == BattleOutcome.Ongoing;
+                valid &= winningEnemies.TryRemove("enemy-win") &&
+                         winningOutcome.Evaluate() == BattleOutcome.Victory;
+
+                BattleEffectQueue missingPlayerQueue = new();
+                BattleEffectCommand missingPlayerDamage = CreateHealthValidationCommand(
+                    "PLAYER-MISSING", root, BattlePlayerState.PlayerTargetId,
+                    EffectOperation.Damage, 1);
+                missingPlayerQueue.TryRegister(missingPlayerDamage, root, out _);
+                BattleEffectExecutor missingPlayerExecutor = new(deck, eventLog, missingPlayerQueue);
+                int eventsBeforeMissingPlayer = eventLog.Events.Count;
+                valid &= !missingPlayerExecutor.TryExecuteNext(
+                    out _, out _, out EffectExecutionFailure missingPlayerFailure) &&
+                         missingPlayerFailure == EffectExecutionFailure.CombatTargetNotFound &&
+                         eventLog.Events.Count == eventsBeforeMissingPlayer;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Player health and outcome validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Player Health And Outcome Validation",
+                    valid ? "Player health and outcome passed." : "Player health and outcome failed. Check the Console.",
                     "OK");
             }
 
