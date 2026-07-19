@@ -9,6 +9,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleDeckState deck;
         [SerializeField] private BattleEventLog eventLog;
         [SerializeField] private BattleEffectQueue effectQueue;
+        [SerializeField] private BattleMonsterRegistry monsters;
 
         private BattleEffectExecutor()
         {
@@ -17,16 +18,19 @@ namespace HaveABreak.Cards
         public BattleEffectExecutor(
             BattleDeckState deck,
             BattleEventLog eventLog,
-            BattleEffectQueue effectQueue)
+            BattleEffectQueue effectQueue,
+            BattleMonsterRegistry monsters = null)
         {
             this.deck = deck ?? throw new ArgumentNullException(nameof(deck));
             this.eventLog = eventLog ?? throw new ArgumentNullException(nameof(eventLog));
             this.effectQueue = effectQueue ?? throw new ArgumentNullException(nameof(effectQueue));
+            this.monsters = monsters;
         }
 
         public BattleDeckState Deck => deck;
         public BattleEventLog EventLog => eventLog;
         public BattleEffectQueue EffectQueue => effectQueue;
+        public BattleMonsterRegistry Monsters => monsters;
 
         public bool TryExecuteNext(
             out BattleEffectCommand command,
@@ -47,12 +51,27 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (command.Operation != EffectOperation.Move)
+            switch (command.Operation)
             {
-                failure = EffectExecutionFailure.UnsupportedOperation;
-                return false;
+                case EffectOperation.Move:
+                    return TryExecuteMove(command, sourceEvent, out producedEvent, out failure);
+                case EffectOperation.Damage:
+                    return TryExecuteHealthChange(command, sourceEvent, false, out producedEvent, out failure);
+                case EffectOperation.Heal:
+                    return TryExecuteHealthChange(command, sourceEvent, true, out producedEvent, out failure);
+                default:
+                    failure = EffectExecutionFailure.UnsupportedOperation;
+                    return false;
             }
+        }
 
+        private bool TryExecuteMove(
+            BattleEffectCommand command,
+            BattleEventRecord sourceEvent,
+            out BattleEventRecord producedEvent,
+            out EffectExecutionFailure failure)
+        {
+            producedEvent = null;
             if (!command.HasDestinationZone)
             {
                 failure = EffectExecutionFailure.InvalidZoneTransition;
@@ -102,6 +121,51 @@ namespace HaveABreak.Cards
                 hasZoneChange: true,
                 fromZone: fromZone,
                 toZone: actualDestination);
+            failure = EffectExecutionFailure.None;
+            return true;
+        }
+
+        private bool TryExecuteHealthChange(
+            BattleEffectCommand command,
+            BattleEventRecord sourceEvent,
+            bool healing,
+            out BattleEventRecord producedEvent,
+            out EffectExecutionFailure failure)
+        {
+            producedEvent = null;
+            if (command.Value < 0)
+            {
+                failure = EffectExecutionFailure.InvalidValue;
+                return false;
+            }
+
+            BattleMonsterState target = monsters?.Find(command.TargetBattleCardId);
+            if (target == null)
+            {
+                failure = EffectExecutionFailure.CombatTargetNotFound;
+                return false;
+            }
+
+            int beforeHealth = target.CurrentHealth;
+            if (healing)
+            {
+                target.ApplyHealing(command.Value);
+            }
+            else
+            {
+                target.ApplyDamage(command.Value);
+            }
+
+            producedEvent = eventLog.Record(
+                healing ? BattleEventType.HealingApplied : BattleEventType.DamageApplied,
+                healing ? "EffectHealing" : "EffectDamage",
+                command.SourceId,
+                command.SourceId,
+                target.BattleCardId,
+                parentEventId: sourceEvent.EventId,
+                sourceEffectId: command.EffectId,
+                beforeValue: beforeHealth,
+                afterValue: target.CurrentHealth);
             failure = EffectExecutionFailure.None;
             return true;
         }

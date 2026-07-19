@@ -101,6 +101,11 @@ namespace HaveABreak.Editor
                 ValidateCardMoveEffects(true);
             }
 
+            if (GUILayout.Button("Validate Monster Damage And Healing"))
+            {
+                ValidateMonsterDamageAndHealing(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -1175,6 +1180,137 @@ namespace HaveABreak.Editor
                 targetBattleCardId: targetBattleCardId,
                 destinationZone: destination,
                 hasDestinationZone: true);
+        }
+
+        private static bool ValidateMonsterDamageAndHealing(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool valid = hasC01 && hasC05;
+            if (!valid)
+            {
+                Debug.LogError("Monster damage validation requires C01 and C05.");
+            }
+            else
+            {
+                BattleDeckState deck = new(CreateValidationDeck(c01, c05, 2, 1800), 1800);
+                deck.DrawStartingHand();
+                BattleCardInstance monsterCard = deck.Zones.GetCards(CardZone.Hand)
+                    .First(card => card.SourceCard.CardType == CardType.Monster);
+                BattleCardInstance skillCard = deck.Zones.GetCards(CardZone.Hand)
+                    .First(card => card.SourceCard.CardType == CardType.Skill);
+                deck.Zones.TryMove(monsterCard.Ids.BattleCardId, CardZone.MonsterField, out _);
+
+                BattleMonsterRegistry monsters = new();
+                valid &= monsters.TryAdd(monsterCard, out BattleMonsterState monster) &&
+                         monster.Attack == monsterCard.Resolved.Attack &&
+                         monster.MaximumHealth == monsterCard.Resolved.Health &&
+                         monster.CurrentHealth == monster.MaximumHealth &&
+                         !monster.IsDestructionCandidate;
+                valid &= !monsters.TryAdd(monsterCard, out _) &&
+                         !monsters.TryAdd(skillCard, out _);
+
+                BattleEventLog eventLog = new();
+                BattleEventRecord root = eventLog.Record(
+                    BattleEventType.CardPlayed,
+                    "DamageValidationRoot",
+                    "C05",
+                    skillCard.Ids.BattleCardId,
+                    monsterCard.Ids.BattleCardId);
+                BattleEffectQueue queue = new();
+                BattleEffectCommand damage = CreateHealthValidationCommand(
+                    "DAMAGE-4", root, monsterCard.Ids.BattleCardId, EffectOperation.Damage, 4);
+                BattleEffectCommand healing = CreateHealthValidationCommand(
+                    "HEAL-2", root, monsterCard.Ids.BattleCardId, EffectOperation.Heal, 2);
+                BattleEffectCommand lethal = CreateHealthValidationCommand(
+                    "DAMAGE-10", root, monsterCard.Ids.BattleCardId, EffectOperation.Damage, 10);
+                valid &= queue.TryRegister(damage, root, out _);
+                valid &= queue.TryRegister(healing, root, out _);
+                valid &= queue.TryRegister(lethal, root, out _);
+
+                BattleEffectExecutor executor = new(deck, eventLog, queue, monsters);
+                valid &= executor.TryExecuteNext(out _, out BattleEventRecord damageEvent, out _) &&
+                         damageEvent.EventType == BattleEventType.DamageApplied &&
+                         damageEvent.BeforeValue == monster.MaximumHealth &&
+                         damageEvent.AfterValue == monster.MaximumHealth - 4 &&
+                         damageEvent.ParentEventId == root.EventId &&
+                         monster.CurrentHealth == monster.MaximumHealth - 4;
+                valid &= executor.TryExecuteNext(out _, out BattleEventRecord healingEvent, out _) &&
+                         healingEvent.EventType == BattleEventType.HealingApplied &&
+                         healingEvent.BeforeValue == monster.MaximumHealth - 4 &&
+                         healingEvent.AfterValue == monster.MaximumHealth - 2 &&
+                         monster.CurrentHealth == monster.MaximumHealth - 2;
+                valid &= executor.TryExecuteNext(out _, out BattleEventRecord lethalEvent, out _) &&
+                         lethalEvent.EventType == BattleEventType.DamageApplied &&
+                         lethalEvent.BeforeValue == monster.MaximumHealth - 2 &&
+                         lethalEvent.AfterValue == 0 &&
+                         monster.CurrentHealth == 0 &&
+                         monster.IsDestructionCandidate;
+
+                BattleMonsterState clampMonster = new(monsterCard);
+                clampMonster.ApplyDamage(1);
+                valid &= clampMonster.ApplyHealing(100) == 1 &&
+                         clampMonster.CurrentHealth == clampMonster.MaximumHealth;
+
+                BattleEffectQueue invalidQueue = new();
+                BattleEffectCommand negativeDamage = CreateHealthValidationCommand(
+                    "DAMAGE-NEGATIVE", root, monsterCard.Ids.BattleCardId, EffectOperation.Damage, -1);
+                invalidQueue.TryRegister(negativeDamage, root, out _);
+                int eventCountBeforeInvalid = eventLog.Events.Count;
+                BattleEffectExecutor invalidExecutor = new(deck, eventLog, invalidQueue, monsters);
+                valid &= !invalidExecutor.TryExecuteNext(out _, out _, out EffectExecutionFailure negativeFailure) &&
+                         negativeFailure == EffectExecutionFailure.InvalidValue &&
+                         monster.CurrentHealth == 0 &&
+                         eventLog.Events.Count == eventCountBeforeInvalid;
+
+                BattleEffectQueue missingTargetQueue = new();
+                BattleEffectCommand missingTarget = CreateHealthValidationCommand(
+                    "DAMAGE-MISSING", root, "BATTLE-NOT-FOUND", EffectOperation.Damage, 1);
+                missingTargetQueue.TryRegister(missingTarget, root, out _);
+                BattleEffectExecutor missingTargetExecutor = new(deck, eventLog, missingTargetQueue, monsters);
+                valid &= !missingTargetExecutor.TryExecuteNext(
+                    out _, out _, out EffectExecutionFailure missingTargetFailure) &&
+                         missingTargetFailure == EffectExecutionFailure.CombatTargetNotFound &&
+                         eventLog.Events.Count == eventCountBeforeInvalid;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Monster damage and healing validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Monster Damage And Healing Validation",
+                    valid ? "Monster damage and healing passed." : "Monster damage and healing failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static BattleEffectCommand CreateHealthValidationCommand(
+            string effectId,
+            BattleEventRecord sourceEvent,
+            string targetBattleCardId,
+            EffectOperation operation,
+            int value)
+        {
+            return new BattleEffectCommand(
+                effectId,
+                "VALIDATION-SOURCE",
+                sourceEvent.EventId,
+                EffectProcessingStage.MainEffect,
+                true,
+                sourceEvent.EventType,
+                operation: operation,
+                targetBattleCardId: targetBattleCardId,
+                value: value);
         }
 
         private static List<CardData> FindAllCards()

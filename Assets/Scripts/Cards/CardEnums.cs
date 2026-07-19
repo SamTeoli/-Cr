@@ -91,6 +91,7 @@ namespace HaveABreak.Cards
         MonsterSummoned,
         AttackDeclared,
         DamageApplied,
+        HealingApplied,
         CardMoved,
         MonsterDestroyed,
         StatusApplied
@@ -132,6 +133,8 @@ namespace HaveABreak.Cards
         SourceEventNotFound,
         UnsupportedOperation,
         TargetNotFound,
+        CombatTargetNotFound,
+        InvalidValue,
         InvalidZoneTransition,
         ZoneMoveFailed
     }
