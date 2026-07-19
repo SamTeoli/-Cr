@@ -10,7 +10,8 @@
 6. `Validate Cards`를 실행해 `Validation passed (12 card(s))`를 확인한다.
 7. `Validate Level Resolution`을 실행해 `Level resolution passed.`를 확인한다.
 8. `Validate Battle Card Instances`를 실행해 `Battle card instances passed.`를 확인한다.
-9. 필요하면 `Rebuild Card Database`를 실행해 데이터베이스를 다시 갱신한다.
+9. `Validate Battle Card Zones`를 실행해 `Battle card zones passed.`를 확인한다.
+10. 필요하면 `Rebuild Card Database`를 실행해 데이터베이스를 다시 갱신한다.
 
 ## 생성되는 위치
 

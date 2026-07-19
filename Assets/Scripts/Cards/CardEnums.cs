@@ -25,6 +25,16 @@ namespace HaveABreak.Cards
         Banished
     }
 
+    public enum CardZoneMoveFailure
+    {
+        None,
+        NullCard,
+        InvalidIds,
+        DuplicateBattleCardId,
+        CardNotFound,
+        DestinationFull
+    }
+
     public enum EffectTrigger
     {
         None,

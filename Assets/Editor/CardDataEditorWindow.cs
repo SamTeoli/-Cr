@@ -66,6 +66,11 @@ namespace HaveABreak.Editor
                 ValidateBattleCardInstances(true);
             }
 
+            if (GUILayout.Button("Validate Battle Card Zones"))
+            {
+                ValidateBattleCardZones(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -319,6 +324,76 @@ namespace HaveABreak.Editor
             }
 
             return valid;
+        }
+
+        private static bool ValidateBattleCardZones(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool valid = hasC01 && hasC05;
+            if (!valid)
+            {
+                Debug.LogError("Battle card zone validation requires C01 and C05.");
+            }
+            else
+            {
+                BattleCardZoneState zones = new();
+                BattleCardInstance first = CreateValidationInstance(c01, 1, CardZone.DrawPile);
+                valid &= zones.TryAdd(first, out CardZoneMoveFailure addFailure) &&
+                         addFailure == CardZoneMoveFailure.None;
+                valid &= zones.TryMove(first.Ids.BattleCardId, CardZone.Hand, out CardZoneMoveFailure moveFailure) &&
+                         moveFailure == CardZoneMoveFailure.None &&
+                         zones.Count(CardZone.Hand) == 1 &&
+                         zones.Count(CardZone.DrawPile) == 0;
+
+                valid &= !zones.TryAdd(first, out CardZoneMoveFailure duplicateFailure) &&
+                         duplicateFailure == CardZoneMoveFailure.DuplicateBattleCardId;
+
+                for (int i = 2; i <= BattleCardZoneState.MaximumHandSize; i++)
+                {
+                    valid &= zones.TryAdd(CreateValidationInstance(c05, i, CardZone.Hand), out _);
+                }
+
+                BattleCardInstance overflow = CreateValidationInstance(c05, 11, CardZone.Hand);
+                valid &= !zones.TryAdd(overflow, out CardZoneMoveFailure handFailure) &&
+                         handFailure == CardZoneMoveFailure.DestinationFull &&
+                         zones.Count(CardZone.Hand) == BattleCardZoneState.MaximumHandSize;
+
+                BattleCardZoneState field = new();
+                for (int i = 1; i <= BattleCardZoneState.MaximumMonsterFieldSize; i++)
+                {
+                    valid &= field.TryAdd(CreateValidationInstance(c01, i + 20, CardZone.MonsterField), out _);
+                }
+
+                valid &= !field.TryAdd(CreateValidationInstance(c01, 24, CardZone.MonsterField), out CardZoneMoveFailure fieldFailure) &&
+                         fieldFailure == CardZoneMoveFailure.DestinationFull;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Battle card zone validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Battle Card Zone Validation",
+                    valid ? "Battle card zones passed." : "Battle card zones failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static BattleCardInstance CreateValidationInstance(CardData source, int sequence, CardZone zone)
+        {
+            string suffix = sequence.ToString("D3");
+            CardInstanceIds ids = new(source.CatalogCardId, $"OWN-{suffix}", $"BATTLE-{suffix}");
+            return new BattleCardInstance(source, ids, 1, zone);
         }
 
         private static List<CardData> FindAllCards()
