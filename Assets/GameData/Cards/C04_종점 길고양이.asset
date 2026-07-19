@@ -10,45 +10,52 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c696f5f18c03ae44392de92db629b906, type: 3}
-  m_Name: C04_종점 길고양이
+  m_Name: "C04_\uC885\uC810 \uAE38\uACE0\uC591\uC774"
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.MonsterCardData
   catalogCardId: C04
-  displayName: "종점 길고양이"
+  displayName: "\uC885\uC810 \uAE38\uACE0\uC591\uC774"
   rarity: 0
   manaCost: 1
-  rulesText: "적 턴마다 처음 적이 실제로 이동한 뒤 공격력 강화 1을 얻는다."
-  detailedRulesText: "위치가 실제로 바뀐 적 이동만 셉니다. 한 이동 명령에서 여러 적이 밀려나도 이 카드의 발동 횟수는 최초 한 번만 증가합니다."
+  rulesText: "\uC801 \uD134\uB9C8\uB2E4 \uCC98\uC74C \uC801\uC774 \uC2E4\uC81C\uB85C
+    \uC774\uB3D9\uD55C \uB4A4 \uACF5\uACA9\uB825 \uAC15\uD654 1\uC744 \uC5BB\uB294\uB2E4."
+  detailedRulesText: "\uC704\uCE58\uAC00 \uC2E4\uC81C\uB85C \uBC14\uB010 \uC801 \uC774\uB3D9\uB9CC
+    \uC149\uB2C8\uB2E4. \uD55C \uC774\uB3D9 \uBA85\uB839\uC5D0\uC11C \uC5EC\uB7EC
+    \uC801\uC774 \uBC00\uB824\uB098\uB3C4 \uC774 \uCE74\uB4DC\uC758 \uBC1C\uB3D9
+    \uD69F\uC218\uB294 \uCD5C\uCD08 \uD55C \uBC88\uB9CC \uC99D\uAC00\uD569\uB2C8\uB2E4."
   artwork: {fileID: 0}
   baseEnchantSlots: 1
-  role: "공격 / 이동 연계"
-  sourceVersion: "v0.4 / 2026-07-17"
-  sourceDocument: "카드 모음집 · C01~C12"
+  role: "\uACF5\uACA9 / \uC774\uB3D9 \uC5F0\uACC4"
+  sourceVersion: v0.4 / 2026-07-17
+  sourceDocument: "\uCE74\uB4DC \uBAA8\uC74C\uC9D1 \xB7 C01~C12"
+  enchantCompatibilityTags: 00000000
   levels:
   - level: 1
     manaCost: 1
     attack: 1
     health: 2
-    rulesText: "적 턴마다 처음 적이 실제로 이동한 뒤 공격력 강화 1을 얻습니다."
+    rulesText: "\uC801 \uD134\uB9C8\uB2E4 \uCC98\uC74C \uC801\uC774 \uC2E4\uC81C\uB85C
+      \uC774\uB3D9\uD55C \uB4A4 \uACF5\uACA9\uB825 \uAC15\uD654 1\uC744 \uC5BB\uC2B5\uB2C8\uB2E4."
   - level: 2
     manaCost: 1
     attack: 1
     health: 3
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 3
     manaCost: 1
     attack: 1
     health: 3
-    rulesText: "공격력 강화 2"
+    rulesText: "\uACF5\uACA9\uB825 \uAC15\uD654 2"
   - level: 4
     manaCost: 1
     attack: 2
     health: 3
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 5
     manaCost: 1
     attack: 2
     health: 4
-    rulesText: "적 턴마다 두 번째 실제 이동까지 발동"
+    rulesText: "\uC801 \uD134\uB9C8\uB2E4 \uB450 \uBC88\uC9F8 \uC2E4\uC81C \uC774\uB3D9\uAE4C\uC9C0
+      \uBC1C\uB3D9"
   effects: []
   attack: 1
   health: 2

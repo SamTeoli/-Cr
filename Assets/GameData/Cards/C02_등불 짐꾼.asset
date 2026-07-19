@@ -10,45 +10,55 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c696f5f18c03ae44392de92db629b906, type: 3}
-  m_Name: C02_등불 짐꾼
+  m_Name: "C02_\uB4F1\uBD88 \uC9D0\uAFBC"
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.MonsterCardData
   catalogCardId: C02
-  displayName: "등불 짐꾼"
+  displayName: "\uB4F1\uBD88 \uC9D0\uAFBC"
   rarity: 0
   manaCost: 2
-  rulesText: "소환될 때 이번 턴 다음 스킬 1장의 비용이 1 감소한다. 최소 0."
-  detailedRulesText: "비용 수정치는 다음 스킬 행동 확정 때 소비됩니다. 플레이어 턴 종료까지 사용하지 않으면 제거됩니다. 확정 뒤 효과가 무효화되어도 수정치는 돌아오지 않습니다."
+  rulesText: "\uC18C\uD658\uB420 \uB54C \uC774\uBC88 \uD134 \uB2E4\uC74C \uC2A4\uD0AC
+    1\uC7A5\uC758 \uBE44\uC6A9\uC774 1 \uAC10\uC18C\uD55C\uB2E4. \uCD5C\uC18C 0."
+  detailedRulesText: "\uBE44\uC6A9 \uC218\uC815\uCE58\uB294 \uB2E4\uC74C \uC2A4\uD0AC
+    \uD589\uB3D9 \uD655\uC815 \uB54C \uC18C\uBE44\uB429\uB2C8\uB2E4. \uD50C\uB808\uC774\uC5B4
+    \uD134 \uC885\uB8CC\uAE4C\uC9C0 \uC0AC\uC6A9\uD558\uC9C0 \uC54A\uC73C\uBA74 \uC81C\uAC70\uB429\uB2C8\uB2E4.
+    \uD655\uC815 \uB4A4 \uD6A8\uACFC\uAC00 \uBB34\uD6A8\uD654\uB418\uC5B4\uB3C4 \uC218\uC815\uCE58\uB294
+    \uB3CC\uC544\uC624\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4."
   artwork: {fileID: 0}
   baseEnchantSlots: 1
-  role: "자원 / 스킬 연계"
-  sourceVersion: "v0.4 / 2026-07-17"
-  sourceDocument: "카드 모음집 · C01~C12"
+  role: "\uC790\uC6D0 / \uC2A4\uD0AC \uC5F0\uACC4"
+  sourceVersion: v0.4 / 2026-07-17
+  sourceDocument: "\uCE74\uB4DC \uBAA8\uC74C\uC9D1 \xB7 C01~C12"
+  enchantCompatibilityTags: 00000000
   levels:
   - level: 1
     manaCost: 2
     attack: 2
     health: 4
-    rulesText: "소환될 때 이번 턴 다음 스킬 1장의 비용이 1 감소합니다. 최소 0."
+    rulesText: "\uC18C\uD658\uB420 \uB54C \uC774\uBC88 \uD134 \uB2E4\uC74C \uC2A4\uD0AC
+      1\uC7A5\uC758 \uBE44\uC6A9\uC774 1 \uAC10\uC18C\uD569\uB2C8\uB2E4. \uCD5C\uC18C
+      0."
   - level: 2
     manaCost: 2
     attack: 2
     health: 5
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 3
     manaCost: 2
     attack: 3
     health: 5
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 4
     manaCost: 2
     attack: 3
     health: 5
-    rulesText: "소환 후 이 몬스터가 방어 1 획득"
+    rulesText: "\uC18C\uD658 \uD6C4 \uC774 \uBAAC\uC2A4\uD130\uAC00 \uBC29\uC5B4
+      1 \uD68D\uB4DD"
   - level: 5
     manaCost: 2
     attack: 3
     health: 6
-    rulesText: "비용 감소를 받은 다음 스킬의 첫 수치형 효과 +1"
+    rulesText: "\uBE44\uC6A9 \uAC10\uC18C\uB97C \uBC1B\uC740 \uB2E4\uC74C \uC2A4\uD0AC\uC758
+      \uCCAB \uC218\uCE58\uD615 \uD6A8\uACFC +1"
   effects: []
   attack: 2
   health: 4

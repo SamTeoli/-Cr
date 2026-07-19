@@ -63,7 +63,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (!enchant.IsCompatible(card.CardType))
+            if (!EnchantCompatibilityEvaluator.IsCompatible(enchant, card))
             {
                 failure = EnchantAttachmentFailure.IncompatibleCardType;
                 return false;
@@ -139,7 +139,7 @@ namespace HaveABreak.Cards
 
         public bool HasImmediateAttachmentTarget(EnchantData enchant)
         {
-            if (enchant == null || !enchant.IsCompatible(card.CardType) ||
+            if (enchant == null || !EnchantCompatibilityEvaluator.IsCompatible(enchant, card) ||
                 (!enchant.AllowDuplicateOnSameCard && Contains(enchant)))
             {
                 return false;

@@ -10,45 +10,57 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c696f5f18c03ae44392de92db629b906, type: 3}
-  m_Name: C01_막차의 침낭지기
+  m_Name: "C01_\uB9C9\uCC28\uC758 \uCE68\uB0AD\uC9C0\uAE30"
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.MonsterCardData
   catalogCardId: C01
-  displayName: "막차의 침낭지기"
+  displayName: "\uB9C9\uCC28\uC758 \uCE68\uB0AD\uC9C0\uAE30"
   rarity: 1
   manaCost: 3
-  rulesText: "소환될 때 적 1개를 왼쪽으로 1칸 이동시킨다. 고정 때문에 실패하면 이 몬스터는 방어 2를 얻는다."
-  detailedRulesText: "대상은 선언할 때 고정합니다. 이동은 한 칸씩 처리하며 다른 적을 밀고 끝 위치에서는 원형 회전합니다. 고정 적이 경로를 막아 이동이 실패한 경우에만 방어를 얻습니다."
+  rulesText: "\uC18C\uD658\uB420 \uB54C \uC801 1\uAC1C\uB97C \uC67C\uCABD\uC73C\uB85C
+    1\uCE78 \uC774\uB3D9\uC2DC\uD0A8\uB2E4. \uACE0\uC815 \uB54C\uBB38\uC5D0 \uC2E4\uD328\uD558\uBA74
+    \uC774 \uBAAC\uC2A4\uD130\uB294 \uBC29\uC5B4 2\uB97C \uC5BB\uB294\uB2E4."
+  detailedRulesText: "\uB300\uC0C1\uC740 \uC120\uC5B8\uD560 \uB54C \uACE0\uC815\uD569\uB2C8\uB2E4.
+    \uC774\uB3D9\uC740 \uD55C \uCE78\uC529 \uCC98\uB9AC\uD558\uBA70 \uB2E4\uB978
+    \uC801\uC744 \uBC00\uACE0 \uB05D \uC704\uCE58\uC5D0\uC11C\uB294 \uC6D0\uD615
+    \uD68C\uC804\uD569\uB2C8\uB2E4. \uACE0\uC815 \uC801\uC774 \uACBD\uB85C\uB97C
+    \uB9C9\uC544 \uC774\uB3D9\uC774 \uC2E4\uD328\uD55C \uACBD\uC6B0\uC5D0\uB9CC \uBC29\uC5B4\uB97C
+    \uC5BB\uC2B5\uB2C8\uB2E4."
   artwork: {fileID: 0}
   baseEnchantSlots: 1
-  role: "이동 / 방어 / 위치 제어"
-  sourceVersion: "v0.4 / 2026-07-17"
-  sourceDocument: "카드 모음집 · C01~C12"
+  role: "\uC774\uB3D9 / \uBC29\uC5B4 / \uC704\uCE58 \uC81C\uC5B4"
+  sourceVersion: v0.4 / 2026-07-17
+  sourceDocument: "\uCE74\uB4DC \uBAA8\uC74C\uC9D1 \xB7 C01~C12"
+  enchantCompatibilityTags: 0000000004000000
   levels:
   - level: 1
     manaCost: 3
     attack: 2
     health: 6
-    rulesText: "소환될 때 적 1개를 왼쪽으로 1칸 이동시킵니다. 고정 때문에 실패하면 방어 2를 얻습니다."
+    rulesText: "\uC18C\uD658\uB420 \uB54C \uC801 1\uAC1C\uB97C \uC67C\uCABD\uC73C\uB85C
+      1\uCE78 \uC774\uB3D9\uC2DC\uD0B5\uB2C8\uB2E4. \uACE0\uC815 \uB54C\uBB38\uC5D0
+      \uC2E4\uD328\uD558\uBA74 \uBC29\uC5B4 2\uB97C \uC5BB\uC2B5\uB2C8\uB2E4."
   - level: 2
     manaCost: 3
     attack: 2
     health: 7
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 3
     manaCost: 3
     attack: 3
     health: 7
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 4
     manaCost: 3
     attack: 3
     health: 8
-    rulesText: "고정 때문에 이동이 실패하면 방어 3을 얻습니다."
+    rulesText: "\uACE0\uC815 \uB54C\uBB38\uC5D0 \uC774\uB3D9\uC774 \uC2E4\uD328\uD558\uBA74
+      \uBC29\uC5B4 3\uC744 \uC5BB\uC2B5\uB2C8\uB2E4."
   - level: 5
     manaCost: 3
     attack: 4
     health: 8
-    rulesText: "이동 성공 시에도 이 몬스터가 방어 1을 얻습니다."
+    rulesText: "\uC774\uB3D9 \uC131\uACF5 \uC2DC\uC5D0\uB3C4 \uC774 \uBAAC\uC2A4\uD130\uAC00
+      \uBC29\uC5B4 1\uC744 \uC5BB\uC2B5\uB2C8\uB2E4."
   effects: []
   attack: 2
   health: 6

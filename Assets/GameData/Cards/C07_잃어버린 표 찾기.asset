@@ -10,43 +10,51 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 21200da9b2103e646be53746709a26fe, type: 3}
-  m_Name: C07_잃어버린 표 찾기
+  m_Name: "C07_\uC783\uC5B4\uBC84\uB9B0 \uD45C \uCC3E\uAE30"
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.SkillCardData
   catalogCardId: C07
-  displayName: "잃어버린 표 찾기"
+  displayName: "\uC783\uC5B4\uBC84\uB9B0 \uD45C \uCC3E\uAE30"
   rarity: 0
   manaCost: 1
-  rulesText: "카드 2장을 드로우한 뒤 패에서 다른 카드 1장을 소멸시킨다."
-  detailedRulesText: "카드는 한 장씩 드로우합니다. 패가 10장이면 해당 드로우만 실패하고 카드는 덱 맨 위에 남습니다. 이 카드 자신은 소멸 대상으로 선택할 수 없습니다."
+  rulesText: "\uCE74\uB4DC 2\uC7A5\uC744 \uB4DC\uB85C\uC6B0\uD55C \uB4A4 \uD328\uC5D0\uC11C
+    \uB2E4\uB978 \uCE74\uB4DC 1\uC7A5\uC744 \uC18C\uBA78\uC2DC\uD0A8\uB2E4."
+  detailedRulesText: "\uCE74\uB4DC\uB294 \uD55C \uC7A5\uC529 \uB4DC\uB85C\uC6B0\uD569\uB2C8\uB2E4.
+    \uD328\uAC00 10\uC7A5\uC774\uBA74 \uD574\uB2F9 \uB4DC\uB85C\uC6B0\uB9CC \uC2E4\uD328\uD558\uACE0
+    \uCE74\uB4DC\uB294 \uB371 \uB9E8 \uC704\uC5D0 \uB0A8\uC2B5\uB2C8\uB2E4. \uC774
+    \uCE74\uB4DC \uC790\uC2E0\uC740 \uC18C\uBA78 \uB300\uC0C1\uC73C\uB85C \uC120\uD0DD\uD560
+    \uC218 \uC5C6\uC2B5\uB2C8\uB2E4."
   artwork: {fileID: 0}
   baseEnchantSlots: 1
-  role: "드로우 / 소멸 / 패 순환"
-  sourceVersion: "v0.4 / 2026-07-17"
-  sourceDocument: "카드 모음집 · C01~C12"
+  role: "\uB4DC\uB85C\uC6B0 / \uC18C\uBA78 / \uD328 \uC21C\uD658"
+  sourceVersion: v0.4 / 2026-07-17
+  sourceDocument: "\uCE74\uB4DC \uBAA8\uC74C\uC9D1 \xB7 C01~C12"
+  enchantCompatibilityTags: 0000000003000000
   levels:
   - level: 1
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "카드 2장 드로우 후 다른 카드 1장 소멸"
+    rulesText: "\uCE74\uB4DC 2\uC7A5 \uB4DC\uB85C\uC6B0 \uD6C4 \uB2E4\uB978 \uCE74\uB4DC
+      1\uC7A5 \uC18C\uBA78"
   - level: 2
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "카드 3장 드로우"
+    rulesText: "\uCE74\uB4DC 3\uC7A5 \uB4DC\uB85C\uC6B0"
   - level: 3
     manaCost: 0
     attack: 0
     health: 0
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 4
     manaCost: 0
     attack: 0
     health: 0
-    rulesText: "다른 카드 0~1장 소멸"
+    rulesText: "\uB2E4\uB978 \uCE74\uB4DC 0~1\uC7A5 \uC18C\uBA78"
   - level: 5
     manaCost: 0
     attack: 0
     health: 0
-    rulesText: "비용 2 이상 카드 소멸 시 아군 몬스터 방어 2"
+    rulesText: "\uBE44\uC6A9 2 \uC774\uC0C1 \uCE74\uB4DC \uC18C\uBA78 \uC2DC \uC544\uAD70
+      \uBAAC\uC2A4\uD130 \uBC29\uC5B4 2"
   effects: []

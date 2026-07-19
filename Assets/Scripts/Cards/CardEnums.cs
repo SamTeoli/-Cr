@@ -198,6 +198,15 @@ namespace HaveABreak.Cards
         RuleChange
     }
 
+    public enum EnchantCompatibilityTag
+    {
+        MainEffectCompletion,
+        EnemyAffectingEffect,
+        NumericRepeatingEffect,
+        NormalGraveyardAfterResolution,
+        FixedSingleEnemyTarget
+    }
+
     public enum EffectTrigger
     {
         None,

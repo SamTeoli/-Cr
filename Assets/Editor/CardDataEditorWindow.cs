@@ -141,6 +141,16 @@ namespace HaveABreak.Editor
                 TestEnchantDataBuilder.ValidateTestEnchants(true);
             }
 
+            if (GUILayout.Button("Apply Enchant Compatibility Tags C01-C12"))
+            {
+                TestEnchantCompatibilityBuilder.ApplyTags(true);
+            }
+
+            if (GUILayout.Button("Validate Enchant Compatibility"))
+            {
+                TestEnchantCompatibilityBuilder.Validate(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();

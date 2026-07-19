@@ -24,6 +24,7 @@ namespace HaveABreak.Cards
         [SerializeField] private string role;
         [SerializeField] private string sourceVersion;
         [SerializeField] private string sourceDocument;
+        [SerializeField] private List<EnchantCompatibilityTag> enchantCompatibilityTags = new();
 
         [Header("Levels 1-5")]
         [SerializeField] private List<CardLevelData> levels = new();
@@ -42,9 +43,15 @@ namespace HaveABreak.Cards
         public string Role => role;
         public string SourceVersion => sourceVersion;
         public string SourceDocument => sourceDocument;
+        public IReadOnlyList<EnchantCompatibilityTag> EnchantCompatibilityTags => enchantCompatibilityTags;
         public IReadOnlyList<CardLevelData> Levels => levels;
         public IReadOnlyList<CardEffectData> Effects => effects;
         public abstract CardType CardType { get; }
+
+        public bool HasEnchantCompatibilityTag(EnchantCompatibilityTag tag)
+        {
+            return enchantCompatibilityTags.Contains(tag);
+        }
 
         public CardLevelData GetLevelData(int requestedLevel)
         {
@@ -92,6 +99,13 @@ namespace HaveABreak.Cards
             displayName = cardName;
             rarity = cardRarity;
             manaCost = Mathf.Max(0, cost);
+        }
+
+        public void EditorSetEnchantCompatibilityTags(IEnumerable<EnchantCompatibilityTag> tags)
+        {
+            enchantCompatibilityTags = tags == null
+                ? new List<EnchantCompatibilityTag>()
+                : new List<EnchantCompatibilityTag>(tags);
         }
 #endif
 

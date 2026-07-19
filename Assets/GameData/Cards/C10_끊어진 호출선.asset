@@ -10,44 +10,53 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 708408edbe633c24ebdc2323a2430e26, type: 3}
-  m_Name: C10_끊어진 호출선
+  m_Name: "C10_\uB04A\uC5B4\uC9C4 \uD638\uCD9C\uC120"
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.TrapCardData
   catalogCardId: C10
-  displayName: "끊어진 호출선"
+  displayName: "\uB04A\uC5B4\uC9C4 \uD638\uCD9C\uC120"
   rarity: 1
   manaCost: 2
-  rulesText: "아군에게 영향을 주는 다음 적 능력 1개를 무효화한다. 일반 공격은 제외한다."
-  detailedRulesText: "최종 대상이나 효과 범위에 아군 몬스터 또는 플레이어가 포함되는 적 능력만 무효화합니다. 능력의 비용·사용 횟수·행동은 반환하지 않습니다."
+  rulesText: "\uC544\uAD70\uC5D0\uAC8C \uC601\uD5A5\uC744 \uC8FC\uB294 \uB2E4\uC74C
+    \uC801 \uB2A5\uB825 1\uAC1C\uB97C \uBB34\uD6A8\uD654\uD55C\uB2E4. \uC77C\uBC18
+    \uACF5\uACA9\uC740 \uC81C\uC678\uD55C\uB2E4."
+  detailedRulesText: "\uCD5C\uC885 \uB300\uC0C1\uC774\uB098 \uD6A8\uACFC \uBC94\uC704\uC5D0
+    \uC544\uAD70 \uBAAC\uC2A4\uD130 \uB610\uB294 \uD50C\uB808\uC774\uC5B4\uAC00 \uD3EC\uD568\uB418\uB294
+    \uC801 \uB2A5\uB825\uB9CC \uBB34\uD6A8\uD654\uD569\uB2C8\uB2E4. \uB2A5\uB825\uC758
+    \uBE44\uC6A9\xB7\uC0AC\uC6A9 \uD69F\uC218\xB7\uD589\uB3D9\uC740 \uBC18\uD658\uD558\uC9C0
+    \uC54A\uC2B5\uB2C8\uB2E4."
   artwork: {fileID: 0}
   baseEnchantSlots: 1
-  role: "능력 무효 / 제어"
-  sourceVersion: "v0.4 / 2026-07-17"
-  sourceDocument: "카드 모음집 · C01~C12"
+  role: "\uB2A5\uB825 \uBB34\uD6A8 / \uC81C\uC5B4"
+  sourceVersion: v0.4 / 2026-07-17
+  sourceDocument: "\uCE74\uB4DC \uBAA8\uC74C\uC9D1 \xB7 C01~C12"
+  enchantCompatibilityTags: 000000000100000003000000
   levels:
   - level: 1
     manaCost: 2
     attack: 0
     health: 0
-    rulesText: "다음 적 능력 1개 무효 / 일반 공격 제외"
+    rulesText: "\uB2E4\uC74C \uC801 \uB2A5\uB825 1\uAC1C \uBB34\uD6A8 / \uC77C\uBC18
+      \uACF5\uACA9 \uC81C\uC678"
   - level: 2
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 3
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "능력 출처 적에게 약화 1"
+    rulesText: "\uB2A5\uB825 \uCD9C\uCC98 \uC801\uC5D0\uAC8C \uC57D\uD654 1"
   - level: 4
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "범위 능력이 아군을 포함하면 발동 가능"
+    rulesText: "\uBC94\uC704 \uB2A5\uB825\uC774 \uC544\uAD70\uC744 \uD3EC\uD568\uD558\uBA74
+      \uBC1C\uB3D9 \uAC00\uB2A5"
   - level: 5
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "전투당 1회 발동 후 패로 회수"
+    rulesText: "\uC804\uD22C\uB2F9 1\uD68C \uBC1C\uB3D9 \uD6C4 \uD328\uB85C \uD68C\uC218"
   effects: []
   activatesAtEnemyTurnStart: 1

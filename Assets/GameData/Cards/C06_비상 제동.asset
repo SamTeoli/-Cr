@@ -10,43 +10,49 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 21200da9b2103e646be53746709a26fe, type: 3}
-  m_Name: C06_비상 제동
+  m_Name: "C06_\uBE44\uC0C1 \uC81C\uB3D9"
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.SkillCardData
   catalogCardId: C06
-  displayName: "비상 제동"
+  displayName: "\uBE44\uC0C1 \uC81C\uB3D9"
   rarity: 1
   manaCost: 2
-  rulesText: "적 1개에게 속박 1을 부여한다."
-  detailedRulesText: "주 대상은 선언할 때 고정합니다. 속박 명령이 면역으로 무효화되면 같은 대상의 후속 약화도 처리하지 않습니다. 레벨 5의 다른 적은 처리 시점에 공격력이 가장 높은 적으로 동적 선택합니다."
+  rulesText: "\uC801 1\uAC1C\uC5D0\uAC8C \uC18D\uBC15 1\uC744 \uBD80\uC5EC\uD55C\uB2E4."
+  detailedRulesText: "\uC8FC \uB300\uC0C1\uC740 \uC120\uC5B8\uD560 \uB54C \uACE0\uC815\uD569\uB2C8\uB2E4.
+    \uC18D\uBC15 \uBA85\uB839\uC774 \uBA74\uC5ED\uC73C\uB85C \uBB34\uD6A8\uD654\uB418\uBA74
+    \uAC19\uC740 \uB300\uC0C1\uC758 \uD6C4\uC18D \uC57D\uD654\uB3C4 \uCC98\uB9AC\uD558\uC9C0
+    \uC54A\uC2B5\uB2C8\uB2E4. \uB808\uBCA8 5\uC758 \uB2E4\uB978 \uC801\uC740 \uCC98\uB9AC
+    \uC2DC\uC810\uC5D0 \uACF5\uACA9\uB825\uC774 \uAC00\uC7A5 \uB192\uC740 \uC801\uC73C\uB85C
+    \uB3D9\uC801 \uC120\uD0DD\uD569\uB2C8\uB2E4."
   artwork: {fileID: 0}
   baseEnchantSlots: 1
-  role: "제어 / 상태"
-  sourceVersion: "v0.4 / 2026-07-17"
-  sourceDocument: "카드 모음집 · C01~C12"
+  role: "\uC81C\uC5B4 / \uC0C1\uD0DC"
+  sourceVersion: v0.4 / 2026-07-17
+  sourceDocument: "\uCE74\uB4DC \uBAA8\uC74C\uC9D1 \xB7 C01~C12"
+  enchantCompatibilityTags: 000000000300000004000000
   levels:
   - level: 1
     manaCost: 2
     attack: 0
     health: 0
-    rulesText: "적 1개에게 속박 1"
+    rulesText: "\uC801 1\uAC1C\uC5D0\uAC8C \uC18D\uBC15 1"
   - level: 2
     manaCost: 2
     attack: 0
     health: 0
-    rulesText: "같은 대상에게 약화 1"
+    rulesText: "\uAC19\uC740 \uB300\uC0C1\uC5D0\uAC8C \uC57D\uD654 1"
   - level: 3
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 4
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "속박 2"
+    rulesText: "\uC18D\uBC15 2"
   - level: 5
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "다른 적 1개에게 약화 1 추가"
+    rulesText: "\uB2E4\uB978 \uC801 1\uAC1C\uC5D0\uAC8C \uC57D\uD654 1 \uCD94\uAC00"
   effects: []

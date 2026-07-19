@@ -10,44 +10,51 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 708408edbe633c24ebdc2323a2430e26, type: 3}
-  m_Name: C09_검표 회피용 담요
+  m_Name: "C09_\uAC80\uD45C \uD68C\uD53C\uC6A9 \uB2F4\uC694"
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.TrapCardData
   catalogCardId: C09
-  displayName: "검표 회피용 담요"
+  displayName: "\uAC80\uD45C \uD68C\uD53C\uC6A9 \uB2F4\uC694"
   rarity: 0
   manaCost: 1
-  rulesText: "다음 적 턴 처음 공격받는 아군 몬스터는 피해를 받기 전에 방어 3을 얻는다."
-  detailedRulesText: "공격 대상이 아군 몬스터인 첫 유효 공격에서 피해 적용 전에 방어를 부여합니다. 연속공격에서는 첫 타격 전에만 발동합니다."
+  rulesText: "\uB2E4\uC74C \uC801 \uD134 \uCC98\uC74C \uACF5\uACA9\uBC1B\uB294 \uC544\uAD70
+    \uBAAC\uC2A4\uD130\uB294 \uD53C\uD574\uB97C \uBC1B\uAE30 \uC804\uC5D0 \uBC29\uC5B4
+    3\uC744 \uC5BB\uB294\uB2E4."
+  detailedRulesText: "\uACF5\uACA9 \uB300\uC0C1\uC774 \uC544\uAD70 \uBAAC\uC2A4\uD130\uC778
+    \uCCAB \uC720\uD6A8 \uACF5\uACA9\uC5D0\uC11C \uD53C\uD574 \uC801\uC6A9 \uC804\uC5D0
+    \uBC29\uC5B4\uB97C \uBD80\uC5EC\uD569\uB2C8\uB2E4. \uC5F0\uC18D\uACF5\uACA9\uC5D0\uC11C\uB294
+    \uCCAB \uD0C0\uACA9 \uC804\uC5D0\uB9CC \uBC1C\uB3D9\uD569\uB2C8\uB2E4."
   artwork: {fileID: 0}
   baseEnchantSlots: 1
-  role: "방어 / 피해 완화"
-  sourceVersion: "v0.4 / 2026-07-17"
-  sourceDocument: "카드 모음집 · C01~C12"
+  role: "\uBC29\uC5B4 / \uD53C\uD574 \uC644\uD654"
+  sourceVersion: v0.4 / 2026-07-17
+  sourceDocument: "\uCE74\uB4DC \uBAA8\uC74C\uC9D1 \xB7 C01~C12"
+  enchantCompatibilityTags: 0000000003000000
   levels:
   - level: 1
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "첫 공격 전 방어 3"
+    rulesText: "\uCCAB \uACF5\uACA9 \uC804 \uBC29\uC5B4 3"
   - level: 2
     manaCost: 1
     attack: 0
     health: 0
-    rulesText: "방어 4"
+    rulesText: "\uBC29\uC5B4 4"
   - level: 3
     manaCost: 0
     attack: 0
     health: 0
-    rulesText: "효과 동일"
+    rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
   - level: 4
     manaCost: 0
     attack: 0
     health: 0
-    rulesText: "남은 방어가 다음 플레이어 턴 종료까지 유지"
+    rulesText: "\uB0A8\uC740 \uBC29\uC5B4\uAC00 \uB2E4\uC74C \uD50C\uB808\uC774\uC5B4
+      \uD134 \uC885\uB8CC\uAE4C\uC9C0 \uC720\uC9C0"
   - level: 5
     manaCost: 0
     attack: 0
     health: 0
-    rulesText: "방어 5"
+    rulesText: "\uBC29\uC5B4 5"
   effects: []
   activatesAtEnemyTurnStart: 1
