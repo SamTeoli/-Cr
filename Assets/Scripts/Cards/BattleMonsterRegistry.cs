@@ -13,14 +13,23 @@ namespace HaveABreak.Cards
 
         public bool TryAdd(BattleCardInstance card, out BattleMonsterState state)
         {
+            return TryAdd(card, null, out state);
+        }
+
+        public bool TryAdd(
+            BattleCardInstance card,
+            RunCardEnchantState enchants,
+            out BattleMonsterState state)
+        {
             state = null;
             if (card == null || card.SourceCard.CardType != CardType.Monster ||
-                Find(card.Ids.BattleCardId) != null)
+                Find(card.Ids.BattleCardId) != null ||
+                (enchants != null && enchants.Card != card.SourceCard))
             {
                 return false;
             }
 
-            state = new BattleMonsterState(card);
+            state = new BattleMonsterState(card, enchants);
             monsters.Add(state);
             return true;
         }
