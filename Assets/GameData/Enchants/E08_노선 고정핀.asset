@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2c93b7a765d4c4a80d3d7ed5353dc4f, type: 3}
+  m_Name: "E08_\uB178\uC120 \uACE0\uC815\uD540"
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EnchantData
+  definitionId: E08
+  displayName: "\uB178\uC120 \uACE0\uC815\uD540"
+  rarity: 2
+  applicationType: 3
+  role: "\uB300\uC0C1 \uBC29\uC2DD / \uC704\uCE58"
+  compatibleCardTypes: 00000000010000000200000003000000
+  additionalCompatibilityRule: "\uC801 1\uAC1C \uACE0\uC815 \uB300\uC0C1 \uD6A8\uACFC"
+  allowDuplicateOnSameCard: 0
+  rulesText: "\uC801 \uACE0\uC815 \uB300\uC0C1 \uD6A8\uACFC\uAC00 \uC704\uCE58 \uB300\uC0C1
+    \uD6A8\uACFC\uB85C \uBC14\uB010\uB2E4."
+  sourceVersion: "\uC2DC\uD5D8 \uCF58\uD150\uCE20 / v0.4 / 2026-07-18"
+  sourceDocument: https://docs.google.com/document/d/1NjzwzmYLOkf9A1vEPp18Ycq_e5MuQ628HOS7RU1BD4Q/edit
+  effects:
+  - trigger: "\uB300\uC0C1 \uC120\uC5B8 \uC0AC\uAC74"
+    conditionAndTarget: "\uC7A5\uCC29 \uCE74\uB4DC\uC758 \uC801 1\uAC1C \uACE0\uC815
+      \uB300\uC0C1 \uD6A8\uACFC"
+    resolution: "\uC120\uD0DD\uD55C \uC801\uC758 \uD604\uC7AC \uC704\uCE58\uB97C
+      \uAE30\uB85D\uD558\uACE0 \uC704\uCE58 \uB300\uC0C1\uC73C\uB85C \uBCC0\uACBD\uD569\uB2C8\uB2E4."
+    limitation: "\uC120\uC5B8 \uB2F9\uC2DC \uBE48 \uC704\uCE58\uB97C \uC120\uD0DD\uD560
+      \uC218 \uC5C6\uC2B5\uB2C8\uB2E4."
+  - trigger: "\uD6A8\uACFC \uD574\uACB0 \uC0AC\uAC74"
+    conditionAndTarget: "\uAE30\uB85D\uD55C \uC704\uCE58\uC5D0 \uC801 \uC874\uC7AC"
+    resolution: "\uD604\uC7AC \uADF8 \uC704\uCE58\uB97C \uC810\uC720\uD55C \uC801\uC5D0\uAC8C
+      \uD6A8\uACFC\uB97C \uC801\uC6A9\uD569\uB2C8\uB2E4."
+    limitation: "\uBE48 \uC704\uCE58\uBA74 \uC2E4\uD328\uD558\uBA70 \uB2E4\uB978
+      \uC704\uCE58\uB85C \uC7AC\uD0D0\uC0C9\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4."

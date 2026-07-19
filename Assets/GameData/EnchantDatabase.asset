@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c462e43c9df481288b6940a9888fb0d, type: 3}
+  m_Name: EnchantDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EnchantDatabase
+  enchants:
+  - {fileID: 11400000, guid: 3527596db1de2f041803972231326a01, type: 2}
+  - {fileID: 11400000, guid: bb7381c91cfbb8d44b690e8d73018360, type: 2}
+  - {fileID: 11400000, guid: b1c3a99eaa7a3c743b2596a813f21d86, type: 2}
+  - {fileID: 11400000, guid: 446d876fa1437ad45bbe69c52a9cc7a3, type: 2}
+  - {fileID: 11400000, guid: b3143e7d89226ed41a11ebe8533201e7, type: 2}
+  - {fileID: 11400000, guid: 89c9ac5ee38d4c645a6afcb239dfd358, type: 2}
+  - {fileID: 11400000, guid: a093b1a367231a94aaef9956f844c0ae, type: 2}
+  - {fileID: 11400000, guid: 1e0298ba16d2abc4d9dca985ada1384f, type: 2}

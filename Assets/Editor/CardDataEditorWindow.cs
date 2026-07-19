@@ -131,6 +131,16 @@ namespace HaveABreak.Editor
                 ValidateRunCardEnchantSlots(true);
             }
 
+            if (GUILayout.Button("Create/Rebuild Test Enchants E01-E08"))
+            {
+                TestEnchantDataBuilder.RebuildTestEnchants(true);
+            }
+
+            if (GUILayout.Button("Validate Test Enchants E01-E08"))
+            {
+                TestEnchantDataBuilder.ValidateTestEnchants(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();

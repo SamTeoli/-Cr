@@ -190,6 +190,14 @@ namespace HaveABreak.Cards
         BattleLocked
     }
 
+    public enum EnchantApplicationType
+    {
+        StaticModifier,
+        PreReplacement,
+        PostTrigger,
+        RuleChange
+    }
+
     public enum EffectTrigger
     {
         None,

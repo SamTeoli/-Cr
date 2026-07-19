@@ -51,6 +51,12 @@ ID 계층은 수록카드ID(`CatalogCardId`), 보유카드ID(`OwnedCardId`),
 장착하며 전투 중 장착·제거는 차단한다. 제거해도 다른 인첸트는 당겨지지 않으며, 카드
 종류가 일시적으로 비호환이 되면 슬롯을 유지한 채 비활성화하고 다시 호환되면 활성화한다.
 
+`Assets/GameData/Enchants`에는 Google Docs 시험 인첸트 제작서 v0.4를 기준으로 한
+E01~E08 정의가 저장된다. 각 정의는 적용 유형, 역할, 추가 호환 조건, 화면 문구, 원본
+문서와 효과 판정 목록을 보존하며 `EnchantDatabase.asset`에서 ID 순으로 조회한다.
+Editor 도구의 `Create/Rebuild Test Enchants E01-E08`로 에셋을 생성·갱신하고
+`Validate Test Enchants E01-E08`로 원문 이전 결과와 데이터베이스 연결을 검사한다.
+
 `CardData.ResolveLevel(level)`은 요청 레벨을 1~5로 보정하고 해당 레벨의 비용·공격력·
 생명력·효과 문구를 `ResolvedCardData`로 반환한다. Editor 도구의
 `Validate Level Resolution`으로 대표 카드와 범위 보정을 검사할 수 있다.

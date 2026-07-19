@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2c93b7a765d4c4a80d3d7ed5353dc4f, type: 3}
+  m_Name: "E03_\uAD6C\uACA8\uC9C4 \uC655\uBCF5 \uC2B9\uCC28\uAD8C"
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EnchantData
+  definitionId: E03
+  displayName: "\uAD6C\uACA8\uC9C4 \uC655\uBCF5 \uC2B9\uCC28\uAD8C"
+  rarity: 1
+  applicationType: 2
+  role: "\uC790\uC6D0 / \uB4DC\uB85C\uC6B0"
+  compatibleCardTypes: 00000000010000000200000003000000
+  additionalCompatibilityRule: "\uBCF8 \uD6A8\uACFC \uC644\uB8CC \uC0AC\uAC74 \uC874\uC7AC"
+  allowDuplicateOnSameCard: 0
+  rulesText: "\uC7A5\uCC29 \uCE74\uB4DC\uC758 \uBCF8 \uD6A8\uACFC \uB4A4 \uD604\uC7AC
+    \uB9C8\uB825\uC774 0\uC774\uBA74 \uCE74\uB4DC 1\uC7A5\uC744 \uB4DC\uB85C\uC6B0\uD55C\uB2E4.
+    \uD134\uB2F9 1\uD68C."
+  sourceVersion: "\uC2DC\uD5D8 \uCF58\uD150\uCE20 / v0.4 / 2026-07-18"
+  sourceDocument: https://docs.google.com/document/d/1icMWm_AT1lqImoEMU1FApTjQpE4h0iVGlpRiHWxZbFQ/edit
+  effects:
+  - trigger: "\uBCF8 \uD6A8\uACFC \uC644\uB8CC \uC0AC\uAC74"
+    conditionAndTarget: "\uC7A5\uCC29 \uCE74\uB4DC \uBCF8 \uD6A8\uACFC \uC644\uB8CC
+      / \uD604\uC7AC \uB9C8\uB825 0 / \uD50C\uB808\uC774\uC5B4 \uD134\uB2F9 1\uD68C"
+    resolution: "\uCE74\uB4DC 1\uC7A5\uC744 \uB4DC\uB85C\uC6B0\uD569\uB2C8\uB2E4."
+    limitation: "\uD328 10\uC7A5\uC774\uBA74 \uB4DC\uB85C\uC6B0 \uC2E4\uD328\uD558\uACE0
+      \uCE74\uB4DC\uB294 \uB371 \uB9E8 \uC704\uC5D0 \uB0A8\uC74C"
