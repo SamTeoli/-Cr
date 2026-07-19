@@ -121,6 +121,11 @@ namespace HaveABreak.Editor
                 ValidateBattleSettlement(true);
             }
 
+            if (GUILayout.Button("Validate Battle Victory Rewards"))
+            {
+                ValidateBattleVictoryRewards(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -1697,6 +1702,124 @@ namespace HaveABreak.Editor
             }
 
             return valid;
+        }
+
+        private static bool ValidateBattleVictoryRewards(bool showDialog)
+        {
+            bool valid = true;
+            int[] expectedNormalGold = { 20, 25, 30 };
+            for (uint seed = 0; seed < (uint)expectedNormalGold.Length; seed++)
+            {
+                RunBattleState run = new(30, 30, 10);
+                BattleSettlementService settlement = CreateRewardValidationSettlement(run, true, true);
+                BattleVictoryRewardService reward = new(
+                    settlement, run, BattleEncounterGrade.Normal, seed);
+                valid &= reward.GoldReward == expectedNormalGold[(int)seed] &&
+                         reward.EnchantChoiceCount == 3 &&
+                         reward.MinimumGuaranteedEnchantRarity == CardRarity.Common &&
+                         reward.ConsumableItemRewardCount == 0 &&
+                         !reward.GrantsFinalBossPermanentReward &&
+                         reward.TryClaimGold(out BattleRewardFailure normalFailure) &&
+                         normalFailure == BattleRewardFailure.None &&
+                         run.Gold == 10 + expectedNormalGold[(int)seed];
+            }
+
+            RunBattleState eliteRun = new(30, 30, 0);
+            BattleSettlementService eliteSettlement = CreateRewardValidationSettlement(eliteRun, true, true);
+            BattleVictoryRewardService eliteReward = new(
+                eliteSettlement, eliteRun, BattleEncounterGrade.Elite, 3);
+            valid &= eliteReward.GoldReward == 55 &&
+                     eliteReward.EnchantChoiceCount == 3 &&
+                     eliteReward.MinimumGuaranteedEnchantRarity == CardRarity.Rare &&
+                     eliteReward.ConsumableItemRewardCount == 1 &&
+                     eliteReward.TryClaimGold(out _) && eliteRun.Gold == 55;
+            valid &= !eliteReward.TryClaimGold(out BattleRewardFailure duplicateFailure) &&
+                     duplicateFailure == BattleRewardFailure.AlreadyClaimed &&
+                     eliteRun.Gold == 55;
+
+            RunBattleState midBossRun = new(30, 30, 5);
+            BattleVictoryRewardService midBossReward = new(
+                CreateRewardValidationSettlement(midBossRun, true, true),
+                midBossRun,
+                BattleEncounterGrade.MidBoss,
+                uint.MaxValue);
+            valid &= midBossReward.GoldReward == 60 &&
+                     midBossReward.MinimumGuaranteedEnchantRarity == CardRarity.Rare &&
+                     midBossReward.TryClaimGold(out _) && midBossRun.Gold == 65;
+
+            RunBattleState finalBossRun = new(30, 30, 12);
+            BattleVictoryRewardService finalBossReward = new(
+                CreateRewardValidationSettlement(finalBossRun, true, true),
+                finalBossRun,
+                BattleEncounterGrade.FinalBoss,
+                1);
+            valid &= finalBossReward.GoldReward == 0 &&
+                     finalBossReward.EnchantChoiceCount == 0 &&
+                     finalBossReward.ConsumableItemRewardCount == 0 &&
+                     finalBossReward.GrantsFinalBossPermanentReward &&
+                     finalBossReward.TryClaimGold(out _) && finalBossRun.Gold == 12;
+
+            RunBattleState earlyRun = new(30, 30, 9);
+            BattleVictoryRewardService earlyReward = new(
+                CreateRewardValidationSettlement(earlyRun, true, false),
+                earlyRun,
+                BattleEncounterGrade.Normal,
+                0);
+            valid &= !earlyReward.TryClaimGold(out BattleRewardFailure earlyFailure) &&
+                     earlyFailure == BattleRewardFailure.SettlementNotComplete &&
+                     earlyRun.Gold == 9;
+
+            RunBattleState defeatRun = new(30, 30, 9);
+            BattleVictoryRewardService defeatReward = new(
+                CreateRewardValidationSettlement(defeatRun, false, true),
+                defeatRun,
+                BattleEncounterGrade.Elite,
+                0);
+            valid &= !defeatReward.TryClaimGold(out BattleRewardFailure defeatFailure) &&
+                     defeatFailure == BattleRewardFailure.NotVictory &&
+                     defeatRun.Gold == 9;
+
+            if (!valid)
+            {
+                Debug.LogError("Battle victory reward validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Battle Victory Reward Validation",
+                    valid ? "Battle victory rewards passed." : "Battle victory rewards failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static BattleSettlementService CreateRewardValidationSettlement(
+            RunBattleState run,
+            bool victory,
+            bool settle)
+        {
+            BattlePlayerState player = new(30);
+            BattleEnemyTracker enemies = new();
+            if (!victory)
+            {
+                player.ApplyDamage(30);
+                enemies.TryAdd("ENEMY-REWARD-DEFEAT");
+            }
+
+            BattleSettlementService settlement = new(
+                player,
+                new BattleOutcomeEvaluator(player, enemies),
+                new BattleEffectQueue(),
+                run,
+                new BattleRunChanges());
+            if (settle)
+            {
+                settlement.TrySettle(out _);
+            }
+
+            return settlement;
         }
 
         private static List<CardData> FindAllCards()

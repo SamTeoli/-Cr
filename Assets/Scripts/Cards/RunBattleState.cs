@@ -85,5 +85,10 @@ namespace HaveABreak.Cards
 
             runEnded = endRun;
         }
+
+        internal void AddRewardGold(int amount)
+        {
+            gold += Mathf.Max(0, amount);
+        }
     }
 }

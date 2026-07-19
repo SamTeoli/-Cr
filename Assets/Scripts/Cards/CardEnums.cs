@@ -162,6 +162,22 @@ namespace HaveABreak.Cards
         InvalidRunState
     }
 
+    public enum BattleEncounterGrade
+    {
+        Normal,
+        Elite,
+        MidBoss,
+        FinalBoss
+    }
+
+    public enum BattleRewardFailure
+    {
+        None,
+        SettlementNotComplete,
+        NotVictory,
+        AlreadyClaimed
+    }
+
     public enum EffectTrigger
     {
         None,
