@@ -14,6 +14,7 @@ namespace HaveABreak.Cards
         {
             [SerializeField] private string battleCardId;
             [SerializeField] private RunCardEnchantState enchantState;
+            [SerializeField] private bool transferStampUsed;
 
             public Entry(string battleCardId, RunCardEnchantState enchantState)
             {
@@ -23,6 +24,12 @@ namespace HaveABreak.Cards
 
             public string BattleCardId => battleCardId;
             public RunCardEnchantState EnchantState => enchantState;
+            public bool TransferStampUsed => transferStampUsed;
+
+            public void MarkTransferStampUsed()
+            {
+                transferStampUsed = true;
+            }
         }
 
         public bool TryRegister(BattleCardInstance card, RunCardEnchantState enchantState)
@@ -47,6 +54,51 @@ namespace HaveABreak.Cards
             Entry entry = entries.Find(item => item != null && string.Equals(
                 item.BattleCardId, battleCardId, StringComparison.OrdinalIgnoreCase));
             return entry?.EnchantState;
+        }
+
+        public bool HasAvailableTransferStamp(string battleCardId)
+        {
+            Entry entry = FindEntry(battleCardId);
+            if (entry == null || entry.TransferStampUsed)
+            {
+                return false;
+            }
+
+            foreach (RunEnchantSlot slot in entry.EnchantState.Slots)
+            {
+                if (!slot.IsEmpty && slot.Active && string.Equals(
+                        slot.Enchant.DefinitionId,
+                        "E07",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool MarkTransferStampUsed(string battleCardId)
+        {
+            Entry entry = FindEntry(battleCardId);
+            if (entry == null || entry.TransferStampUsed)
+            {
+                return false;
+            }
+
+            entry.MarkTransferStampUsed();
+            return true;
+        }
+
+        private Entry FindEntry(string battleCardId)
+        {
+            if (string.IsNullOrWhiteSpace(battleCardId))
+            {
+                return null;
+            }
+
+            return entries.Find(item => item != null && string.Equals(
+                item.BattleCardId, battleCardId, StringComparison.OrdinalIgnoreCase));
         }
     }
 }

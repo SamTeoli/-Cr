@@ -21,6 +21,7 @@ namespace HaveABreak.Cards
         [SerializeField] private CardZone destinationZone;
         [SerializeField] private bool hasDestinationZone;
         [SerializeField] private int value;
+        [SerializeField] private bool normalResolutionGraveyardMove;
 
         public BattleEffectCommand(
             string effectId,
@@ -36,7 +37,8 @@ namespace HaveABreak.Cards
             string targetBattleCardId = null,
             CardZone destinationZone = CardZone.DrawPile,
             bool hasDestinationZone = false,
-            int value = 0)
+            int value = 0,
+            bool normalResolutionGraveyardMove = false)
         {
             this.effectId = effectId?.Trim();
             this.sourceId = sourceId?.Trim();
@@ -52,6 +54,7 @@ namespace HaveABreak.Cards
             this.destinationZone = destinationZone;
             this.hasDestinationZone = hasDestinationZone;
             this.value = value;
+            this.normalResolutionGraveyardMove = normalResolutionGraveyardMove;
         }
 
         public string EffectId => effectId;
@@ -69,6 +72,7 @@ namespace HaveABreak.Cards
         public CardZone DestinationZone => destinationZone;
         public bool HasDestinationZone => hasDestinationZone;
         public int Value => value;
+        public bool NormalResolutionGraveyardMove => normalResolutionGraveyardMove;
 
         internal void AssignCreationOrder(int value)
         {

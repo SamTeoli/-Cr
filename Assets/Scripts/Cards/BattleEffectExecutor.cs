@@ -11,6 +11,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleEffectQueue effectQueue;
         [SerializeField] private BattleMonsterRegistry monsters;
         [SerializeField] private BattlePlayerState player;
+        [SerializeField] private BattleCardEnchantRegistry enchants;
 
         private BattleEffectExecutor()
         {
@@ -21,13 +22,15 @@ namespace HaveABreak.Cards
             BattleEventLog eventLog,
             BattleEffectQueue effectQueue,
             BattleMonsterRegistry monsters = null,
-            BattlePlayerState player = null)
+            BattlePlayerState player = null,
+            BattleCardEnchantRegistry enchants = null)
         {
             this.deck = deck ?? throw new ArgumentNullException(nameof(deck));
             this.eventLog = eventLog ?? throw new ArgumentNullException(nameof(eventLog));
             this.effectQueue = effectQueue ?? throw new ArgumentNullException(nameof(effectQueue));
             this.monsters = monsters;
             this.player = player;
+            this.enchants = enchants;
         }
 
         public BattleDeckState Deck => deck;
@@ -35,6 +38,7 @@ namespace HaveABreak.Cards
         public BattleEffectQueue EffectQueue => effectQueue;
         public BattleMonsterRegistry Monsters => monsters;
         public BattlePlayerState Player => player;
+        public BattleCardEnchantRegistry Enchants => enchants;
 
         public bool TryExecuteNext(
             out BattleEffectCommand command,
@@ -108,7 +112,22 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (!deck.Zones.TryMove(target.Ids.BattleCardId, actualDestination, out _))
+            bool moved;
+            if (requestedDestination == CardZone.Graveyard)
+            {
+                moved = deck.TryResolveGraveyardMove(
+                    target.Ids.BattleCardId,
+                    enchants,
+                    command.NormalResolutionGraveyardMove,
+                    out _);
+                actualDestination = target.Zone;
+            }
+            else
+            {
+                moved = deck.Zones.TryMove(target.Ids.BattleCardId, actualDestination, out _);
+            }
+
+            if (!moved)
             {
                 failure = EffectExecutionFailure.ZoneMoveFailed;
                 return false;

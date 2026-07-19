@@ -106,7 +106,7 @@ namespace HaveABreak.Cards
             }
 
             if (current.CardType == CardType.Skill &&
-                !deck.TryDiscard(current.BattleCardId, out _))
+                !deck.TryResolveGraveyardMove(current.BattleCardId, enchants, true, out _))
             {
                 deck.Zones.TryMove(current.BattleCardId, CardZone.Hand, out _);
                 mana.Refund(current.ManaCost);

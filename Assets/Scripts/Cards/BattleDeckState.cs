@@ -238,6 +238,41 @@ namespace HaveABreak.Cards
             return zones.TryMove(battleCardId, destination, out failure);
         }
 
+        public bool TryResolveGraveyardMove(
+            string battleCardId,
+            BattleCardEnchantRegistry enchants,
+            bool normalResolution,
+            out CardZoneMoveFailure failure)
+        {
+            BattleCardInstance card = zones.Find(battleCardId);
+            if (card == null)
+            {
+                failure = CardZoneMoveFailure.CardNotFound;
+                return false;
+            }
+
+            bool replaceWithDrawPileBottom = normalResolution &&
+                                             !card.IsTemporary &&
+                                             enchants != null &&
+                                             enchants.HasAvailableTransferStamp(battleCardId);
+            if (!replaceWithDrawPileBottom)
+            {
+                return TryDiscard(battleCardId, out failure);
+            }
+
+            if (!zones.TryMove(battleCardId, CardZone.DrawPile, out failure))
+            {
+                return false;
+            }
+
+            drawPileOrder.RemoveAll(id => string.Equals(
+                id, battleCardId, StringComparison.OrdinalIgnoreCase));
+            drawPileOrder.Add(battleCardId);
+            enchants.MarkTransferStampUsed(battleCardId);
+            failure = CardZoneMoveFailure.None;
+            return true;
+        }
+
         public bool TryBanish(string battleCardId, out CardZoneMoveFailure failure)
         {
             bool moved = zones.TryMove(battleCardId, CardZone.Banished, out failure);
