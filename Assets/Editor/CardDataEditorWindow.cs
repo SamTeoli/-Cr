@@ -116,6 +116,11 @@ namespace HaveABreak.Editor
                 ValidatePlayerHealthAndOutcome(true);
             }
 
+            if (GUILayout.Button("Validate Battle Settlement"))
+            {
+                ValidateBattleSettlement(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -1559,6 +1564,135 @@ namespace HaveABreak.Editor
                 EditorUtility.DisplayDialog(
                     "Player Health And Outcome Validation",
                     valid ? "Player health and outcome passed." : "Player health and outcome failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static bool ValidateBattleSettlement(bool showDialog)
+        {
+            bool valid = true;
+
+            BattlePlayerState winningPlayer = new(30);
+            winningPlayer.ApplyDamage(8);
+            BattleEnemyTracker winningEnemies = new();
+            BattleOutcomeEvaluator winningOutcome = new(winningPlayer, winningEnemies);
+            BattleEffectQueue winningQueue = new();
+            RunBattleState winningRun = new(30, 30, 10, new[] { "I01", "I02", "I01" });
+            BattleRunChanges winningChanges = new();
+            winningChanges.RecordConsumedItem("I01");
+            winningChanges.AddGoldDelta(4);
+            BattleSettlementService winningSettlement = new(
+                winningPlayer, winningOutcome, winningQueue, winningRun, winningChanges);
+
+            valid &= winningSettlement.TrySettle(out BattleSettlementFailure winningFailure) &&
+                     winningFailure == BattleSettlementFailure.None &&
+                     winningSettlement.IsSettled &&
+                     winningSettlement.BattleStateDiscarded &&
+                     winningSettlement.SettledOutcome == BattleOutcome.Victory &&
+                     winningSettlement.RewardEligible &&
+                     winningRun.CurrentHealth == 22 &&
+                     winningRun.Gold == 14 &&
+                     winningRun.ConsumableItemIds.Count == 2 &&
+                     !winningRun.RunEnded;
+            valid &= !winningSettlement.TrySettle(out BattleSettlementFailure duplicateFailure) &&
+                     duplicateFailure == BattleSettlementFailure.AlreadySettled &&
+                     winningRun.CurrentHealth == 22 && winningRun.Gold == 14;
+
+            BattlePlayerState ongoingPlayer = new(30);
+            BattleEnemyTracker ongoingEnemies = new();
+            ongoingEnemies.TryAdd("ENEMY-ONGOING");
+            RunBattleState ongoingRun = new(30, 30, 5);
+            BattleSettlementService ongoingSettlement = new(
+                ongoingPlayer,
+                new BattleOutcomeEvaluator(ongoingPlayer, ongoingEnemies),
+                new BattleEffectQueue(),
+                ongoingRun,
+                new BattleRunChanges());
+            valid &= !ongoingSettlement.TrySettle(out BattleSettlementFailure ongoingFailure) &&
+                     ongoingFailure == BattleSettlementFailure.BattleOngoing &&
+                     ongoingRun.CurrentHealth == 30 && ongoingRun.Gold == 5;
+
+            BattlePlayerState pendingPlayer = new(30);
+            pendingPlayer.ApplyDamage(30);
+            BattleEnemyTracker pendingEnemies = new();
+            pendingEnemies.TryAdd("ENEMY-PENDING");
+            BattleEventLog pendingLog = new();
+            BattleEventRecord pendingRoot = pendingLog.Record(
+                BattleEventType.AttackDeclared,
+                "SettlementValidation",
+                "ENEMY-PENDING",
+                "ENEMY-PENDING",
+                BattlePlayerState.PlayerTargetId);
+            BattleEffectQueue pendingQueue = new();
+            pendingQueue.TryRegister(
+                new BattleEffectCommand(
+                    "PENDING-EFFECT",
+                    "ENEMY-PENDING",
+                    pendingRoot.EventId,
+                    EffectProcessingStage.Aftermath,
+                    true,
+                    BattleEventType.AttackDeclared),
+                pendingRoot,
+                out _);
+            RunBattleState pendingRun = new(30, 30, 5);
+            BattleSettlementService pendingSettlement = new(
+                pendingPlayer,
+                new BattleOutcomeEvaluator(pendingPlayer, pendingEnemies),
+                pendingQueue,
+                pendingRun,
+                new BattleRunChanges());
+            valid &= !pendingSettlement.TrySettle(out BattleSettlementFailure pendingFailure) &&
+                     pendingFailure == BattleSettlementFailure.PendingEffects &&
+                     pendingRun.CurrentHealth == 30;
+
+            BattlePlayerState defeatedPlayer = new(30);
+            defeatedPlayer.ApplyDamage(30);
+            BattleEnemyTracker defeatedEnemies = new();
+            defeatedEnemies.TryAdd("ENEMY-DEFEAT");
+            RunBattleState defeatedRun = new(30, 18, 7, new[] { "I05" });
+            BattleRunChanges defeatedChanges = new();
+            defeatedChanges.RecordConsumedItem("I05");
+            defeatedChanges.AddGoldDelta(-2);
+            BattleSettlementService defeatedSettlement = new(
+                defeatedPlayer,
+                new BattleOutcomeEvaluator(defeatedPlayer, defeatedEnemies),
+                new BattleEffectQueue(),
+                defeatedRun,
+                defeatedChanges);
+            valid &= defeatedSettlement.TrySettle(out _) &&
+                     defeatedSettlement.SettledOutcome == BattleOutcome.Defeat &&
+                     !defeatedSettlement.RewardEligible &&
+                     defeatedRun.CurrentHealth == 0 &&
+                     defeatedRun.Gold == 5 &&
+                     defeatedRun.ConsumableItemIds.Count == 0 &&
+                     defeatedRun.RunEnded;
+
+            RunBattleState invalidRun = new(30, 30, 0, new[] { "I01" });
+            BattleRunChanges invalidChanges = new();
+            invalidChanges.RecordConsumedItem("I02");
+            BattleSettlementService invalidSettlement = new(
+                winningPlayer,
+                winningOutcome,
+                new BattleEffectQueue(),
+                invalidRun,
+                invalidChanges);
+            valid &= !invalidSettlement.TrySettle(out BattleSettlementFailure invalidFailure) &&
+                     invalidFailure == BattleSettlementFailure.InvalidRunState &&
+                     invalidRun.CurrentHealth == 30 &&
+                     invalidRun.ConsumableItemIds.Count == 1;
+
+            if (!valid)
+            {
+                Debug.LogError("Battle settlement validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Battle Settlement Validation",
+                    valid ? "Battle settlement passed." : "Battle settlement failed. Check the Console.",
                     "OK");
             }
 

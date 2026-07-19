@@ -153,6 +153,15 @@ namespace HaveABreak.Cards
         Defeat
     }
 
+    public enum BattleSettlementFailure
+    {
+        None,
+        BattleOngoing,
+        PendingEffects,
+        AlreadySettled,
+        InvalidRunState
+    }
+
     public enum EffectTrigger
     {
         None,
