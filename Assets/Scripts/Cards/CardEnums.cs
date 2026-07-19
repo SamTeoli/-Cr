@@ -178,6 +178,18 @@ namespace HaveABreak.Cards
         AlreadyClaimed
     }
 
+    public enum EnchantAttachmentFailure
+    {
+        None,
+        NullEnchant,
+        InvalidSlot,
+        SlotEmpty,
+        SlotOccupied,
+        IncompatibleCardType,
+        DuplicateNotAllowed,
+        BattleLocked
+    }
+
     public enum EffectTrigger
     {
         None,

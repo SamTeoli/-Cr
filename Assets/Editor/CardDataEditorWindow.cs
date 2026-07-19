@@ -126,6 +126,11 @@ namespace HaveABreak.Editor
                 ValidateBattleVictoryRewards(true);
             }
 
+            if (GUILayout.Button("Validate Run Card Enchant Slots"))
+            {
+                ValidateRunCardEnchantSlots(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -1820,6 +1825,113 @@ namespace HaveABreak.Editor
             }
 
             return settlement;
+        }
+
+        private static bool ValidateRunCardEnchantSlots(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+            bool hasMonsterCard = cards.TryGetValue("C01", out CardData monsterCard);
+            bool hasSkillCard = cards.TryGetValue("C05", out CardData skillCard);
+            bool valid = hasMonsterCard && hasSkillCard;
+            EnchantData monsterEnchant = CreateInstance<EnchantData>();
+            EnchantData duplicateMonsterEnchant = CreateInstance<EnchantData>();
+            EnchantData stackableEnchant = CreateInstance<EnchantData>();
+            EnchantData skillEnchant = CreateInstance<EnchantData>();
+
+            if (valid)
+            {
+                monsterEnchant.EditorInitialize(
+                    "VALIDATION-E01", "Validation Monster Enchant", CardRarity.Common,
+                    new[] { CardType.Monster });
+                duplicateMonsterEnchant.EditorInitialize(
+                    "VALIDATION-E01", "Validation Monster Enchant", CardRarity.Common,
+                    new[] { CardType.Monster });
+                stackableEnchant.EditorInitialize(
+                    "VALIDATION-E02", "Validation Stackable Enchant", CardRarity.Common,
+                    new[] { CardType.Monster }, true);
+                skillEnchant.EditorInitialize(
+                    "VALIDATION-E03", "Validation Skill Enchant", CardRarity.Rare,
+                    new[] { CardType.Skill });
+
+                RunCardEnchantState monsterState = new(monsterCard);
+                valid &= monsterState.SlotCount == 1 &&
+                         monsterState.HasImmediateAttachmentTarget(monsterEnchant) &&
+                         !monsterState.HasImmediateAttachmentTarget(skillEnchant);
+                valid &= monsterState.TryAttach(
+                             monsterEnchant, 0, false, out EnchantAttachmentFailure attachFailure) &&
+                         attachFailure == EnchantAttachmentFailure.None &&
+                         monsterState.Slots[0].AttachmentOrder == 1 &&
+                         monsterState.Slots[0].Active;
+                valid &= monsterState.TryIncreaseSlotCount() && monsterState.SlotCount == 2;
+                valid &= !monsterState.TryAttach(
+                             duplicateMonsterEnchant, 1, false,
+                             out EnchantAttachmentFailure duplicateFailure) &&
+                         duplicateFailure == EnchantAttachmentFailure.DuplicateNotAllowed;
+                valid &= !monsterState.TryAttach(
+                             skillEnchant, 1, false,
+                             out EnchantAttachmentFailure compatibilityFailure) &&
+                         compatibilityFailure == EnchantAttachmentFailure.IncompatibleCardType;
+                valid &= !monsterState.TryRemove(
+                             0, true, out EnchantAttachmentFailure lockedRemoveFailure) &&
+                         lockedRemoveFailure == EnchantAttachmentFailure.BattleLocked &&
+                         !monsterState.Slots[0].IsEmpty;
+                valid &= monsterState.TryRemove(0, false, out _) &&
+                         monsterState.Slots[0].IsEmpty;
+
+                valid &= monsterState.TryAttach(stackableEnchant, 0, false, out _) &&
+                         monsterState.TryAttach(stackableEnchant, 1, false, out _) &&
+                         monsterState.Slots[0].AttachmentOrder == 2 &&
+                         monsterState.Slots[1].AttachmentOrder == 3;
+                valid &= monsterState.TryRemove(0, false, out _) &&
+                         monsterState.Slots[0].IsEmpty &&
+                         !monsterState.Slots[1].IsEmpty &&
+                         monsterState.Slots[1].SlotIndex == 1 &&
+                         monsterState.Slots[1].AttachmentOrder == 3;
+                valid &= monsterState.TryIncreaseSlotCount() && monsterState.SlotCount == 3 &&
+                         !monsterState.TryIncreaseSlotCount();
+                valid &= !monsterState.TryAttach(
+                             monsterEnchant, 2, true,
+                             out EnchantAttachmentFailure lockedAttachFailure) &&
+                         lockedAttachFailure == EnchantAttachmentFailure.BattleLocked;
+
+                monsterState.RefreshCompatibility(CardType.Skill);
+                valid &= !monsterState.Slots[1].Active;
+                monsterState.RefreshCompatibility(CardType.Monster);
+                valid &= monsterState.Slots[1].Active;
+
+                RunCardEnchantState skillState = new(skillCard);
+                valid &= skillState.TryAttach(skillEnchant, 0, false, out _) &&
+                         skillState.Slots[0].Active;
+                valid &= !skillState.TryRemove(
+                             1, false, out EnchantAttachmentFailure invalidSlotFailure) &&
+                         invalidSlotFailure == EnchantAttachmentFailure.InvalidSlot;
+            }
+            else
+            {
+                Debug.LogError("Run card enchant validation requires C01 and C05.");
+            }
+
+            DestroyImmediate(monsterEnchant);
+            DestroyImmediate(duplicateMonsterEnchant);
+            DestroyImmediate(stackableEnchant);
+            DestroyImmediate(skillEnchant);
+
+            if (!valid)
+            {
+                Debug.LogError("Run card enchant slot validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Run Card Enchant Slot Validation",
+                    valid ? "Run card enchant slots passed." : "Run card enchant slots failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
         }
 
         private static List<CardData> FindAllCards()
