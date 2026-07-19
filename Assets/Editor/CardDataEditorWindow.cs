@@ -86,6 +86,11 @@ namespace HaveABreak.Editor
                 ValidateStartingHandRedraw(true);
             }
 
+            if (GUILayout.Button("Validate Battle Turn Flow"))
+            {
+                ValidateBattleTurnFlow(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -718,6 +723,128 @@ namespace HaveABreak.Editor
             }
 
             return valid;
+        }
+
+        private static bool ValidateBattleTurnFlow(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool valid = hasC01 && hasC05;
+            if (!valid)
+            {
+                Debug.LogError("Battle turn validation requires C01 and C05.");
+            }
+            else
+            {
+                BattleTurnState turns = CreateValidationTurnState(c01, c05, 12, 1100);
+                valid &= turns.Phase == BattleTurnPhase.BattleSetup &&
+                         turns.PlayerTurnNumber == 0 &&
+                         !turns.CanAcceptPlayerAction;
+                valid &= !turns.TryEndPlayerTurn(out BattleTurnFailure setupFailure) &&
+                         setupFailure == BattleTurnFailure.InvalidPhase &&
+                         turns.Phase == BattleTurnPhase.BattleSetup;
+
+                valid &= turns.TryBeginBattle(out _) &&
+                         turns.Phase == BattleTurnPhase.StartingHandRedraw &&
+                         turns.CardPlay.Deck.Zones.Count(CardZone.Hand) == 5;
+                valid &= turns.TryConfirmStartingHand(
+                    Array.Empty<string>(),
+                    out List<BattleCardInstance> replacements,
+                    out StartingHandRedrawFailure redrawFailure,
+                    out BattleTurnFailure firstTurnFailure) &&
+                         replacements.Count == 0 &&
+                         redrawFailure == StartingHandRedrawFailure.None &&
+                         firstTurnFailure == BattleTurnFailure.None &&
+                         turns.Phase == BattleTurnPhase.PlayerAction &&
+                         turns.PlayerTurnNumber == 1 &&
+                         turns.CardPlay.Mana.CurrentMana == BattleManaState.DefaultMaximumMana &&
+                         turns.LastTurnDrawFailure == CardDrawFailure.FirstTurnSkipped &&
+                         turns.CardPlay.Deck.Zones.Count(CardZone.Hand) == 5;
+
+                valid &= turns.TryBeginPlayerAction(out _) &&
+                         turns.Phase == BattleTurnPhase.PlayerActionResolving &&
+                         !turns.CanAcceptPlayerAction;
+                valid &= !turns.TryEndPlayerTurn(out BattleTurnFailure resolvingFailure) &&
+                         resolvingFailure == BattleTurnFailure.InvalidPhase &&
+                         turns.CardPlay.Mana.CurrentMana == BattleManaState.DefaultMaximumMana;
+                valid &= turns.TryCompletePlayerAction(out _) && turns.CanAcceptPlayerAction;
+
+                valid &= turns.CardPlay.Mana.TrySpend(3) && turns.CardPlay.Mana.CurrentMana == 2;
+                valid &= turns.TryEndPlayerTurn(out _) &&
+                         turns.Phase == BattleTurnPhase.EnemyTurn &&
+                         turns.CardPlay.Mana.CurrentMana == 0 &&
+                         turns.CardPlay.Deck.Zones.Count(CardZone.Hand) == 5;
+                valid &= turns.TryCompleteEnemyTurn(out _) &&
+                         turns.Phase == BattleTurnPhase.PlayerAction &&
+                         turns.PlayerTurnNumber == 2 &&
+                         turns.CardPlay.Mana.CurrentMana == BattleManaState.DefaultMaximumMana &&
+                         turns.LastTurnDrawFailure == CardDrawFailure.None &&
+                         turns.CardPlay.Deck.Zones.Count(CardZone.Hand) == 6;
+
+                valid &= !turns.TryConfirmStartingHand(
+                    Array.Empty<string>(),
+                    out _,
+                    out _,
+                    out BattleTurnFailure repeatedRedrawFailure) &&
+                         repeatedRedrawFailure == BattleTurnFailure.InvalidPhase &&
+                         turns.Phase == BattleTurnPhase.PlayerAction;
+
+                BattleTurnState fullHandTurns = CreateValidationTurnState(c01, c05, 15, 1200);
+                fullHandTurns.TryBeginBattle(out _);
+                fullHandTurns.TryConfirmStartingHand(Array.Empty<string>(), out _, out _, out _);
+                while (fullHandTurns.CardPlay.Deck.Zones.Count(CardZone.Hand) < BattleCardZoneState.MaximumHandSize)
+                {
+                    valid &= fullHandTurns.CardPlay.Deck.TryDraw(out _, out _);
+                }
+
+                valid &= fullHandTurns.TryEndPlayerTurn(out _);
+                valid &= fullHandTurns.TryCompleteEnemyTurn(out _) &&
+                         fullHandTurns.Phase == BattleTurnPhase.PlayerAction &&
+                         fullHandTurns.PlayerTurnNumber == 2 &&
+                         fullHandTurns.LastTurnDrawFailure == CardDrawFailure.HandFull &&
+                         fullHandTurns.CardPlay.Deck.Zones.Count(CardZone.Hand) == BattleCardZoneState.MaximumHandSize;
+
+                BattleTurnState emptyDeckTurns = CreateValidationTurnState(c01, c05, 5, 1300);
+                emptyDeckTurns.TryBeginBattle(out _);
+                emptyDeckTurns.TryConfirmStartingHand(Array.Empty<string>(), out _, out _, out _);
+                emptyDeckTurns.TryEndPlayerTurn(out _);
+                valid &= emptyDeckTurns.TryCompleteEnemyTurn(out _) &&
+                         emptyDeckTurns.Phase == BattleTurnPhase.PlayerAction &&
+                         emptyDeckTurns.PlayerTurnNumber == 2 &&
+                         emptyDeckTurns.LastTurnDrawFailure == CardDrawFailure.NoCardsAvailable;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Battle turn flow validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Battle Turn Flow Validation",
+                    valid ? "Battle turn flow passed." : "Battle turn flow failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static BattleTurnState CreateValidationTurnState(
+            CardData firstSource,
+            CardData secondSource,
+            int cardCount,
+            int startingSequence)
+        {
+            BattleDeckState deck = new(
+                CreateValidationDeck(firstSource, secondSource, cardCount, startingSequence),
+                startingSequence);
+            BattleCardPlayState cardPlay = new(deck, BattleManaState.DefaultMaximumMana);
+            return new BattleTurnState(cardPlay);
         }
 
         private static List<CardData> FindAllCards()

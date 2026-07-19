@@ -69,6 +69,22 @@ namespace HaveABreak.Cards
         ZoneMoveFailed
     }
 
+    public enum BattleTurnPhase
+    {
+        BattleSetup,
+        StartingHandRedraw,
+        PlayerAction,
+        PlayerActionResolving,
+        EnemyTurn
+    }
+
+    public enum BattleTurnFailure
+    {
+        None,
+        InvalidPhase,
+        StartingHandRedrawFailed
+    }
+
     public enum EffectTrigger
     {
         None,
