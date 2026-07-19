@@ -81,6 +81,11 @@ namespace HaveABreak.Editor
                 ValidateCardPlayAndMana(true);
             }
 
+            if (GUILayout.Button("Validate Starting Hand Redraw"))
+            {
+                ValidateStartingHandRedraw(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -612,6 +617,107 @@ namespace HaveABreak.Editor
             BattleDeckState deck = new(instances, startingSequence);
             deck.DrawStartingHand();
             return new BattleCardPlayState(deck, maximumMana);
+        }
+
+        private static bool ValidateStartingHandRedraw(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool valid = hasC01 && hasC05;
+            if (!valid)
+            {
+                Debug.LogError("Starting hand redraw validation requires C01 and C05.");
+            }
+            else
+            {
+                BattleDeckState redrawDeck = new(CreateValidationDeck(c01, c05, 10, 600), 123);
+                valid &= redrawDeck.DrawStartingHand() == BattleDeckState.StartingHandSize;
+                List<BattleCardInstance> originalHand = redrawDeck.Zones.GetCards(CardZone.Hand);
+                List<string> selected = originalHand.Take(2).Select(card => card.Ids.BattleCardId).ToList();
+                valid &= redrawDeck.StartingHandRedrawAvailable;
+                valid &= redrawDeck.TryRedrawStartingHand(
+                    selected,
+                    out List<BattleCardInstance> replacements,
+                    out StartingHandRedrawFailure redrawFailure) &&
+                         redrawFailure == StartingHandRedrawFailure.None &&
+                         replacements.Count == 2 &&
+                         redrawDeck.Zones.Count(CardZone.Hand) == 5 &&
+                         redrawDeck.Zones.Count(CardZone.DrawPile) == 5 &&
+                         redrawDeck.Zones.Count(CardZone.RedrawHolding) == 0 &&
+                         !redrawDeck.StartingHandRedrawAvailable;
+
+                valid &= selected.All(id => redrawDeck.Zones.Find(id).Zone == CardZone.DrawPile);
+                valid &= replacements.All(card => !selected.Contains(card.Ids.BattleCardId));
+                valid &= !redrawDeck.TryRedrawStartingHand(
+                    selected,
+                    out _,
+                    out StartingHandRedrawFailure secondFailure) &&
+                         secondFailure == StartingHandRedrawFailure.NotAvailable;
+                valid &= !redrawDeck.TryDrawAtPlayerTurnStart(out _, out CardDrawFailure firstTurnFailure) &&
+                         firstTurnFailure == CardDrawFailure.FirstTurnSkipped;
+
+                BattleDeckState firstDeterministic = new(CreateValidationDeck(c01, c05, 10, 700), 456);
+                BattleDeckState secondDeterministic = new(CreateValidationDeck(c01, c05, 10, 700), 456);
+                firstDeterministic.DrawStartingHand();
+                secondDeterministic.DrawStartingHand();
+                List<string> firstSelection = firstDeterministic.Zones.GetCards(CardZone.Hand)
+                    .Take(3).Select(card => card.Ids.BattleCardId).ToList();
+                List<string> secondSelection = secondDeterministic.Zones.GetCards(CardZone.Hand)
+                    .Take(3).Select(card => card.Ids.BattleCardId).ToList();
+                valid &= firstDeterministic.TryRedrawStartingHand(firstSelection, out List<BattleCardInstance> firstReplacements, out _);
+                valid &= secondDeterministic.TryRedrawStartingHand(secondSelection, out List<BattleCardInstance> secondReplacements, out _);
+                valid &= firstReplacements.Select(card => card.Ids.BattleCardId)
+                    .SequenceEqual(secondReplacements.Select(card => card.Ids.BattleCardId));
+                valid &= firstDeterministic.DrawPileOrder.SequenceEqual(secondDeterministic.DrawPileOrder);
+
+                BattleDeckState zeroSelection = new(CreateValidationDeck(c01, c05, 10, 800), 789);
+                zeroSelection.DrawStartingHand();
+                valid &= zeroSelection.TryRedrawStartingHand(Array.Empty<string>(), out List<BattleCardInstance> noReplacements, out _) &&
+                         noReplacements.Count == 0 &&
+                         !zeroSelection.StartingHandRedrawAvailable &&
+                         zeroSelection.Zones.Count(CardZone.Hand) == 5;
+
+                BattleDeckState duplicateSelection = new(CreateValidationDeck(c01, c05, 10, 900), 987);
+                duplicateSelection.DrawStartingHand();
+                string duplicateId = duplicateSelection.Zones.GetCards(CardZone.Hand)[0].Ids.BattleCardId;
+                valid &= !duplicateSelection.TryRedrawStartingHand(
+                    new[] { duplicateId, duplicateId },
+                    out _,
+                    out StartingHandRedrawFailure duplicateFailure) &&
+                         duplicateFailure == StartingHandRedrawFailure.DuplicateCardId &&
+                         duplicateSelection.StartingHandRedrawAvailable &&
+                         duplicateSelection.Zones.Count(CardZone.Hand) == 5;
+
+                BattleDeckState insufficientDeck = new(CreateValidationDeck(c01, c05, 5, 1000), 654);
+                insufficientDeck.DrawStartingHand();
+                string insufficientId = insufficientDeck.Zones.GetCards(CardZone.Hand)[0].Ids.BattleCardId;
+                valid &= !insufficientDeck.TryRedrawStartingHand(
+                    new[] { insufficientId },
+                    out _,
+                    out StartingHandRedrawFailure insufficientFailure) &&
+                         insufficientFailure == StartingHandRedrawFailure.NotEnoughCards &&
+                         insufficientDeck.StartingHandRedrawAvailable &&
+                         insufficientDeck.Zones.Count(CardZone.Hand) == 5;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Starting hand redraw validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Starting Hand Redraw Validation",
+                    valid ? "Starting hand redraw passed." : "Starting hand redraw failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
         }
 
         private static List<CardData> FindAllCards()

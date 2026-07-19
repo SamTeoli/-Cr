@@ -22,7 +22,8 @@ namespace HaveABreak.Cards
         MonsterField,
         SkillField,
         Graveyard,
-        Banished
+        Banished,
+        RedrawHolding
     }
 
     public enum CardZoneMoveFailure
@@ -53,6 +54,18 @@ namespace HaveABreak.Cards
         NotEnoughMana,
         DestinationFull,
         DuplicateBarrier,
+        ZoneMoveFailed
+    }
+
+    public enum StartingHandRedrawFailure
+    {
+        None,
+        NotAvailable,
+        TooManyCards,
+        DuplicateCardId,
+        CardNotEligible,
+        CardNotInHand,
+        NotEnoughCards,
         ZoneMoveFailed
     }
 
