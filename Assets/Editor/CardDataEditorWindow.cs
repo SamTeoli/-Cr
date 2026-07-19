@@ -91,6 +91,11 @@ namespace HaveABreak.Editor
                 ValidateBattleTurnFlow(true);
             }
 
+            if (GUILayout.Button("Validate Battle Event Queue"))
+            {
+                ValidateBattleEventQueue(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -845,6 +850,173 @@ namespace HaveABreak.Editor
                 startingSequence);
             BattleCardPlayState cardPlay = new(deck, BattleManaState.DefaultMaximumMana);
             return new BattleTurnState(cardPlay);
+        }
+
+        private static bool ValidateBattleEventQueue(bool showDialog)
+        {
+            bool valid = true;
+            BattleEventLog eventLog = new();
+            BattleEventRecord cardPlayed = eventLog.Record(
+                BattleEventType.CardPlayed,
+                "CardPlayConfirmed",
+                "C05",
+                "BATTLE-QUEUE-001",
+                "ENEMY-001",
+                randomState: 123u);
+            BattleEventRecord cardMoved = eventLog.Record(
+                BattleEventType.CardMoved,
+                "SkillResolved",
+                "C05",
+                "BATTLE-QUEUE-001",
+                null,
+                parentEventId: cardPlayed.EventId,
+                sourceEffectId: "EFFECT-MAIN",
+                hasZoneChange: true,
+                fromZone: CardZone.SkillField,
+                toZone: CardZone.Graveyard);
+
+            valid &= cardPlayed.EventId == "EVENT-000001" &&
+                     cardMoved.EventId == "EVENT-000002" &&
+                     cardMoved.ParentEventId == cardPlayed.EventId &&
+                     cardMoved.HasZoneChange &&
+                     cardMoved.FromZone == CardZone.SkillField &&
+                     cardMoved.ToZone == CardZone.Graveyard &&
+                     cardPlayed.RandomState == 123u &&
+                     eventLog.Find(cardMoved.EventId) == cardMoved;
+
+            BattleEffectQueue queue = new();
+            BattleEffectCommand pre = CreateValidationEffect(
+                "PRE", cardPlayed, EffectProcessingStage.PreModification, true);
+            BattleEffectCommand responseFirst = CreateValidationEffect(
+                "RESPONSE-1", cardPlayed, EffectProcessingStage.Response, true);
+            BattleEffectCommand responseSecond = CreateValidationEffect(
+                "RESPONSE-2", cardPlayed, EffectProcessingStage.Response, false);
+            BattleEffectCommand main = CreateValidationEffect(
+                "MAIN", cardPlayed, EffectProcessingStage.MainEffect, true);
+            BattleEffectCommand sourceOptional = CreateValidationEffect(
+                "AFTER-SOURCE-OPTIONAL",
+                cardPlayed,
+                EffectProcessingStage.Aftermath,
+                false,
+                AftermathEffectPriority.SourceCard);
+            BattleEffectCommand systemRequired = CreateValidationEffect(
+                "AFTER-SYSTEM",
+                cardPlayed,
+                EffectProcessingStage.Aftermath,
+                true,
+                AftermathEffectPriority.SystemRequired);
+            BattleEffectCommand sourceRequired = CreateValidationEffect(
+                "AFTER-SOURCE-REQUIRED",
+                cardPlayed,
+                EffectProcessingStage.Aftermath,
+                true,
+                AftermathEffectPriority.SourceCard);
+            BattleEffectCommand cleanup = CreateValidationEffect(
+                "AFTER-CLEANUP",
+                cardPlayed,
+                EffectProcessingStage.Aftermath,
+                true,
+                AftermathEffectPriority.Cleanup);
+
+            valid &= queue.TryRegister(pre, cardPlayed, out _);
+            valid &= queue.TryRegister(responseFirst, cardPlayed, out _);
+            valid &= queue.TryRegister(responseSecond, cardPlayed, out _);
+            valid &= queue.TryRegister(main, cardPlayed, out _);
+            valid &= queue.TryRegister(sourceOptional, cardPlayed, out _);
+            valid &= queue.TryRegister(systemRequired, cardPlayed, out _);
+            valid &= queue.TryRegister(sourceRequired, cardPlayed, out _);
+            valid &= queue.TryRegister(cleanup, cardPlayed, out _);
+
+            BattleEffectCommand duplicate = CreateValidationEffect(
+                "PRE", cardPlayed, EffectProcessingStage.PreModification, true);
+            valid &= !queue.TryRegister(duplicate, cardPlayed, out EffectQueueFailure duplicateFailure) &&
+                     duplicateFailure == EffectQueueFailure.DuplicateForEvent &&
+                     queue.Count == 8;
+
+            string[] expectedOrder =
+            {
+                "PRE",
+                "RESPONSE-2",
+                "RESPONSE-1",
+                "MAIN",
+                "AFTER-SYSTEM",
+                "AFTER-SOURCE-REQUIRED",
+                "AFTER-SOURCE-OPTIONAL",
+                "AFTER-CLEANUP"
+            };
+            for (int i = 0; i < expectedOrder.Length; i++)
+            {
+                valid &= queue.TryDequeue(out BattleEffectCommand next) &&
+                         next.EffectId == expectedOrder[i];
+            }
+
+            valid &= !queue.TryDequeue(out _) && queue.Count == 0;
+            valid &= !queue.TryRegister(duplicate, cardPlayed, out EffectQueueFailure processedDuplicateFailure) &&
+                     processedDuplicateFailure == EffectQueueFailure.DuplicateForEvent;
+
+            BattleEventRecord loopEvent = eventLog.Record(
+                BattleEventType.CardMoved,
+                "EffectCreatedSameEvent",
+                "C05",
+                "BATTLE-QUEUE-001",
+                null,
+                sourceEffectId: "EFFECT-LOOP");
+            BattleEffectCommand loop = new(
+                "EFFECT-LOOP",
+                "C05",
+                loopEvent.EventId,
+                EffectProcessingStage.Aftermath,
+                true,
+                BattleEventType.CardMoved);
+            valid &= !queue.TryRegister(loop, loopEvent, out EffectQueueFailure loopFailure) &&
+                     loopFailure == EffectQueueFailure.SelfRepeatBlocked;
+
+            BattleEffectQueue limitedRepeatQueue = new();
+            BattleEffectCommand repeatOne = new(
+                "LIMITED-REPEAT", "C05", cardMoved.EventId, EffectProcessingStage.Aftermath,
+                true, BattleEventType.CardMoved, allowRepeatedTrigger: true, maximumRegistrationsPerEvent: 2);
+            BattleEffectCommand repeatTwo = new(
+                "LIMITED-REPEAT", "C05", cardMoved.EventId, EffectProcessingStage.Aftermath,
+                true, BattleEventType.CardMoved, allowRepeatedTrigger: true, maximumRegistrationsPerEvent: 2);
+            BattleEffectCommand repeatThree = new(
+                "LIMITED-REPEAT", "C05", cardMoved.EventId, EffectProcessingStage.Aftermath,
+                true, BattleEventType.CardMoved, allowRepeatedTrigger: true, maximumRegistrationsPerEvent: 2);
+            valid &= limitedRepeatQueue.TryRegister(repeatOne, cardMoved, out _);
+            valid &= limitedRepeatQueue.TryRegister(repeatTwo, cardMoved, out _);
+            valid &= !limitedRepeatQueue.TryRegister(repeatThree, cardMoved, out EffectQueueFailure repeatFailure) &&
+                     repeatFailure == EffectQueueFailure.DuplicateForEvent;
+
+            if (!valid)
+            {
+                Debug.LogError("Battle event queue validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Battle Event Queue Validation",
+                    valid ? "Battle event queue passed." : "Battle event queue failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static BattleEffectCommand CreateValidationEffect(
+            string effectId,
+            BattleEventRecord sourceEvent,
+            EffectProcessingStage stage,
+            bool required,
+            AftermathEffectPriority priority = AftermathEffectPriority.SourceCard)
+        {
+            return new BattleEffectCommand(
+                effectId,
+                "C05",
+                sourceEvent.EventId,
+                stage,
+                required,
+                sourceEvent.EventType,
+                priority);
         }
 
         private static List<CardData> FindAllCards()

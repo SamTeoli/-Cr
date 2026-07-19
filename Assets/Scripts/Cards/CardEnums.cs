@@ -85,6 +85,46 @@ namespace HaveABreak.Cards
         StartingHandRedrawFailed
     }
 
+    public enum BattleEventType
+    {
+        CardPlayed,
+        MonsterSummoned,
+        AttackDeclared,
+        DamageApplied,
+        CardMoved,
+        MonsterDestroyed,
+        StatusApplied
+    }
+
+    public enum EffectProcessingStage
+    {
+        PreModification,
+        Response,
+        MainEffect,
+        Aftermath
+    }
+
+    public enum AftermathEffectPriority
+    {
+        SystemRequired,
+        SourceCard,
+        SourceEnchant,
+        AlliedCard,
+        OpposingSide,
+        BarrierGlobalStatus,
+        Cleanup
+    }
+
+    public enum EffectQueueFailure
+    {
+        None,
+        InvalidEvent,
+        InvalidEffect,
+        EventMismatch,
+        DuplicateForEvent,
+        SelfRepeatBlocked
+    }
+
     public enum EffectTrigger
     {
         None,
