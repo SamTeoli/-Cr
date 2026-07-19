@@ -8,6 +8,7 @@ namespace HaveABreak.Cards
     {
         [SerializeField] private string enemyId;
         [SerializeField] private int weaken;
+        [SerializeField] private int vulnerable;
 
         public BattleEnemyStatusState(string enemyId)
         {
@@ -21,6 +22,7 @@ namespace HaveABreak.Cards
 
         public string EnemyId => enemyId;
         public int Weaken => weaken;
+        public int Vulnerable => vulnerable;
 
         public int ApplyWeaken(int amount)
         {
@@ -28,5 +30,13 @@ namespace HaveABreak.Cards
             weaken += applied;
             return applied;
         }
+
+        public int ApplyVulnerable(int amount)
+        {
+            int applied = Mathf.Max(0, amount);
+            vulnerable += applied;
+            return applied;
+        }
     }
 }
+

@@ -15,6 +15,7 @@ namespace HaveABreak.Cards
         [SerializeField] private int currentHealth;
         [SerializeField] private int counter;
         [SerializeField] private int defense;
+        [SerializeField] private int attackEnhancement;
 
         public BattleMonsterState(BattleCardInstance card, RunCardEnchantState enchants = null)
         {
@@ -39,7 +40,9 @@ namespace HaveABreak.Cards
 
         public BattleCardInstance Card => card;
         public string BattleCardId => card.Ids.BattleCardId;
-        public int Attack => attack;
+        public int Attack => attack + attackEnhancement;
+        public int BaseAttack => attack;
+        public int AttackEnhancement => attackEnhancement;
         public int BaseMaximumHealth => baseMaximumHealth;
         public int MaximumHealth => maximumHealth;
         public int CurrentHealth => currentHealth;
@@ -76,6 +79,13 @@ namespace HaveABreak.Cards
             return true;
         }
 
+        public int ApplyAttackEnhancement(int amount)
+        {
+            int applied = Mathf.Max(0, amount);
+            attackEnhancement += applied;
+            return applied;
+        }
+
         public int ApplyDamage(int amount)
         {
             int applied = Mathf.Min(Mathf.Max(0, amount), currentHealth);
@@ -105,3 +115,4 @@ namespace HaveABreak.Cards
         }
     }
 }
+
