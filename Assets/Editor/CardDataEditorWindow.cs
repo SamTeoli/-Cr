@@ -71,6 +71,11 @@ namespace HaveABreak.Editor
                 ValidateBattleCardZones(true);
             }
 
+            if (GUILayout.Button("Validate Battle Deck Draw"))
+            {
+                ValidateBattleDeckDraw(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -394,6 +399,93 @@ namespace HaveABreak.Editor
             string suffix = sequence.ToString("D3");
             CardInstanceIds ids = new(source.CatalogCardId, $"OWN-{suffix}", $"BATTLE-{suffix}");
             return new BattleCardInstance(source, ids, 1, zone);
+        }
+
+        private static bool ValidateBattleDeckDraw(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool valid = hasC01 && hasC05;
+            if (!valid)
+            {
+                Debug.LogError("Battle deck validation requires C01 and C05.");
+            }
+            else
+            {
+                List<BattleCardInstance> twelveCards = CreateValidationDeck(c01, c05, 12, 100);
+                BattleDeckState deck = new(twelveCards, 12345);
+                BattleDeckState sameSeedDeck = new(CreateValidationDeck(c01, c05, 12, 100), 12345);
+                valid &= deck.DrawPileOrder.SequenceEqual(sameSeedDeck.DrawPileOrder);
+                valid &= deck.DrawStartingHand() == BattleDeckState.StartingHandSize;
+                valid &= deck.Zones.Count(CardZone.Hand) == 5 && deck.Zones.Count(CardZone.DrawPile) == 7;
+
+                valid &= !deck.TryDrawAtPlayerTurnStart(out _, out CardDrawFailure firstTurnFailure) &&
+                         firstTurnFailure == CardDrawFailure.FirstTurnSkipped &&
+                         deck.Zones.Count(CardZone.Hand) == 5;
+
+                valid &= deck.TryDrawAtPlayerTurnStart(out _, out CardDrawFailure secondTurnFailure) &&
+                         secondTurnFailure == CardDrawFailure.None &&
+                         deck.Zones.Count(CardZone.Hand) == 6;
+
+                BattleDeckState fullHandDeck = new(CreateValidationDeck(c01, c05, 11, 200), 7);
+                for (int i = 0; i < BattleCardZoneState.MaximumHandSize; i++)
+                {
+                    valid &= fullHandDeck.TryDraw(out _, out _);
+                }
+
+                string retainedTop = fullHandDeck.DrawPileOrder[0];
+                valid &= !fullHandDeck.TryDraw(out _, out CardDrawFailure handFullFailure) &&
+                         handFullFailure == CardDrawFailure.HandFull &&
+                         fullHandDeck.DrawPileOrder.Count == 1 &&
+                         string.Equals(fullHandDeck.DrawPileOrder[0], retainedTop, StringComparison.OrdinalIgnoreCase);
+
+                BattleDeckState recycleDeck = new(CreateValidationDeck(c01, c05, 2, 300), 999);
+                valid &= recycleDeck.TryDraw(out BattleCardInstance first, out _);
+                valid &= recycleDeck.TryDraw(out BattleCardInstance second, out _);
+                valid &= recycleDeck.TryDiscard(first.Ids.BattleCardId, out _);
+                valid &= recycleDeck.TryDiscard(second.Ids.BattleCardId, out _);
+                valid &= recycleDeck.Zones.Count(CardZone.DrawPile) == 0 &&
+                         recycleDeck.Zones.Count(CardZone.Graveyard) == 2;
+                valid &= recycleDeck.TryDraw(out _, out CardDrawFailure recycleFailure) &&
+                         recycleFailure == CardDrawFailure.None &&
+                         recycleDeck.Zones.Count(CardZone.Graveyard) == 0 &&
+                         recycleDeck.Zones.Count(CardZone.DrawPile) == 1;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Battle deck draw validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Battle Deck Draw Validation",
+                    valid ? "Battle deck draw passed." : "Battle deck draw failed. Check the Console.",
+                    "OK");
+            }
+
+            return valid;
+        }
+
+        private static List<BattleCardInstance> CreateValidationDeck(
+            CardData firstSource,
+            CardData secondSource,
+            int count,
+            int startingSequence)
+        {
+            List<BattleCardInstance> result = new(count);
+            for (int i = 0; i < count; i++)
+            {
+                CardData source = i % 2 == 0 ? firstSource : secondSource;
+                result.Add(CreateValidationInstance(source, startingSequence + i, CardZone.DrawPile));
+            }
+
+            return result;
         }
 
         private static List<CardData> FindAllCards()

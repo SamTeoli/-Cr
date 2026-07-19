@@ -35,6 +35,15 @@ namespace HaveABreak.Cards
         DestinationFull
     }
 
+    public enum CardDrawFailure
+    {
+        None,
+        FirstTurnSkipped,
+        HandFull,
+        NoCardsAvailable,
+        ZoneMoveFailed
+    }
+
     public enum EffectTrigger
     {
         None,
