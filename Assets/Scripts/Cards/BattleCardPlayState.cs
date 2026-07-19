@@ -10,13 +10,14 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleDeckState deck;
         [SerializeField] private BattleManaState mana;
         [SerializeField] private BattleCardEnchantRegistry enchants;
+        [SerializeField] private BattleNextSkillModifierState nextSkillModifiers;
 
         private BattleCardPlayState()
         {
         }
 
         public BattleCardPlayState(BattleDeckState deck, int maximumMana = BattleManaState.DefaultMaximumMana)
-            : this(deck, maximumMana, null)
+            : this(deck, maximumMana, null, null)
         {
         }
 
@@ -24,15 +25,26 @@ namespace HaveABreak.Cards
             BattleDeckState deck,
             int maximumMana,
             BattleCardEnchantRegistry enchants)
+            : this(deck, maximumMana, enchants, null)
+        {
+        }
+
+        public BattleCardPlayState(
+            BattleDeckState deck,
+            int maximumMana,
+            BattleCardEnchantRegistry enchants,
+            BattleNextSkillModifierState nextSkillModifiers)
         {
             this.deck = deck ?? throw new ArgumentNullException(nameof(deck));
             mana = new BattleManaState(maximumMana);
             this.enchants = enchants;
+            this.nextSkillModifiers = nextSkillModifiers;
         }
 
         public BattleDeckState Deck => deck;
         public BattleManaState Mana => mana;
         public BattleCardEnchantRegistry Enchants => enchants;
+        public BattleNextSkillModifierState NextSkillModifiers => nextSkillModifiers;
 
         public bool TryPreviewPlay(
             string battleCardId,
@@ -48,6 +60,7 @@ namespace HaveABreak.Cards
             CardZone destination = GetPlayDestination(card.SourceCard.CardType);
             RunCardEnchantState cardEnchants = enchants?.Find(card.Ids.BattleCardId);
             int manaCost = EnchantManaCostResolver.Resolve(card, cardEnchants);
+            manaCost = nextSkillModifiers?.ResolveManaCost(card, manaCost) ?? manaCost;
             if (!mana.CanSpend(manaCost))
             {
                 failure = CardPlayFailure.NotEnoughMana;
@@ -114,6 +127,12 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (current.CardType == CardType.Skill)
+            {
+                BattleCardInstance confirmedSkill = deck.Zones.Find(current.BattleCardId);
+                nextSkillModifiers?.TryConsumeOnConfirmedSkill(confirmedSkill, out _);
+            }
+
             failure = CardPlayFailure.None;
             return true;
         }
@@ -165,3 +184,4 @@ namespace HaveABreak.Cards
         }
     }
 }
+

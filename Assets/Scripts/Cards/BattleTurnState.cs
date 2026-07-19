@@ -106,6 +106,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            cardPlay.NextSkillModifiers?.EndPlayerTurn();
             cardPlay.Mana.EndPlayerTurn();
             phase = BattleTurnPhase.EnemyTurn;
             failure = BattleTurnFailure.None;
@@ -130,3 +131,4 @@ namespace HaveABreak.Cards
         }
     }
 }
+
