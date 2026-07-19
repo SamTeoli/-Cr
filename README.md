@@ -29,3 +29,7 @@ ID 계층은 수록카드ID(`CatalogCardId`), 보유카드ID(`OwnedCardId`),
 `CardData.ResolveLevel(level)`은 요청 레벨을 1~5로 보정하고 해당 레벨의 비용·공격력·
 생명력·효과 문구를 `ResolvedCardData`로 반환한다. Editor 도구의
 `Validate Level Resolution`으로 대표 카드와 범위 보정을 검사할 수 있다.
+
+`BattleCardInstance`는 전투 중 카드의 원본 수록카드, 보유카드ID, 전투카드ID,
+인스턴트ID, 현재 레벨과 현재 영역을 관리한다. 전투 중 생성·복제된 카드는
+`InstantId`로 임시 카드임을 구분한다.

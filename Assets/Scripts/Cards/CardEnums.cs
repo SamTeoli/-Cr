@@ -15,6 +15,16 @@ namespace HaveABreak.Cards
         Legendary
     }
 
+    public enum CardZone
+    {
+        DrawPile,
+        Hand,
+        MonsterField,
+        SkillField,
+        Graveyard,
+        Banished
+    }
+
     public enum EffectTrigger
     {
         None,

@@ -9,7 +9,8 @@
 5. Project 창의 `Assets/GameData/Cards`에서 C01~C12 카드 12종을 확인한다.
 6. `Validate Cards`를 실행해 `Validation passed (12 card(s))`를 확인한다.
 7. `Validate Level Resolution`을 실행해 `Level resolution passed.`를 확인한다.
-8. 필요하면 `Rebuild Card Database`를 실행해 데이터베이스를 다시 갱신한다.
+8. `Validate Battle Card Instances`를 실행해 `Battle card instances passed.`를 확인한다.
+9. 필요하면 `Rebuild Card Database`를 실행해 데이터베이스를 다시 갱신한다.
 
 ## 생성되는 위치
 

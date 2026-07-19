@@ -61,6 +61,11 @@ namespace HaveABreak.Editor
                 ValidateLevelResolution(true);
             }
 
+            if (GUILayout.Button("Validate Battle Card Instances"))
+            {
+                ValidateBattleCardInstances(true);
+            }
+
             if (GUILayout.Button("Rebuild Card Database", GUILayout.Height(30)))
             {
                 RebuildDatabase();
@@ -259,6 +264,58 @@ namespace HaveABreak.Editor
                 Debug.LogError(
                     $"Level clamp mismatch: {card.CatalogCardId} requested {requestedLevel}, resolved {resolved.Level}.",
                     card);
+            }
+
+            return valid;
+        }
+
+        private static bool ValidateBattleCardInstances(bool showDialog)
+        {
+            Dictionary<string, CardData> cards = FindAllCards()
+                .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
+                .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
+
+            bool valid = true;
+            if (!cards.TryGetValue("C01", out CardData c01) || !cards.TryGetValue("C05", out CardData c05))
+            {
+                Debug.LogError("Battle card validation requires C01 and C05.");
+                valid = false;
+            }
+            else
+            {
+                CardInstanceIds ownedIds = new(c01.CatalogCardId, "OWN-001", "BATTLE-001");
+                BattleCardInstance owned = new(c01, ownedIds, 5, CardZone.Hand);
+                owned.MoveTo(CardZone.MonsterField);
+                ResolvedCardData ownedResolved = owned.Resolved;
+
+                valid &= owned.Ids.IsValid &&
+                         !owned.IsTemporary &&
+                         owned.Zone == CardZone.MonsterField &&
+                         owned.CurrentLevel == 5 &&
+                         ownedResolved.Attack == 4 &&
+                         ownedResolved.Health == 8;
+
+                CardInstanceIds temporaryIds = new(c05.CatalogCardId, null, "BATTLE-002", "INSTANT-001");
+                BattleCardInstance temporary = new(c05, temporaryIds, 0, CardZone.Hand);
+                temporary.MoveTo(CardZone.Banished);
+
+                valid &= temporary.Ids.IsValid &&
+                         temporary.IsTemporary &&
+                         temporary.CurrentLevel == CardData.MinimumLevel &&
+                         temporary.Zone == CardZone.Banished;
+            }
+
+            if (!valid)
+            {
+                Debug.LogError("Battle card instance validation failed.");
+            }
+
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog(
+                    "Battle Card Validation",
+                    valid ? "Battle card instances passed." : "Battle card instances failed. Check the Console.",
+                    "OK");
             }
 
             return valid;
