@@ -25,3 +25,7 @@ ID 계층은 수록카드ID(`CatalogCardId`), 보유카드ID(`OwnedCardId`),
 생명력·효과 문구를 보유한다. `CardDatabase.asset`에도 C01부터 C12까지 ID 순으로 연결되어
 있다. 효과 문구는 기획 원문을 보존한 데이터이며 실제 전투 효과 실행기는 후속 단계에서
 연결한다.
+
+`CardData.ResolveLevel(level)`은 요청 레벨을 1~5로 보정하고 해당 레벨의 비용·공격력·
+생명력·효과 문구를 `ResolvedCardData`로 반환한다. Editor 도구의
+`Validate Level Resolution`으로 대표 카드와 범위 보정을 검사할 수 있다.
