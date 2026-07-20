@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, run deck encounter flow, victory enchant rewards, and settlement passed."
+                    ? "Full battle runtime regression C01-C12, run encounter progression, victory rewards, and settlement passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -207,11 +207,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Victory enchant reward choice and attachment",
                 BattleVictoryEnchantRewardServiceValidation.Validate);
+            valid &= Run(
+                "Run encounter progression and reward gates",
+                RunEncounterProgressServiceValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, run deck encounter flow, victory enchant rewards, and settlement passed.");
+                    "Full battle runtime regression C01-C12, run encounter progression, victory rewards, and settlement passed.");
             }
             else
             {
