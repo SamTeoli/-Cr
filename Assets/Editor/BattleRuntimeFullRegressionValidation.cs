@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, automatic enemy turns, and defeat stopping passed."
+                    ? "Full battle runtime regression C01-C12, complete rounds, and defeat stopping passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -186,11 +186,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Automatic enemy turn pipeline and defeat stopping",
                 BattleRuntimeEnemyAutomaticTurnPipelineValidation.Validate);
+            valid &= Run(
+                "Complete battle runtime rounds",
+                BattleRuntimeRoundServiceValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, automatic enemy turns, and defeat stopping passed.");
+                    "Full battle runtime regression C01-C12, complete rounds, and defeat stopping passed.");
             }
             else
             {
