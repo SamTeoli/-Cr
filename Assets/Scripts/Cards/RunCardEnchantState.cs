@@ -101,6 +101,37 @@ namespace HaveABreak.Cards
             return true;
         }
 
+        internal bool TryRestore(
+            EnchantData enchant,
+            int slotIndex,
+            int attachmentOrder,
+            bool isActive,
+            out EnchantAttachmentFailure failure)
+        {
+            if (attachmentOrder <= 0 || slots.Exists(slot =>
+                    !slot.IsEmpty &&
+                    slot.AttachmentOrder == attachmentOrder))
+            {
+                failure = EnchantAttachmentFailure.InvalidSlot;
+                return false;
+            }
+
+            if (!CanAttach(enchant, slotIndex, out failure))
+            {
+                return false;
+            }
+
+            slots[slotIndex].Attach(
+                enchant,
+                attachmentOrder,
+                isActive);
+            nextAttachmentOrder = Mathf.Max(
+                nextAttachmentOrder,
+                attachmentOrder + 1);
+            failure = EnchantAttachmentFailure.None;
+            return true;
+        }
+
         public bool TryRemove(int slotIndex, bool battleActive, out EnchantAttachmentFailure failure)
         {
             if (battleActive)

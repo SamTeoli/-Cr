@@ -29,6 +29,21 @@ namespace HaveABreak.Cards
             RunBattleState runState,
             RunDeckState runDeck,
             PlayerPermanentRewardState permanentRewards)
+            : this(
+                runState,
+                runDeck,
+                permanentRewards,
+                Array.Empty<string>(),
+                0)
+        {
+        }
+
+        public RunEncounterProgressState(
+            RunBattleState runState,
+            RunDeckState runDeck,
+            PlayerPermanentRewardState permanentRewards,
+            IEnumerable<string> completedBattleInstanceIds,
+            int completedEncounterCount)
         {
             this.runState = runState ??
                 throw new ArgumentNullException(nameof(runState));
@@ -36,6 +51,39 @@ namespace HaveABreak.Cards
                 throw new ArgumentNullException(nameof(runDeck));
             this.permanentRewards = permanentRewards ??
                 throw new ArgumentNullException(nameof(permanentRewards));
+            if (completedEncounterCount < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(completedEncounterCount));
+            }
+
+            if (completedBattleInstanceIds == null)
+            {
+                throw new ArgumentNullException(
+                    nameof(completedBattleInstanceIds));
+            }
+
+            foreach (string battleInstanceId in completedBattleInstanceIds)
+            {
+                if (string.IsNullOrWhiteSpace(battleInstanceId) ||
+                    HasUsedBattleInstanceId(battleInstanceId))
+                {
+                    throw new ArgumentException(
+                        "Completed battle instance IDs must be non-empty and unique.",
+                        nameof(completedBattleInstanceIds));
+                }
+
+                usedBattleInstanceIds.Add(battleInstanceId.Trim());
+            }
+
+            if (usedBattleInstanceIds.Count != completedEncounterCount)
+            {
+                throw new ArgumentException(
+                    "Completed encounter count must match completed battle IDs.",
+                    nameof(completedEncounterCount));
+            }
+
+            this.completedEncounterCount = completedEncounterCount;
         }
 
         public RunBattleState RunState => runState;
@@ -47,7 +95,7 @@ namespace HaveABreak.Cards
         public bool HasActiveEncounter => activeEncounter != null;
         public int CompletedEncounterCount => completedEncounterCount;
         public IReadOnlyList<string> UsedBattleInstanceIds =>
-            usedBattleInstanceIds;
+            usedBattleInstanceIds ??= new List<string>();
 
         internal bool HasUsedBattleInstanceId(string battleInstanceId)
         {
@@ -56,6 +104,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            usedBattleInstanceIds ??= new List<string>();
             return usedBattleInstanceIds.Exists(id => string.Equals(
                 id,
                 battleInstanceId.Trim(),
@@ -68,6 +117,7 @@ namespace HaveABreak.Cards
         {
             activeEncounter = context ??
                 throw new ArgumentNullException(nameof(context));
+            usedBattleInstanceIds ??= new List<string>();
             usedBattleInstanceIds.Add(battleInstanceId.Trim());
         }
 
