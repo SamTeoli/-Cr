@@ -21,10 +21,17 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            installation = new BattleRuntimeTrapInstallation(
-                playResult.Card,
-                playResult.PlayedEvent.EventId,
-                runtime.Turn.PlayerTurnNumber);
+            BattleRuntimeTrapInstallation candidate =
+                new BattleRuntimeTrapInstallation(
+                    playResult.Card,
+                    playResult.PlayedEvent.EventId,
+                    runtime.Turn.PlayerTurnNumber);
+            if (!runtime.TrapInstallations.TryAdd(candidate))
+            {
+                return false;
+            }
+
+            installation = candidate;
             return true;
         }
 
@@ -97,7 +104,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            return C10BrokenCallLineResolver.TryCancel(
+            bool resolved = C10BrokenCallLineResolver.TryCancel(
                 abilityEvent,
                 ability,
                 installation.SourceTrap,
@@ -107,6 +114,12 @@ namespace HaveABreak.Cards
                 runtime.EffectResolutions,
                 out cancelled,
                 out returnedToHand);
+            if (resolved && returnedToHand)
+            {
+                runtime.TrapInstallations.TryRemove(installation);
+            }
+
+            return resolved;
         }
 
         private static bool CanRespond(
@@ -117,6 +130,8 @@ namespace HaveABreak.Cards
             return runtime != null &&
                    installation != null &&
                    installation.SourceTrap != null &&
+                   runtime.TrapInstallations.Find(
+                       installation.SourceTrap.Ids.BattleCardId) == installation &&
                    runtime.Turn.Phase == BattleTurnPhase.EnemyTurn &&
                    runtime.Turn.PlayerTurnNumber >= installation.EligibleEnemyTurn &&
                    installation.SourceTrap.Zone == CardZone.SkillField &&

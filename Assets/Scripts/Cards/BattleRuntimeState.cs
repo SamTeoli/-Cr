@@ -22,6 +22,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleEffectResolutionTracker effectResolutions;
         [SerializeField] private BattleCardTurnTriggerState cardTurnTriggers;
         [SerializeField] private BattleDefenseRetentionState defenseRetention;
+        [SerializeField] private BattleRuntimeTrapRegistry trapInstallations;
 
         private BattleRuntimeState()
         {
@@ -50,6 +51,7 @@ namespace HaveABreak.Cards
             effectResolutions = new BattleEffectResolutionTracker();
             cardTurnTriggers = new BattleCardTurnTriggerState();
             defenseRetention = new BattleDefenseRetentionState();
+            trapInstallations = new BattleRuntimeTrapRegistry();
         }
 
         public BattleDeckState Deck => deck;
@@ -67,6 +69,7 @@ namespace HaveABreak.Cards
         public BattleEffectResolutionTracker EffectResolutions => effectResolutions;
         public BattleCardTurnTriggerState CardTurnTriggers => cardTurnTriggers;
         public BattleDefenseRetentionState DefenseRetention => defenseRetention;
+        public BattleRuntimeTrapRegistry TrapInstallations => trapInstallations;
 
         public bool TryAddEnemy(
             string enemyId,
@@ -108,13 +111,16 @@ namespace HaveABreak.Cards
                 item.EnemyId, enemyId, StringComparison.OrdinalIgnoreCase));
         }
 
-        public bool TryRegisterFieldMonster(string battleCardId, out BattleMonsterState monster)
+        public bool TryRegisterFieldMonster(
+            string battleCardId,
+            out BattleMonsterState monster)
         {
             monster = null;
             BattleCardInstance card = deck.Zones.Find(battleCardId);
             return card != null &&
                    card.Zone == CardZone.MonsterField &&
-                   monsters.TryAdd(card, enchants.Find(battleCardId), out monster);
+                   monsters.TryAdd(
+                       card, enchants.Find(battleCardId), out monster);
         }
     }
 }
