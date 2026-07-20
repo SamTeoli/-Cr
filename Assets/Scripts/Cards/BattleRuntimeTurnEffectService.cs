@@ -67,43 +67,19 @@ namespace HaveABreak.Cards
             out BattleRuntimeTurnEffectResult result)
         {
             result = null;
-            if (runtime == null || movedEvent == null ||
-                runtime.Turn.Phase != BattleTurnPhase.EnemyTurn ||
-                movedEvent.EventType != BattleEventType.EnemyMoved ||
-                runtime.EventLog.Find(movedEvent.EventId) != movedEvent)
+            if (!BattleRuntimeMovementReactionService.TryResolve(
+                    runtime,
+                    movedEvent,
+                    out BattleRuntimeMovementReactionResult movementResult))
             {
                 return false;
             }
 
-            int resolvedCount = 0;
-            int attackEnhancement = 0;
-            foreach (BattleMonsterState monster in runtime.Monsters.Monsters)
-            {
-                if (monster == null ||
-                    monster.Card.Zone != CardZone.MonsterField ||
-                    !string.Equals(
-                        monster.Card.SourceCard.CatalogCardId,
-                        "C04",
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (C04TerminalCatResolver.TryResolve(
-                        movedEvent,
-                        runtime.Turn.PlayerTurnNumber,
-                        monster,
-                        runtime.CardTurnTriggers,
-                        runtime.EventLog,
-                        out int gained))
-                {
-                    resolvedCount++;
-                    attackEnhancement += gained;
-                }
-            }
-
             result = new BattleRuntimeTurnEffectResult(
-                0, resolvedCount, 0, attackEnhancement);
+                0,
+                movementResult.ResolvedC04Count,
+                0,
+                movementResult.AttackEnhancementGained);
             return true;
         }
     }
