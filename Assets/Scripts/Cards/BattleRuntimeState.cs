@@ -13,6 +13,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleCardPlayState cardPlay;
         [SerializeField] private BattleTurnState turn;
         [SerializeField] private BattleMonsterRegistry monsters;
+        [SerializeField] private BattlePlayerMonsterPositionState playerMonsterPositions;
         [SerializeField] private BattlePlayerState player;
         [SerializeField] private BattleEnemyTracker livingEnemies;
         [SerializeField] private BattleEnemyPositionState enemyPositions;
@@ -44,6 +45,8 @@ namespace HaveABreak.Cards
                 deck, maximumMana, enchants, nextSkillModifiers);
             turn = new BattleTurnState(cardPlay);
             monsters = new BattleMonsterRegistry();
+            playerMonsterPositions =
+                new BattlePlayerMonsterPositionState();
             player = new BattlePlayerState(playerMaximumHealth);
             livingEnemies = new BattleEnemyTracker();
             enemyPositions = new BattleEnemyPositionState();
@@ -63,6 +66,9 @@ namespace HaveABreak.Cards
         public BattleCardPlayState CardPlay => cardPlay;
         public BattleTurnState Turn => turn;
         public BattleMonsterRegistry Monsters => monsters;
+        public BattlePlayerMonsterPositionState PlayerMonsterPositions =>
+            playerMonsterPositions ??=
+                new BattlePlayerMonsterPositionState();
         public BattlePlayerState Player => player;
         public BattleEnemyTracker LivingEnemies => livingEnemies;
         public BattleEnemyPositionState EnemyPositions => enemyPositions;
@@ -119,12 +125,39 @@ namespace HaveABreak.Cards
             string battleCardId,
             out BattleMonsterState monster)
         {
+            if (!PlayerMonsterPositions.TryGetFirstEmpty(
+                    out PlayerMonsterFieldPosition position))
+            {
+                monster = null;
+                return false;
+            }
+
+            return TryRegisterFieldMonster(
+                battleCardId, position, out monster);
+        }
+
+        public bool TryRegisterFieldMonster(
+            string battleCardId,
+            PlayerMonsterFieldPosition position,
+            out BattleMonsterState monster)
+        {
             monster = null;
             BattleCardInstance card = deck.Zones.Find(battleCardId);
-            return card != null &&
-                   card.Zone == CardZone.MonsterField &&
-                   monsters.TryAdd(
-                       card, enchants.Find(battleCardId), out monster);
+            if (card == null ||
+                card.Zone != CardZone.MonsterField ||
+                !PlayerMonsterPositions.TryPlace(battleCardId, position))
+            {
+                return false;
+            }
+
+            if (monsters.TryAdd(
+                    card, enchants.Find(battleCardId), out monster))
+            {
+                return true;
+            }
+
+            PlayerMonsterPositions.TryRemove(battleCardId);
+            return false;
         }
     }
 }

@@ -201,7 +201,10 @@ namespace HaveABreak.Cards
             }
 
             BattleStateBasedChecker stateChecker = new(
-                runtime.Deck, runtime.Monsters, runtime.EventLog);
+                runtime.Deck,
+                runtime.Monsters,
+                runtime.EventLog,
+                runtime.PlayerMonsterPositions);
             string stateCheckParentId = monsterDamageEvent != null
                 ? monsterDamageEvent.EventId
                 : declaration.DeclaredAttack.EventId;
