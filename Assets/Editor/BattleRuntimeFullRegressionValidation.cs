@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, complete rounds, and defeat stopping passed."
+                    ? "Full battle runtime regression C01-C12, multi-round sessions, and terminal locking passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -189,11 +189,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Complete battle runtime rounds",
                 BattleRuntimeRoundServiceValidation.Validate);
+            valid &= Run(
+                "Multi-round battle runtime sessions",
+                BattleRuntimeSessionServiceValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, complete rounds, and defeat stopping passed.");
+                    "Full battle runtime regression C01-C12, multi-round sessions, and terminal locking passed.");
             }
             else
             {
