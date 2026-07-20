@@ -17,11 +17,13 @@ namespace HaveABreak.Cards
             int maximumHealth,
             int currentHealth,
             int gold,
-            IEnumerable<string> consumableItemIds = null)
+            IEnumerable<string> consumableItemIds = null,
+            bool runEnded = false)
         {
             this.maximumHealth = Mathf.Max(1, maximumHealth);
             this.currentHealth = Mathf.Clamp(currentHealth, 0, this.maximumHealth);
             this.gold = Mathf.Max(0, gold);
+            this.runEnded = runEnded;
             if (consumableItemIds == null)
             {
                 return;
