@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace HaveABreak.Cards
@@ -18,6 +19,8 @@ namespace HaveABreak.Cards
         [SerializeField] private EnemyMoveDirection moveDirection;
         [SerializeField] private int moveSteps;
         [SerializeField] private string targetBattleCardId;
+        [SerializeField] private int automaticAttackCount;
+        [SerializeField] private List<int> attackTieBreakerValues = new();
         [SerializeField] private EnemyAbilityResolutionContext ability;
 
         private BattleRuntimeEnemyTurnCommand()
@@ -30,6 +33,8 @@ namespace HaveABreak.Cards
             EnemyMoveDirection moveDirection,
             int moveSteps,
             string targetBattleCardId,
+            int automaticAttackCount,
+            IEnumerable<int> attackTieBreakerValues,
             EnemyAbilityResolutionContext ability)
         {
             this.actionType = actionType;
@@ -37,6 +42,10 @@ namespace HaveABreak.Cards
             this.moveDirection = moveDirection;
             this.moveSteps = moveSteps;
             this.targetBattleCardId = targetBattleCardId;
+            this.automaticAttackCount = automaticAttackCount;
+            this.attackTieBreakerValues = attackTieBreakerValues == null
+                ? new List<int>()
+                : new List<int>(attackTieBreakerValues);
             this.ability = ability;
         }
 
@@ -45,6 +54,10 @@ namespace HaveABreak.Cards
         public EnemyMoveDirection MoveDirection => moveDirection;
         public int MoveSteps => moveSteps;
         public string TargetBattleCardId => targetBattleCardId;
+        public int AutomaticAttackCount => automaticAttackCount;
+        public IReadOnlyList<int> AttackTieBreakerValues =>
+            attackTieBreakerValues ??= new List<int>();
+        public bool UsesAutomaticTargeting => automaticAttackCount > 0;
         public EnemyAbilityResolutionContext Ability => ability;
 
         public static BattleRuntimeEnemyTurnCommand CreateMove(
@@ -57,6 +70,8 @@ namespace HaveABreak.Cards
                 enemyId,
                 direction,
                 steps,
+                null,
+                0,
                 null,
                 default);
         }
@@ -71,6 +86,24 @@ namespace HaveABreak.Cards
                 default,
                 0,
                 targetBattleCardId,
+                0,
+                null,
+                default);
+        }
+
+        public static BattleRuntimeEnemyTurnCommand CreateAutomaticAttack(
+            string enemyId,
+            int attackCount,
+            IEnumerable<int> tieBreakerValues)
+        {
+            return new BattleRuntimeEnemyTurnCommand(
+                BattleRuntimeEnemyTurnActionType.Attack,
+                enemyId,
+                default,
+                0,
+                null,
+                attackCount,
+                tieBreakerValues,
                 default);
         }
 
@@ -81,6 +114,8 @@ namespace HaveABreak.Cards
                 BattleRuntimeEnemyTurnActionType.Ability,
                 ability.SourceEnemyId,
                 default,
+                0,
+                null,
                 0,
                 null,
                 ability);

@@ -92,8 +92,19 @@ namespace HaveABreak.Cards
                     break;
 
                 case BattleRuntimeEnemyTurnActionType.Attack:
-                    if (string.IsNullOrWhiteSpace(
-                            command.TargetBattleCardId))
+                    if (command.UsesAutomaticTargeting)
+                    {
+                        if (command.AttackTieBreakerValues == null ||
+                            command.AttackTieBreakerValues.Count <
+                            command.AutomaticAttackCount)
+                        {
+                            failure = BattleRuntimeEnemyTurnPlanFailure
+                                .InvalidAutomaticAttack;
+                            return false;
+                        }
+                    }
+                    else if (string.IsNullOrWhiteSpace(
+                                 command.TargetBattleCardId))
                     {
                         failure = BattleRuntimeEnemyTurnPlanFailure
                             .InvalidAttackTarget;

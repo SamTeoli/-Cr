@@ -10,6 +10,7 @@ namespace HaveABreak.Cards
         MoveFailed,
         AttackDeclarationFailed,
         AttackDamageFailed,
+        AutomaticAttackFailed,
         AbilityFailed,
         PlayerTurnStartFailed
     }
