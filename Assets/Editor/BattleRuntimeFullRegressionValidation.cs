@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12 passed."
+                    ? "Full battle runtime regression C01-C12 and enemy flow passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -106,13 +106,74 @@ namespace HaveABreak.Editor
                           c05,
                           c12));
 
+            valid &= Run(
+                "Enemy move and C08 replacement",
+                () => c08 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyMoveServiceValidation),
+                          "ValidateC08Replacement",
+                          c08));
+            valid &= Run(
+                "Enemy move C04 C12 reactions",
+                () => c04 != null && c12 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyMoveServiceValidation),
+                          "ValidateMovementReactions",
+                          c04,
+                          c12));
+            valid &= Run(
+                "Enemy attack declaration and C09",
+                () => c01 != null && c09 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyAttackServiceValidation),
+                          "Validate",
+                          c01,
+                          c09));
+            valid &= Run(
+                "Enemy attack C09 overflow damage",
+                () => c01 != null && c09 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyAttackDamageValidation),
+                          "ValidateC09Overflow",
+                          c01,
+                          c09));
+            valid &= Run(
+                "Enemy attack weaken and defense",
+                () => c01 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyAttackDamageValidation),
+                          "ValidateWeakenAndDefense",
+                          c01));
+            valid &= Run(
+                "Enemy ability C10 level 5 single target",
+                () => c10 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyAbilityC10Validation),
+                          "ValidateLevelFiveSingleTarget",
+                          c10));
+            valid &= Run(
+                "Enemy ability C10 level 3 area restriction",
+                () => c10 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyAbilityC10Validation),
+                          "ValidateLevelThreeAreaRestriction",
+                          c10));
+            valid &= Run(
+                "Enemy ability C10 level 4 area cancellation",
+                () => c10 != null &&
+                      Invoke(
+                          typeof(BattleRuntimeEnemyAbilityC10Validation),
+                          "ValidateLevelFourAreaCancellation",
+                          c10));
+
             if (valid)
             {
-                Debug.Log("Full battle runtime regression C01-C12 passed.");
+                Debug.Log(
+                    "Full battle runtime regression C01-C12 and enemy flow passed.");
             }
             else
             {
-                Debug.LogError("Full battle runtime regression C01-C12 failed.");
+                Debug.LogError("Full battle runtime regression failed.");
             }
 
             return valid;
