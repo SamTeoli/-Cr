@@ -177,7 +177,9 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (context.VictoryRewards.ConsumableItemRewardCount > 0)
+            if (context.VictoryRewards.ConsumableItemRewardCount > 0 &&
+                (context.VictoryConsumableRewards == null ||
+                 !context.VictoryConsumableRewards.Claimed))
             {
                 failure = RunEncounterProgressFailure
                     .ConsumableRewardPending;
