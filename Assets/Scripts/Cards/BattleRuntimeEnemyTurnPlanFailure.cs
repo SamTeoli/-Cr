@@ -8,6 +8,10 @@ namespace HaveABreak.Cards
         InvalidEnemyId,
         InvalidMovement,
         InvalidAttackTarget,
-        InvalidAbility
+        InvalidAbility,
+        InvalidRuntime,
+        EnemyNotFound,
+        EnemyNotActive,
+        EnemyPositionMissing
     }
 }
