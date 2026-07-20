@@ -68,6 +68,12 @@ ID 계층은 수록카드ID(`CatalogCardId`), 보유카드ID(`OwnedCardId`),
 효과, 후보와 확률은 임의로 만들지 않으며 빈 ID, 중복 서비스 생성과 이미 보유한 ID의
 중복 등록을 차단한다. 영구 보상 수령을 마치면 최종 보스 전투의 진행 잠금이 해제된다.
 
+`PlayerPermanentRewardSaveService`는 영구 보상ID 상태를 버전 1 JSON으로 직렬화하고
+`Application.persistentDataPath/player-permanent-rewards.json`에 저장·불러온다. 같은
+폴더의 임시 파일에 먼저 기록한 뒤 기존 파일을 교체하며, 빈 ID, 대소문자 중복 ID,
+손상된 JSON과 지원하지 않는 저장 버전은 상태에 반영하지 않고 실패 사유를 반환한다.
+런 덱과 진행 중 전투의 저장은 이 영구 보상 저장과 분리된 후속 단계로 유지한다.
+
 `EnchantData`는 인첸트 정의 ID, 이름, 등급, 호환 카드 종류와 같은 카드 중복 허용 여부를
 가진다. `RunCardEnchantState`는 카드별 기본 슬롯 1칸과 최대 3칸, 실제 장착 순서와 활성
 상태를 런 동안 관리한다. 보상·상점 인첸트는 빈 슬롯과 호환성을 최종 재검사한 뒤 즉시
