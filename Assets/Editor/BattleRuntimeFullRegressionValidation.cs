@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, run encounter progression, victory consumable and permanent rewards, and settlement passed."
+                    ? "Full battle runtime regression C01-C12, run encounter progression, permanent reward save/load, and settlement passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -216,11 +216,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Victory permanent reward and final boss progression",
                 BattleVictoryPermanentRewardServiceValidation.Validate);
+            valid &= Run(
+                "Permanent reward save and load",
+                PlayerPermanentRewardSaveServiceValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, run encounter progression, victory consumable and permanent rewards, and settlement passed.");
+                    "Full battle runtime regression C01-C12, run encounter progression, permanent reward save/load, and settlement passed.");
             }
             else
             {
