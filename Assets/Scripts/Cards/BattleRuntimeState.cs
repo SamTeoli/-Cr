@@ -13,6 +13,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleCardPlayState cardPlay;
         [SerializeField] private BattleTurnState turn;
         [SerializeField] private BattleMonsterRegistry monsters;
+        [SerializeField] private BattlePlayerState player;
         [SerializeField] private BattleEnemyTracker livingEnemies;
         [SerializeField] private BattleEnemyPositionState enemyPositions;
         [SerializeField] private BattleEnemyMovementLockState enemyMovementLocks;
@@ -31,7 +32,8 @@ namespace HaveABreak.Cards
         public BattleRuntimeState(
             IEnumerable<BattleCardInstance> deckCards,
             int shuffleSeed,
-            int maximumMana = BattleManaState.DefaultMaximumMana)
+            int maximumMana = BattleManaState.DefaultMaximumMana,
+            int playerMaximumHealth = BattlePlayerState.DefaultMaximumHealth)
         {
             enchants = new BattleCardEnchantRegistry();
             nextSkillModifiers = new BattleNextSkillModifierState();
@@ -42,6 +44,7 @@ namespace HaveABreak.Cards
                 deck, maximumMana, enchants, nextSkillModifiers);
             turn = new BattleTurnState(cardPlay);
             monsters = new BattleMonsterRegistry();
+            player = new BattlePlayerState(playerMaximumHealth);
             livingEnemies = new BattleEnemyTracker();
             enemyPositions = new BattleEnemyPositionState();
             enemyMovementLocks = new BattleEnemyMovementLockState();
@@ -60,6 +63,7 @@ namespace HaveABreak.Cards
         public BattleCardPlayState CardPlay => cardPlay;
         public BattleTurnState Turn => turn;
         public BattleMonsterRegistry Monsters => monsters;
+        public BattlePlayerState Player => player;
         public BattleEnemyTracker LivingEnemies => livingEnemies;
         public BattleEnemyPositionState EnemyPositions => enemyPositions;
         public BattleEnemyMovementLockState EnemyMovementLocks => enemyMovementLocks;

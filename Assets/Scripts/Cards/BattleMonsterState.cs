@@ -113,6 +113,12 @@ namespace HaveABreak.Cards
             defense += applied;
             return applied;
         }
+
+        public int ConsumeDefense(int incomingDamage)
+        {
+            int consumed = Mathf.Min(Mathf.Max(0, incomingDamage), defense);
+            defense -= consumed;
+            return consumed;
+        }
     }
 }
-
