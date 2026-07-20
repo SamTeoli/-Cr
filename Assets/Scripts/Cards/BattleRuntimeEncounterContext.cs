@@ -69,6 +69,12 @@ namespace HaveABreak.Cards
             private set;
         }
 
+        public BattleVictoryPermanentRewardService VictoryPermanentRewards
+        {
+            get;
+            private set;
+        }
+
         internal bool TrySetVictoryEnchantRewards(
             BattleVictoryEnchantRewardService rewards)
         {
@@ -90,6 +96,18 @@ namespace HaveABreak.Cards
             }
 
             VictoryConsumableRewards = rewards;
+            return true;
+        }
+
+        internal bool TrySetVictoryPermanentRewards(
+            BattleVictoryPermanentRewardService rewards)
+        {
+            if (rewards == null || VictoryPermanentRewards != null)
+            {
+                return false;
+            }
+
+            VictoryPermanentRewards = rewards;
             return true;
         }
     }
