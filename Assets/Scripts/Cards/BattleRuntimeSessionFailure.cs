@@ -9,6 +9,7 @@ namespace HaveABreak.Cards
         BattleFinished,
         BeginBattleFailed,
         StartingHandConfirmationFailed,
-        RoundResolutionFailed
+        RoundResolutionFailed,
+        BattleOngoing
     }
 }
