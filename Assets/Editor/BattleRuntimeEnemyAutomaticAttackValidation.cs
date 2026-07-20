@@ -78,14 +78,15 @@ namespace HaveABreak.Editor
         {
             BattleCardInstance instance = Instance(card, "AUTO-MONSTER");
             BattleRuntimeState runtime = new(new[] { instance }, 392);
-            if (!PlaceMonster(
+            if (!BeginPlayerTurn(runtime) ||
+                !PlaceMonster(
                     runtime, instance,
                     PlayerMonsterFieldPosition.Center,
                     out BattleMonsterState monster) ||
                 !runtime.TryAddEnemy(
                     "AUTO-MONSTER", 1, 10,
                     EnemyFieldPosition.Center, out _) ||
-                !BeginEnemyTurn(runtime) ||
+                !runtime.Turn.TryEndPlayerTurn(out _) ||
                 !BattleRuntimeEnemyAutoAttackService.TryResolve(
                     runtime,
                     "AUTO-MONSTER",
@@ -115,7 +116,8 @@ namespace HaveABreak.Editor
             BattleCardInstance rightCard = Instance(card, "REPEAT-RIGHT");
             BattleRuntimeState runtime = new(
                 new[] { centerCard, rightCard }, 393);
-            if (!PlaceMonster(
+            if (!BeginPlayerTurn(runtime) ||
+                !PlaceMonster(
                     runtime, centerCard,
                     PlayerMonsterFieldPosition.Center,
                     out BattleMonsterState centerMonster) ||
@@ -130,7 +132,7 @@ namespace HaveABreak.Editor
                     10,
                     EnemyFieldPosition.Center,
                     out _) ||
-                !BeginEnemyTurn(runtime) ||
+                !runtime.Turn.TryEndPlayerTurn(out _) ||
                 !BattleRuntimeEnemyRepeatedAttackService.TryResolve(
                     runtime,
                     "AUTO-REPEAT",
@@ -168,10 +170,15 @@ namespace HaveABreak.Editor
 
         private static bool BeginEnemyTurn(BattleRuntimeState runtime)
         {
+            return BeginPlayerTurn(runtime) &&
+                   runtime.Turn.TryEndPlayerTurn(out _);
+        }
+
+        private static bool BeginPlayerTurn(BattleRuntimeState runtime)
+        {
             return runtime.Turn.TryBeginBattle(out _) &&
                    runtime.Turn.TryConfirmStartingHand(
-                       Array.Empty<string>(), out _, out _, out _) &&
-                   runtime.Turn.TryEndPlayerTurn(out _);
+                       Array.Empty<string>(), out _, out _, out _);
         }
 
         private static bool PlaceMonster(
