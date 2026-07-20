@@ -136,7 +136,25 @@ namespace HaveABreak.Editor
                        BattleRuntimeEnemyTurnPlanFailure.InvalidAttackTarget) &&
                    Reject(
                        BattleRuntimeEnemyTurnCommand.CreateAbility(default),
-                       BattleRuntimeEnemyTurnPlanFailure.InvalidEnemyId);
+                       BattleRuntimeEnemyTurnPlanFailure.InvalidEnemyId) &&
+                   Reject(
+                       BattleRuntimeEnemyTurnCommand.CreateAbility(
+                           new EnemyAbilityResolutionContext(
+                               "",
+                               "ENEMY-PLAN",
+                               false,
+                               true,
+                               false)),
+                       BattleRuntimeEnemyTurnPlanFailure.InvalidAbility) &&
+                   Reject(
+                       BattleRuntimeEnemyTurnCommand.CreateAbility(
+                           new EnemyAbilityResolutionContext(
+                               "ABILITY-NORMAL-ATTACK",
+                               "ENEMY-PLAN",
+                               true,
+                               true,
+                               false)),
+                       BattleRuntimeEnemyTurnPlanFailure.InvalidAbility);
         }
 
         private static bool ValidatePlanExecution()
