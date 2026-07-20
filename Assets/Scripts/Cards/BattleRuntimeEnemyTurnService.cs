@@ -70,10 +70,38 @@ namespace HaveABreak.Cards
                         }
 
                         actionResult = new BattleRuntimeEnemyTurnActionResult(
-                            command, moveResult, null, null, null);
+                            command, moveResult, null, null, null, null);
                         break;
 
                     case BattleRuntimeEnemyTurnActionType.Attack:
+                        if (command.UsesAutomaticTargeting)
+                        {
+                            if (!BattleRuntimeEnemyRepeatedAttackService.TryResolve(
+                                    runtime,
+                                    command.EnemyId,
+                                    command.AutomaticAttackCount,
+                                    command.AttackTieBreakerValues,
+                                    out BattleRuntimeEnemyRepeatedAttackResult automaticResult,
+                                    out _,
+                                    out _))
+                            {
+                                failure = BattleRuntimeEnemyTurnFailure
+                                    .AutomaticAttackFailed;
+                                failedActionIndex = i;
+                                return false;
+                            }
+
+                            actionResult =
+                                new BattleRuntimeEnemyTurnActionResult(
+                                    command,
+                                    null,
+                                    null,
+                                    null,
+                                    automaticResult,
+                                    null);
+                            break;
+                        }
+
                         if (!BattleRuntimeEnemyAttackService.TryDeclare(
                                 runtime,
                                 command.EnemyId,
@@ -99,7 +127,7 @@ namespace HaveABreak.Cards
                         }
 
                         actionResult = new BattleRuntimeEnemyTurnActionResult(
-                            command, null, declaration, attackResult, null);
+                            command, null, declaration, attackResult, null, null);
                         break;
 
                     case BattleRuntimeEnemyTurnActionType.Ability:
@@ -115,7 +143,7 @@ namespace HaveABreak.Cards
                         }
 
                         actionResult = new BattleRuntimeEnemyTurnActionResult(
-                            command, null, null, null, abilityResult);
+                            command, null, null, null, null, abilityResult);
                         break;
 
                     default:
