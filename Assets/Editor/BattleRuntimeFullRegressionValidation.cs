@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, run deck snapshots, enchants, and encounter flow passed."
+                    ? "Full battle runtime regression C01-C12, run deck encounter flow, enchants, and settlement passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -201,11 +201,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Run deck battle snapshots and enchants",
                 RunDeckBattleSnapshotValidation.Validate);
+            valid &= Run(
+                "Run deck encounter flow integration",
+                BattleRuntimeRunDeckEncounterFlowValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, run deck snapshots, enchants, and encounter flow passed.");
+                    "Full battle runtime regression C01-C12, run deck encounter flow, enchants, and settlement passed.");
             }
             else
             {
