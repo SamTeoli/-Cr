@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12 and enemy flow passed."
+                    ? "Full battle runtime regression C01-C12, enemy flow, and planning passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -165,11 +165,17 @@ namespace HaveABreak.Editor
                           typeof(BattleRuntimeEnemyAbilityC10Validation),
                           "ValidateLevelFourAreaCancellation",
                           c10));
+            valid &= Run(
+                "Enemy turn orchestration",
+                BattleRuntimeEnemyTurnServiceValidation.Validate);
+            valid &= Run(
+                "Enemy turn planning and intents",
+                BattleRuntimeEnemyTurnPlanValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12 and enemy flow passed.");
+                    "Full battle runtime regression C01-C12, enemy flow, and planning passed.");
             }
             else
             {
