@@ -57,6 +57,12 @@ namespace HaveABreak.Cards
         public BattleSettlementService Settlement { get; }
         public BattleVictoryRewardService VictoryRewards { get; }
         public RunDeckBattleSnapshot DeckSnapshot { get; }
+        public BattleEncounterStartParameters StartParameters
+        {
+            get;
+            private set;
+        }
+
         public BattleVictoryEnchantRewardService VictoryEnchantRewards
         {
             get;
@@ -84,6 +90,18 @@ namespace HaveABreak.Cards
             }
 
             VictoryEnchantRewards = rewards;
+            return true;
+        }
+
+        internal bool TrySetStartParameters(
+            BattleEncounterStartParameters parameters)
+        {
+            if (parameters == null || StartParameters != null)
+            {
+                return false;
+            }
+
+            StartParameters = parameters;
             return true;
         }
 

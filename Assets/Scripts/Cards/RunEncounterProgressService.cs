@@ -24,6 +24,9 @@ namespace HaveABreak.Cards
             out List<string> validationErrors)
         {
             context = null;
+            List<string> redrawIds = selectedStartingHandRedrawIds == null
+                ? new List<string>()
+                : new List<string>(selectedStartingHandRedrawIds);
             flowFailure = BattleRuntimeEncounterFlowFailure.None;
             runDeckFailure = RunDeckFailure.None;
             bootstrapFailure = BattleRuntimeBootstrapFailure.None;
@@ -66,7 +69,7 @@ namespace HaveABreak.Cards
                     encounter,
                     shuffleSeed,
                     maximumMana,
-                    selectedStartingHandRedrawIds,
+                    redrawIds,
                     rewardSeed,
                     out context,
                     out flowFailure,
@@ -78,6 +81,20 @@ namespace HaveABreak.Cards
                     out validationErrors);
             if (!created)
             {
+                failure = RunEncounterProgressFailure.BeginFailed;
+                return false;
+            }
+
+            if (!context.TrySetStartParameters(
+                    new BattleEncounterStartParameters(
+                        battleInstanceId,
+                        encounter.EncounterId,
+                        shuffleSeed,
+                        maximumMana,
+                        redrawIds,
+                        rewardSeed)))
+            {
+                context = null;
                 failure = RunEncounterProgressFailure.BeginFailed;
                 return false;
             }

@@ -28,7 +28,9 @@ namespace HaveABreak.Cards
             {
             }
 
-            public SaveData(RunEncounterProgressState progress)
+            public SaveData(
+                RunEncounterProgressState progress,
+                string excludedBattleInstanceId = null)
             {
                 schemaVersion = CurrentSchemaVersion;
                 RunBattleState run = progress.RunState;
@@ -39,8 +41,17 @@ namespace HaveABreak.Cards
                     run.ConsumableItemIds);
                 runEnded = run.RunEnded;
                 completedEncounterCount = progress.CompletedEncounterCount;
-                completedBattleInstanceIds = new List<string>(
-                    progress.UsedBattleInstanceIds);
+                completedBattleInstanceIds = new List<string>();
+                foreach (string battleId in progress.UsedBattleInstanceIds)
+                {
+                    if (!string.Equals(
+                            battleId,
+                            excludedBattleInstanceId,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        completedBattleInstanceIds.Add(battleId);
+                    }
+                }
                 cards = new List<CardSaveData>();
                 foreach (RunCardInstance card in progress.RunDeck.Cards)
                 {
@@ -149,6 +160,63 @@ namespace HaveABreak.Cards
             try
             {
                 json = JsonUtility.ToJson(new SaveData(progress), true);
+            }
+            catch (Exception)
+            {
+                failure = RunProgressSaveFailure.SerializationFailed;
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                failure = RunProgressSaveFailure.SerializationFailed;
+                return false;
+            }
+
+            failure = RunProgressSaveFailure.None;
+            return true;
+        }
+
+        internal static bool TrySerializeCheckpointBase(
+            RunEncounterProgressState progress,
+            string activeBattleInstanceId,
+            out string json,
+            out RunProgressSaveFailure failure)
+        {
+            json = null;
+            if (progress?.RunState == null || progress.RunDeck == null ||
+                !progress.HasActiveEncounter ||
+                string.IsNullOrWhiteSpace(activeBattleInstanceId) ||
+                progress.UsedBattleInstanceIds.Count !=
+                progress.CompletedEncounterCount + 1)
+            {
+                failure = RunProgressSaveFailure.InvalidProgress;
+                return false;
+            }
+
+            int matchingIds = 0;
+            foreach (string battleId in progress.UsedBattleInstanceIds)
+            {
+                if (string.Equals(
+                        battleId,
+                        activeBattleInstanceId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    matchingIds++;
+                }
+            }
+
+            if (matchingIds != 1)
+            {
+                failure = RunProgressSaveFailure.InvalidProgress;
+                return false;
+            }
+
+            try
+            {
+                json = JsonUtility.ToJson(
+                    new SaveData(progress, activeBattleInstanceId),
+                    true);
             }
             catch (Exception)
             {
