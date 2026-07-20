@@ -57,5 +57,22 @@ namespace HaveABreak.Cards
         public BattleSettlementService Settlement { get; }
         public BattleVictoryRewardService VictoryRewards { get; }
         public RunDeckBattleSnapshot DeckSnapshot { get; }
+        public BattleVictoryEnchantRewardService VictoryEnchantRewards
+        {
+            get;
+            private set;
+        }
+
+        internal bool TrySetVictoryEnchantRewards(
+            BattleVictoryEnchantRewardService rewards)
+        {
+            if (rewards == null || VictoryEnchantRewards != null)
+            {
+                return false;
+            }
+
+            VictoryEnchantRewards = rewards;
+            return true;
+        }
     }
 }
