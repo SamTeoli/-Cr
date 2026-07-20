@@ -32,10 +32,41 @@ namespace HaveABreak.Editor
         internal static bool Validate()
         {
             CardData c01 = FindCard("C01");
-            return c01 != null &&
-                   ValidateAutomaticCommandRejection() &&
-                   ValidateOrderedAutomaticAttack(c01) &&
-                   ValidateDefeatStopsRemainingActions();
+            bool valid = c01 != null;
+            valid &= Run(
+                "automatic command validation",
+                ValidateAutomaticCommandRejection);
+            valid &= Run(
+                "ordered move, automatic attack, and ability",
+                () => c01 != null && ValidateOrderedAutomaticAttack(c01));
+            valid &= Run(
+                "player defeat stops remaining actions",
+                ValidateDefeatStopsRemainingActions);
+            return valid;
+        }
+
+        private static bool Run(string label, Func<bool> validation)
+        {
+            try
+            {
+                bool passed = validation();
+                if (passed)
+                {
+                    Debug.Log($"Automatic enemy turn validation passed: {label}.");
+                }
+                else
+                {
+                    Debug.LogError($"Automatic enemy turn validation failed: {label}.");
+                }
+
+                return passed;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    $"Automatic enemy turn validation threw: {label}.\n{exception}");
+                return false;
+            }
         }
 
         private static bool ValidateAutomaticCommandRejection()
