@@ -186,7 +186,9 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (context.VictoryRewards.GrantsFinalBossPermanentReward)
+            if (context.VictoryRewards.GrantsFinalBossPermanentReward &&
+                (context.VictoryPermanentRewards == null ||
+                 !context.VictoryPermanentRewards.Claimed))
             {
                 failure =
                     RunEncounterProgressFailure.PermanentRewardPending;
