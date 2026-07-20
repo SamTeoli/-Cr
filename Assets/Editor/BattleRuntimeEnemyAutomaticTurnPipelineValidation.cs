@@ -170,7 +170,10 @@ namespace HaveABreak.Editor
                    attack.AutomaticAttackResult.Attacks[0].Target.TargetPosition ==
                    PlayerMonsterFieldPosition.Center &&
                    attack.AutomaticAttackResult.Attacks[1].AttackedPlayer &&
-                   ally.Zone == CardZone.Graveyard &&
+                   attack.AutomaticAttackResult.Attacks[0]
+                       .MonsterResolution.DestructionEvents.Count == 1 &&
+                   runtime.Monsters.Find(ally.Ids.BattleCardId) == null &&
+                   runtime.PlayerMonsterPositions.Count == 0 &&
                    ability.Command.ActionType ==
                    BattleRuntimeEnemyTurnActionType.Ability &&
                    ability.AbilityResult != null &&
