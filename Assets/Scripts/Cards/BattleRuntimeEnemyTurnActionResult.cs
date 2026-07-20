@@ -7,12 +7,14 @@ namespace HaveABreak.Cards
             BattleRuntimeEnemyMoveResult moveResult,
             BattleRuntimeEnemyAttackDeclarationResult attackDeclaration,
             BattleRuntimeEnemyAttackResolutionResult attackResolution,
+            BattleRuntimeEnemyRepeatedAttackResult automaticAttackResult,
             BattleRuntimeEnemyAbilityResult abilityResult)
         {
             Command = command;
             MoveResult = moveResult;
             AttackDeclaration = attackDeclaration;
             AttackResolution = attackResolution;
+            AutomaticAttackResult = automaticAttackResult;
             AbilityResult = abilityResult;
         }
 
@@ -20,6 +22,7 @@ namespace HaveABreak.Cards
         public BattleRuntimeEnemyMoveResult MoveResult { get; }
         public BattleRuntimeEnemyAttackDeclarationResult AttackDeclaration { get; }
         public BattleRuntimeEnemyAttackResolutionResult AttackResolution { get; }
+        public BattleRuntimeEnemyRepeatedAttackResult AutomaticAttackResult { get; }
         public BattleRuntimeEnemyAbilityResult AbilityResult { get; }
     }
 }
