@@ -90,5 +90,16 @@ namespace HaveABreak.Cards
         {
             gold += Mathf.Max(0, amount);
         }
+
+        internal bool TryAddRewardConsumableItem(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            consumableItemIds.Add(itemId.Trim());
+            return true;
+        }
     }
 }
