@@ -98,7 +98,10 @@ namespace HaveABreak.Cards
         AttackCompleted,
         MainEffectCompleted,
         EnemyMoved,
-        EnemyMoveAttempt
+        EnemyMoveAttempt,
+        EnemyAbilityDeclared,
+        EnemyAbilityCancelled,
+        EnemyAbilityCompleted
     }
 
     public enum EffectProcessingStage
