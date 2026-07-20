@@ -57,6 +57,14 @@ namespace HaveABreak.Cards
                     $"Encounter '{encounter.EncounterId}' requires a display name.");
             }
 
+            if (!Enum.IsDefined(
+                    typeof(BattleEncounterGrade),
+                    encounter.EncounterGrade))
+            {
+                errors.Add(
+                    $"Encounter '{encounter.EncounterId}' has an invalid encounter grade.");
+            }
+
             if (encounter.EnemySlots == null ||
                 encounter.EnemySlots.Count == 0)
             {

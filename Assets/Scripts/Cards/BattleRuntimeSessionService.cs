@@ -113,5 +113,49 @@ namespace HaveABreak.Cards
             failure = BattleRuntimeSessionFailure.None;
             return true;
         }
+
+        public static bool TryFinalizeTerminalOutcome(
+            BattleRuntimeSessionState session,
+            out BattleOutcome outcome,
+            out BattleRuntimeSessionFailure failure)
+        {
+            outcome = BattleOutcome.Ongoing;
+            if (session?.Runtime == null)
+            {
+                failure = BattleRuntimeSessionFailure.InvalidSession;
+                return false;
+            }
+
+            if (!session.Started)
+            {
+                failure = BattleRuntimeSessionFailure.NotStarted;
+                return false;
+            }
+
+            if (session.IsFinished)
+            {
+                outcome = session.Outcome;
+                failure = BattleRuntimeSessionFailure.BattleFinished;
+                return false;
+            }
+
+            outcome = new BattleOutcomeEvaluator(
+                session.Runtime.Player,
+                session.Runtime.LivingEnemies).Evaluate();
+            if (outcome == BattleOutcome.Ongoing)
+            {
+                failure = BattleRuntimeSessionFailure.BattleOngoing;
+                return false;
+            }
+
+            if (!session.TryMarkTerminalOutcome(outcome))
+            {
+                failure = BattleRuntimeSessionFailure.InvalidSession;
+                return false;
+            }
+
+            failure = BattleRuntimeSessionFailure.None;
+            return true;
+        }
     }
 }

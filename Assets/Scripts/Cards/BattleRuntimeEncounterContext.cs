@@ -1,0 +1,40 @@
+using System;
+
+namespace HaveABreak.Cards
+{
+    public sealed class BattleRuntimeEncounterContext
+    {
+        internal BattleRuntimeEncounterContext(
+            BattleRuntimeBootstrapResult bootstrap,
+            RunBattleState runState,
+            BattleRunChanges runChanges,
+            BattleEffectQueue pendingSettlementEffects,
+            BattleSettlementService settlement,
+            BattleVictoryRewardService victoryRewards)
+        {
+            Bootstrap = bootstrap ??
+                throw new ArgumentNullException(nameof(bootstrap));
+            RunState = runState ??
+                throw new ArgumentNullException(nameof(runState));
+            RunChanges = runChanges ??
+                throw new ArgumentNullException(nameof(runChanges));
+            PendingSettlementEffects = pendingSettlementEffects ??
+                throw new ArgumentNullException(
+                    nameof(pendingSettlementEffects));
+            Settlement = settlement ??
+                throw new ArgumentNullException(nameof(settlement));
+            VictoryRewards = victoryRewards ??
+                throw new ArgumentNullException(nameof(victoryRewards));
+        }
+
+        public BattleRuntimeBootstrapResult Bootstrap { get; }
+        public BattleRuntimeState Runtime => Bootstrap.Runtime;
+        public BattleRuntimeSessionState Session => Bootstrap.Session;
+        public EncounterData Encounter => Bootstrap.Encounter;
+        public RunBattleState RunState { get; }
+        public BattleRunChanges RunChanges { get; }
+        public BattleEffectQueue PendingSettlementEffects { get; }
+        public BattleSettlementService Settlement { get; }
+        public BattleVictoryRewardService VictoryRewards { get; }
+    }
+}

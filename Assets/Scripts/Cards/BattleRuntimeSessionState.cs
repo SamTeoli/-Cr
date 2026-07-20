@@ -47,5 +47,17 @@ namespace HaveABreak.Cards
                 playerTurnEventStartIndex = runtime.EventLog.Events.Count;
             }
         }
+
+        internal bool TryMarkTerminalOutcome(BattleOutcome terminalOutcome)
+        {
+            if (!started || IsFinished ||
+                terminalOutcome == BattleOutcome.Ongoing)
+            {
+                return false;
+            }
+
+            outcome = terminalOutcome;
+            return true;
+        }
     }
 }
