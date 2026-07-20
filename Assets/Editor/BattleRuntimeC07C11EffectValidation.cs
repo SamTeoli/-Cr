@@ -15,9 +15,10 @@ namespace HaveABreak.Editor
             CardData c01 = FindCard("C01");
             CardData c07 = FindCard("C07");
             CardData c11 = FindCard("C11");
-            bool valid = c01 != null && c07 != null && c11 != null &&
-                         ValidateC07(c01, c07) &&
-                         ValidateC11(c01, c11);
+            bool cardsFound = c01 != null && c07 != null && c11 != null;
+            bool c07Valid = cardsFound && ValidateC07(c01, c07);
+            bool c11Valid = cardsFound && ValidateC11(c01, c11);
+            bool valid = cardsFound && c07Valid && c11Valid;
 
             if (valid)
             {
@@ -25,7 +26,9 @@ namespace HaveABreak.Editor
             }
             else
             {
-                Debug.LogError("Battle runtime C07 and C11 effects failed.");
+                Debug.LogError(
+                    $"Battle runtime C07 and C11 effects failed. " +
+                    $"cards={cardsFound}, C07={c07Valid}, C11={c11Valid}");
             }
 
             EditorUtility.DisplayDialog(
@@ -42,18 +45,16 @@ namespace HaveABreak.Editor
             BattleCardInstance selected = Instance(c01, 1, "C07-SELECTED");
             BattleCardInstance ally = Instance(c01, 1, "C07-ALLY");
             List<BattleCardInstance> cards = new() { source, selected, ally };
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 5; i++)
             {
                 cards.Add(Instance(c01, 1, $"C07-DRAW-{i}"));
             }
 
-            BattleRuntimeState runtime = Start(cards, 357);
+            BattleRuntimeState runtime = Start(cards, 4);
             if (runtime == null ||
-                !MoveAllToDrawPile(runtime, cards) ||
-                !runtime.Deck.Zones.TryMove(
-                    source.Ids.BattleCardId, CardZone.Hand, out _) ||
-                !runtime.Deck.Zones.TryMove(
-                    selected.Ids.BattleCardId, CardZone.Hand, out _) ||
+                source.Zone != CardZone.Hand ||
+                selected.Zone != CardZone.Hand ||
+                ally.Zone != CardZone.Hand ||
                 !runtime.Deck.Zones.TryMove(
                     ally.Ids.BattleCardId, CardZone.MonsterField, out _) ||
                 !runtime.TryRegisterFieldMonster(
@@ -76,7 +77,7 @@ namespace HaveABreak.Editor
                      result.DefendedMonsterCount == 1 &&
                      selected.Zone == CardZone.Banished &&
                      allyState.Defense == 2 &&
-                     runtime.Deck.Zones.Count(CardZone.Hand) == 3;
+                     runtime.Deck.Zones.Count(CardZone.Hand) == 5;
             valid &= !BattleRuntimeC07EffectService.TryResolve(
                 runtime, playResult, selected.Ids.BattleCardId, out _);
             return valid;
@@ -87,16 +88,15 @@ namespace HaveABreak.Editor
             BattleCardInstance barrier = Instance(c11, 5, "C11-SOURCE");
             BattleCardInstance ally = Instance(c01, 1, "C11-ALLY");
             List<BattleCardInstance> cards = new() { barrier, ally };
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 6; i++)
             {
                 cards.Add(Instance(c01, 1, $"C11-DRAW-{i}"));
             }
 
-            BattleRuntimeState runtime = Start(cards, 3511);
+            BattleRuntimeState runtime = Start(cards, 2);
             if (runtime == null ||
-                !MoveAllToDrawPile(runtime, cards) ||
-                !runtime.Deck.Zones.TryMove(
-                    barrier.Ids.BattleCardId, CardZone.Hand, out _) ||
+                barrier.Zone != CardZone.Hand ||
+                ally.Zone != CardZone.Hand ||
                 !runtime.Deck.Zones.TryMove(
                     ally.Ids.BattleCardId, CardZone.MonsterField, out _) ||
                 !runtime.TryRegisterFieldMonster(
@@ -131,7 +131,7 @@ namespace HaveABreak.Editor
                      result.DefendedMonsterIds.Count == 1 &&
                      result.DefendedMonsterIds[0] == ally.Ids.BattleCardId &&
                      allyState.Defense == 1 &&
-                     runtime.Deck.Zones.Count(CardZone.Hand) == 3 &&
+                     runtime.Deck.Zones.Count(CardZone.Hand) == 6 &&
                      runtime.Turn.PlayerTurnNumber == 2 &&
                      runtime.Turn.Phase == BattleTurnPhase.PlayerAction;
             return valid;
@@ -147,20 +147,6 @@ namespace HaveABreak.Editor
                        Array.Empty<string>(), out _, out _, out _)
                 ? runtime
                 : null;
-        }
-
-        private static bool MoveAllToDrawPile(
-            BattleRuntimeState runtime,
-            IEnumerable<BattleCardInstance> cards)
-        {
-            bool valid = true;
-            foreach (BattleCardInstance card in cards)
-            {
-                valid &= runtime.Deck.Zones.TryMove(
-                    card.Ids.BattleCardId, CardZone.DrawPile, out _);
-            }
-
-            return valid;
         }
 
         private static BattleCardInstance Instance(
