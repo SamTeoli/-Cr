@@ -6,6 +6,11 @@ namespace HaveABreak.Cards
         InvalidRuntime,
         InvalidTurnPhase,
         InvalidAttacker,
-        InvalidTarget
+        InvalidTarget,
+        InvalidDeclaration,
+        AlreadyResolved,
+        StatusStateNotFound,
+        StateCheckFailed,
+        CompletionFailed
     }
 }
