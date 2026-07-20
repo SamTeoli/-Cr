@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, ordered enemy turns, and attack targeting passed."
+                    ? "Full battle runtime regression C01-C12, enemy targeting, and repeated attacks passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -180,11 +180,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Player monster positions and enemy attack targeting",
                 BattleRuntimeEnemyAttackTargetValidation.Validate);
+            valid &= Run(
+                "Enemy automatic and repeated attacks",
+                BattleRuntimeEnemyAutomaticAttackValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, ordered enemy turns, and attack targeting passed.");
+                    "Full battle runtime regression C01-C12, enemy targeting, and repeated attacks passed.");
             }
             else
             {
