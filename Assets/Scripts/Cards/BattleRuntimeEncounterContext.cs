@@ -11,6 +11,25 @@ namespace HaveABreak.Cards
             BattleEffectQueue pendingSettlementEffects,
             BattleSettlementService settlement,
             BattleVictoryRewardService victoryRewards)
+            : this(
+                bootstrap,
+                runState,
+                runChanges,
+                pendingSettlementEffects,
+                settlement,
+                victoryRewards,
+                null)
+        {
+        }
+
+        internal BattleRuntimeEncounterContext(
+            BattleRuntimeBootstrapResult bootstrap,
+            RunBattleState runState,
+            BattleRunChanges runChanges,
+            BattleEffectQueue pendingSettlementEffects,
+            BattleSettlementService settlement,
+            BattleVictoryRewardService victoryRewards,
+            RunDeckBattleSnapshot deckSnapshot)
         {
             Bootstrap = bootstrap ??
                 throw new ArgumentNullException(nameof(bootstrap));
@@ -25,6 +44,7 @@ namespace HaveABreak.Cards
                 throw new ArgumentNullException(nameof(settlement));
             VictoryRewards = victoryRewards ??
                 throw new ArgumentNullException(nameof(victoryRewards));
+            DeckSnapshot = deckSnapshot;
         }
 
         public BattleRuntimeBootstrapResult Bootstrap { get; }
@@ -36,5 +56,6 @@ namespace HaveABreak.Cards
         public BattleEffectQueue PendingSettlementEffects { get; }
         public BattleSettlementService Settlement { get; }
         public BattleVictoryRewardService VictoryRewards { get; }
+        public RunDeckBattleSnapshot DeckSnapshot { get; }
     }
 }

@@ -7,6 +7,8 @@ namespace HaveABreak.Cards
         BootstrapFailed,
         SessionBeginFailed,
         SessionNotFinished,
-        SettlementFailed
+        SettlementFailed,
+        RunDeckSnapshotFailed,
+        EnchantRegistrationFailed
     }
 }
