@@ -9,6 +9,7 @@ namespace HaveABreak.Cards
     {
         [SerializeField] private BattleDeckState deck;
         [SerializeField] private BattleMonsterRegistry monsters;
+        [SerializeField] private BattlePlayerMonsterPositionState monsterPositions;
         [SerializeField] private BattleEventLog eventLog;
 
         private BattleStateBasedChecker()
@@ -19,10 +20,23 @@ namespace HaveABreak.Cards
             BattleDeckState deck,
             BattleMonsterRegistry monsters,
             BattleEventLog eventLog)
+            : this(deck, monsters, eventLog, null)
         {
-            this.deck = deck ?? throw new ArgumentNullException(nameof(deck));
-            this.monsters = monsters ?? throw new ArgumentNullException(nameof(monsters));
-            this.eventLog = eventLog ?? throw new ArgumentNullException(nameof(eventLog));
+        }
+
+        public BattleStateBasedChecker(
+            BattleDeckState deck,
+            BattleMonsterRegistry monsters,
+            BattleEventLog eventLog,
+            BattlePlayerMonsterPositionState monsterPositions)
+        {
+            this.deck = deck ??
+                throw new ArgumentNullException(nameof(deck));
+            this.monsters = monsters ??
+                throw new ArgumentNullException(nameof(monsters));
+            this.eventLog = eventLog ??
+                throw new ArgumentNullException(nameof(eventLog));
+            this.monsterPositions = monsterPositions;
         }
 
         public bool TryResolveMonsterDestruction(
@@ -73,6 +87,7 @@ namespace HaveABreak.Cards
                     afterValue: 0);
                 destructionEvents.Add(destroyed);
                 monsters.TryRemove(card.Ids.BattleCardId, out _);
+                monsterPositions?.TryRemove(card.Ids.BattleCardId);
             }
 
             failure = StateBasedCheckFailure.None;
