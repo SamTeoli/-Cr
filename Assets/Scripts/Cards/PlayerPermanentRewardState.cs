@@ -9,7 +9,8 @@ namespace HaveABreak.Cards
     {
         [SerializeField] private List<string> rewardIds = new();
 
-        public IReadOnlyList<string> RewardIds => rewardIds;
+        public IReadOnlyList<string> RewardIds =>
+            rewardIds ??= new List<string>();
 
         public bool Contains(string rewardId)
         {
@@ -19,6 +20,7 @@ namespace HaveABreak.Cards
             }
 
             string normalized = rewardId.Trim();
+            rewardIds ??= new List<string>();
             return rewardIds.Exists(id => string.Equals(
                 id,
                 normalized,
@@ -32,6 +34,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            rewardIds ??= new List<string>();
             rewardIds.Add(rewardId.Trim());
             return true;
         }
