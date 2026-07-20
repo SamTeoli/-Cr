@@ -9,6 +9,7 @@ namespace HaveABreak.Cards
     {
         [SerializeField] private RunBattleState runState;
         [SerializeField] private RunDeckState runDeck;
+        [SerializeField] private PlayerPermanentRewardState permanentRewards;
         [SerializeField] private List<string> usedBattleInstanceIds = new();
         [SerializeField] private int completedEncounterCount;
         [NonSerialized] private BattleRuntimeEncounterContext activeEncounter;
@@ -20,15 +21,27 @@ namespace HaveABreak.Cards
         public RunEncounterProgressState(
             RunBattleState runState,
             RunDeckState runDeck)
+            : this(runState, runDeck, new PlayerPermanentRewardState())
+        {
+        }
+
+        public RunEncounterProgressState(
+            RunBattleState runState,
+            RunDeckState runDeck,
+            PlayerPermanentRewardState permanentRewards)
         {
             this.runState = runState ??
                 throw new ArgumentNullException(nameof(runState));
             this.runDeck = runDeck ??
                 throw new ArgumentNullException(nameof(runDeck));
+            this.permanentRewards = permanentRewards ??
+                throw new ArgumentNullException(nameof(permanentRewards));
         }
 
         public RunBattleState RunState => runState;
         public RunDeckState RunDeck => runDeck;
+        public PlayerPermanentRewardState PermanentRewards =>
+            permanentRewards ??= new PlayerPermanentRewardState();
         public BattleRuntimeEncounterContext ActiveEncounter =>
             activeEncounter;
         public bool HasActiveEncounter => activeEncounter != null;
