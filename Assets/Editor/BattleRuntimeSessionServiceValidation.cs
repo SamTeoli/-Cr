@@ -62,6 +62,9 @@ namespace HaveABreak.Editor
                 "unified player turn end",
                 ValidateUnifiedPlayerTurnEnd);
             valid &= Run(
+                "prototype battle play window bootstrap",
+                PrototypeBattleHarnessFactory.Validate);
+            valid &= Run(
                 "terminal outcome locking",
                 ValidateTerminalLocking);
             valid &= Run(
@@ -395,6 +398,662 @@ namespace HaveABreak.Editor
                     card.CatalogCardId,
                     catalogCardId,
                     StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    internal static class PrototypeBattleHarnessFactory
+    {
+        private const string DatabasePath =
+            "Assets/GameData/CardDatabase.asset";
+
+        private static readonly string[] TestCardIds =
+        {
+            TestContentIds.C01,
+            TestContentIds.C02,
+            TestContentIds.C03,
+            TestContentIds.C04,
+            TestContentIds.C05,
+            TestContentIds.C06,
+            TestContentIds.C07,
+            TestContentIds.C08,
+            TestContentIds.C09,
+            TestContentIds.C10,
+            TestContentIds.C11,
+            TestContentIds.C12
+        };
+
+        internal static bool TryCreate(
+            out BattleRuntimeSessionState session,
+            out string error)
+        {
+            session = null;
+            CardDatabase database =
+                AssetDatabase.LoadAssetAtPath<CardDatabase>(DatabasePath);
+            if (database == null)
+            {
+                error = $"Card database not found: {DatabasePath}";
+                return false;
+            }
+
+            List<BattleCardInstance> deck = new();
+            for (int i = 0; i < TestCardIds.Length; i++)
+            {
+                string catalogCardId = TestCardIds[i];
+                if (!database.TryGetCard(catalogCardId, out CardData card))
+                {
+                    error = $"Test card not found: {catalogCardId}";
+                    return false;
+                }
+
+                deck.Add(new BattleCardInstance(
+                    card,
+                    new CardInstanceIds(
+                        catalogCardId,
+                        $"OWNED-PROTOTYPE-{catalogCardId}",
+                        $"BATTLE-PROTOTYPE-{catalogCardId}"),
+                    1,
+                    CardZone.DrawPile));
+            }
+
+            BattleRuntimeState runtime = new(deck, 20260721, 5, 30);
+            if (!TryAddEnemy(
+                    runtime,
+                    "TEST-ENEMY-LEFT",
+                    1,
+                    12,
+                    EnemyFieldPosition.Left) ||
+                !TryAddEnemy(
+                    runtime,
+                    "TEST-ENEMY-CENTER",
+                    1,
+                    12,
+                    EnemyFieldPosition.Center) ||
+                !TryAddEnemy(
+                    runtime,
+                    "TEST-ENEMY-RIGHT",
+                    1,
+                    12,
+                    EnemyFieldPosition.Right))
+            {
+                error = "Could not create the three prototype enemies.";
+                return false;
+            }
+
+            session = new BattleRuntimeSessionState(runtime);
+            if (!BattleRuntimeSessionService.TryBegin(
+                    session,
+                    Array.Empty<string>(),
+                    out _,
+                    out BattleRuntimeSessionFailure sessionFailure,
+                    out StartingHandRedrawFailure redrawFailure,
+                    out BattleTurnFailure turnFailure))
+            {
+                error =
+                    $"Could not begin battle: {sessionFailure} / " +
+                    $"{redrawFailure} / {turnFailure}";
+                session = null;
+                return false;
+            }
+
+            error = null;
+            return true;
+        }
+
+        internal static bool Validate()
+        {
+            if (!TryCreate(
+                    out BattleRuntimeSessionState session,
+                    out string error))
+            {
+                Debug.LogError(error);
+                return false;
+            }
+
+            BattleRuntimeState runtime = session.Runtime;
+            return session.Started &&
+                   !session.IsFinished &&
+                   session.Outcome == BattleOutcome.Ongoing &&
+                   runtime.Turn.Phase == BattleTurnPhase.PlayerAction &&
+                   runtime.Turn.PlayerTurnNumber == 1 &&
+                   runtime.CardPlay.Mana.CurrentMana == 5 &&
+                   runtime.Player.CurrentHealth == 30 &&
+                   runtime.Deck.Zones.Cards.Count == TestCardIds.Length &&
+                   runtime.Deck.Zones.Count(CardZone.Hand) ==
+                   BattleDeckState.StartingHandSize &&
+                   runtime.LivingEnemies.Count == 3 &&
+                   runtime.Enemies.Count == 3;
+        }
+
+        private static bool TryAddEnemy(
+            BattleRuntimeState runtime,
+            string enemyId,
+            int attack,
+            int health,
+            EnemyFieldPosition position)
+        {
+            return runtime.TryAddEnemy(
+                enemyId,
+                attack,
+                health,
+                position,
+                out _);
+        }
+    }
+
+    public sealed class PrototypeBattleTestWindow : EditorWindow
+    {
+        private BattleRuntimeSessionState session;
+        private string selectedTargetEnemyId;
+        private string selectedBanishBattleCardId;
+        private string lastMessage;
+        private Vector2 scroll;
+
+        [MenuItem("Have a Break/Tests/Open Prototype Battle")]
+        public static void ShowWindow()
+        {
+            PrototypeBattleTestWindow window =
+                GetWindow<PrototypeBattleTestWindow>("Prototype Battle");
+            window.minSize = new Vector2(720f, 620f);
+            window.Show();
+        }
+
+        [MenuItem("Have a Break/Tests/Validate Prototype Battle Screen")]
+        private static void ValidateFromMenu()
+        {
+            bool valid = PrototypeBattleHarnessFactory.Validate();
+            EditorUtility.DisplayDialog(
+                "Prototype Battle Screen Validation",
+                valid
+                    ? "Prototype battle screen bootstrap passed."
+                    : "Prototype battle screen bootstrap failed. Check the Console.",
+                "OK");
+        }
+
+        private void OnEnable()
+        {
+            if (session == null)
+            {
+                StartNewBattle();
+            }
+        }
+
+        private void OnGUI()
+        {
+            DrawToolbar();
+            if (session?.Runtime == null)
+            {
+                EditorGUILayout.HelpBox(
+                    string.IsNullOrWhiteSpace(lastMessage)
+                        ? "테스트 전투를 시작할 수 없습니다."
+                        : lastMessage,
+                    MessageType.Error);
+                return;
+            }
+
+            scroll = EditorGUILayout.BeginScrollView(scroll);
+            DrawSummary();
+            DrawEnemies();
+            DrawPlayerMonsters();
+            DrawHand();
+            DrawZones();
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawToolbar()
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            if (GUILayout.Button(
+                    "새 테스트 전투",
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(120f)))
+            {
+                StartNewBattle();
+            }
+
+            GUILayout.FlexibleSpace();
+            using (new EditorGUI.DisabledScope(
+                       session == null || session.IsFinished))
+            {
+                if (GUILayout.Button(
+                        "턴 종료",
+                        EditorStyles.toolbarButton,
+                        GUILayout.Width(90f)))
+                {
+                    EndPlayerTurn();
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawSummary()
+        {
+            BattleRuntimeState runtime = session.Runtime;
+            EditorGUILayout.LabelField(
+                "C01~C12 직접 조작 전투",
+                EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "적을 먼저 선택한 뒤 카드를 사용하거나 아군 몬스터로 공격하세요. " +
+                "C07은 패에서 함께 소멸시킬 카드를 선택해야 합니다.",
+                MessageType.Info);
+            EditorGUILayout.LabelField(
+                $"결과: {OutcomeLabel(session.Outcome)}    " +
+                $"턴: {runtime.Turn.PlayerTurnNumber}    " +
+                $"단계: {runtime.Turn.Phase}    " +
+                $"플레이어 HP: {runtime.Player.CurrentHealth}/" +
+                $"{runtime.Player.MaximumHealth}    " +
+                $"마력: {runtime.CardPlay.Mana.CurrentMana}/" +
+                $"{runtime.CardPlay.Mana.MaximumMana}");
+
+            if (!string.IsNullOrWhiteSpace(lastMessage))
+            {
+                EditorGUILayout.HelpBox(lastMessage, MessageType.None);
+            }
+
+            EditorGUILayout.Space(8f);
+        }
+
+        private void DrawEnemies()
+        {
+            BattleRuntimeState runtime = session.Runtime;
+            EditorGUILayout.LabelField("적 필드", EditorStyles.boldLabel);
+            EditorGUILayout.BeginHorizontal();
+            foreach (EnemyFieldPosition position in
+                     Enum.GetValues(typeof(EnemyFieldPosition)))
+            {
+                string enemyId = runtime.EnemyPositions.GetOccupant(position);
+                EditorGUILayout.BeginVertical(
+                    EditorStyles.helpBox,
+                    GUILayout.MinHeight(92f));
+                EditorGUILayout.LabelField(
+                    PositionLabel(position),
+                    EditorStyles.miniBoldLabel);
+                if (string.IsNullOrWhiteSpace(enemyId))
+                {
+                    EditorGUILayout.LabelField("빈 칸");
+                }
+                else
+                {
+                    BattleEnemyRuntimeState enemy = runtime.FindEnemy(enemyId);
+                    BattleEnemyStatusState status =
+                        runtime.EnemyStatuses.Find(enemyId);
+                    bool selected = string.Equals(
+                        selectedTargetEnemyId,
+                        enemyId,
+                        StringComparison.OrdinalIgnoreCase);
+                    EditorGUILayout.LabelField(
+                        $"{enemyId}\nHP {enemy.Vital.CurrentHealth}  " +
+                        $"공격 {enemy.Attack}\n" +
+                        $"약화 {status?.Weaken ?? 0}  " +
+                        $"취약 {status?.Vulnerable ?? 0}  " +
+                        $"속박 {status?.Bind ?? 0}",
+                        EditorStyles.wordWrappedLabel);
+                    if (GUILayout.Button(selected ? "선택됨" : "대상 선택"))
+                    {
+                        selectedTargetEnemyId = enemyId;
+                        Repaint();
+                    }
+                }
+
+                EditorGUILayout.EndVertical();
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(8f);
+        }
+
+        private void DrawPlayerMonsters()
+        {
+            BattleRuntimeState runtime = session.Runtime;
+            EditorGUILayout.LabelField("아군 몬스터 필드", EditorStyles.boldLabel);
+            EditorGUILayout.BeginHorizontal();
+            foreach (PlayerMonsterFieldPosition position in
+                     Enum.GetValues(typeof(PlayerMonsterFieldPosition)))
+            {
+                string battleCardId =
+                    runtime.PlayerMonsterPositions.GetOccupant(position);
+                EditorGUILayout.BeginVertical(
+                    EditorStyles.helpBox,
+                    GUILayout.MinHeight(108f));
+                EditorGUILayout.LabelField(
+                    PlayerPositionLabel(position),
+                    EditorStyles.miniBoldLabel);
+                BattleMonsterState monster = string.IsNullOrWhiteSpace(
+                        battleCardId)
+                    ? null
+                    : runtime.Monsters.Find(battleCardId);
+                if (monster == null)
+                {
+                    EditorGUILayout.LabelField("빈 칸");
+                }
+                else
+                {
+                    EditorGUILayout.LabelField(
+                        $"{monster.Card.SourceCard.DisplayName}\n" +
+                        $"공격 {monster.Attack}  HP " +
+                        $"{monster.CurrentHealth}/{monster.MaximumHealth}\n" +
+                        $"방어 {monster.Defense}",
+                        EditorStyles.wordWrappedLabel);
+                    using (new EditorGUI.DisabledScope(
+                               session.IsFinished ||
+                               string.IsNullOrWhiteSpace(
+                                   selectedTargetEnemyId)))
+                    {
+                        if (GUILayout.Button("선택한 적 공격"))
+                        {
+                            Attack(monster.BattleCardId);
+                        }
+                    }
+                }
+
+                EditorGUILayout.EndVertical();
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(8f);
+        }
+
+        private void DrawHand()
+        {
+            BattleRuntimeState runtime = session.Runtime;
+            List<BattleCardInstance> hand =
+                runtime.Deck.Zones.GetCards(CardZone.Hand);
+            EditorGUILayout.LabelField(
+                $"패 ({hand.Count})",
+                EditorStyles.boldLabel);
+            if (hand.Count == 0)
+            {
+                EditorGUILayout.HelpBox("패에 카드가 없습니다.", MessageType.Info);
+                return;
+            }
+
+            foreach (BattleCardInstance card in hand)
+            {
+                DrawHandCard(card, hand);
+            }
+
+            EditorGUILayout.Space(8f);
+        }
+
+        private void DrawHandCard(
+            BattleCardInstance card,
+            IReadOnlyList<BattleCardInstance> hand)
+        {
+            ResolvedCardData resolved = card.Resolved;
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(
+                $"{card.SourceCard.CatalogCardId}  " +
+                $"{card.SourceCard.DisplayName}  " +
+                $"[{card.SourceCard.CardType}]  비용 {resolved.ManaCost}",
+                EditorStyles.boldLabel);
+            GUILayout.FlexibleSpace();
+
+            bool hasBanishCandidate = true;
+            if (string.Equals(
+                    card.SourceCard.CatalogCardId,
+                    TestContentIds.C07,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                hasBanishCandidate = DrawBanishSelection(card, hand);
+            }
+
+            bool requiresTarget = RequiresEnemyTarget(
+                card.SourceCard.CatalogCardId);
+            bool hasRequiredTarget = !requiresTarget ||
+                                     !string.IsNullOrWhiteSpace(
+                                         selectedTargetEnemyId);
+            bool canPreview = session.Runtime.CardPlay.TryPreviewPlay(
+                card.Ids.BattleCardId,
+                out _,
+                out _);
+            using (new EditorGUI.DisabledScope(
+                       session.IsFinished || !canPreview ||
+                       !hasRequiredTarget || !hasBanishCandidate))
+            {
+                if (GUILayout.Button("사용", GUILayout.Width(70f)))
+                {
+                    PlayCard(card.Ids.BattleCardId);
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.LabelField(
+                resolved.RulesText,
+                EditorStyles.wordWrappedLabel);
+            EditorGUILayout.EndVertical();
+        }
+
+        private bool DrawBanishSelection(
+            BattleCardInstance c07,
+            IReadOnlyList<BattleCardInstance> hand)
+        {
+            List<BattleCardInstance> candidates = hand
+                .Where(candidate => candidate != null && candidate != c07)
+                .ToList();
+            if (candidates.Count == 0)
+            {
+                selectedBanishBattleCardId = null;
+                GUILayout.Label("소멸 대상 없음", EditorStyles.miniLabel);
+                return false;
+            }
+
+            int selectedIndex = candidates.FindIndex(candidate =>
+                string.Equals(
+                    candidate.Ids.BattleCardId,
+                    selectedBanishBattleCardId,
+                    StringComparison.OrdinalIgnoreCase));
+            selectedIndex = Mathf.Max(0, selectedIndex);
+            string[] labels = candidates
+                .Select(candidate =>
+                    $"{candidate.SourceCard.CatalogCardId} " +
+                    candidate.SourceCard.DisplayName)
+                .ToArray();
+            selectedIndex = EditorGUILayout.Popup(
+                selectedIndex,
+                labels,
+                GUILayout.Width(170f));
+            selectedBanishBattleCardId =
+                candidates[selectedIndex].Ids.BattleCardId;
+            return true;
+        }
+
+        private void DrawZones()
+        {
+            BattleCardZoneState zones = session.Runtime.Deck.Zones;
+            EditorGUILayout.LabelField("영역 요약", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                $"드로우 {zones.Count(CardZone.DrawPile)}  |  " +
+                $"묘지 {zones.Count(CardZone.Graveyard)}  |  " +
+                $"소멸 {zones.Count(CardZone.Banished)}  |  " +
+                $"스킬/트랩/결계 필드 {zones.Count(CardZone.SkillField)}  |  " +
+                $"이벤트 {session.Runtime.EventLog.Events.Count}");
+        }
+
+        private void StartNewBattle()
+        {
+            if (!PrototypeBattleHarnessFactory.TryCreate(
+                    out session,
+                    out string error))
+            {
+                selectedTargetEnemyId = null;
+                selectedBanishBattleCardId = null;
+                lastMessage = error;
+                return;
+            }
+
+            selectedBanishBattleCardId = null;
+            SelectFirstLivingEnemy();
+            lastMessage =
+                "테스트 전투를 시작했습니다. 카드와 수치는 검증용 임시 콘텐츠입니다.";
+            Repaint();
+        }
+
+        private void PlayCard(string battleCardId)
+        {
+            if (!BattleRuntimePlayerCardActionService.TryResolve(
+                    session.Runtime,
+                    battleCardId,
+                    selectedTargetEnemyId,
+                    selectedBanishBattleCardId,
+                    out BattleRuntimePlayerCardActionResult result,
+                    out BattleRuntimePlayerCardActionFailure failure,
+                    out BattleRuntimeCardPlayFailure playFailure,
+                    out CardPlayFailure cardPlayFailure))
+            {
+                lastMessage =
+                    $"카드 사용 실패: {failure} / {playFailure} / " +
+                    $"{cardPlayFailure}";
+                return;
+            }
+
+            lastMessage =
+                $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
+            selectedBanishBattleCardId = null;
+            RefreshTerminalOutcome();
+            SelectFirstLivingEnemy();
+            Repaint();
+        }
+
+        private void Attack(string attackerBattleCardId)
+        {
+            if (!BattleRuntimePlayerAttackService.TryResolve(
+                    session.Runtime,
+                    attackerBattleCardId,
+                    selectedTargetEnemyId,
+                    out BattleRuntimePlayerAttackResult result,
+                    out BattleRuntimePlayerAttackFailure failure))
+            {
+                lastMessage = $"공격 실패: {failure}";
+                return;
+            }
+
+            lastMessage =
+                $"공격 완료: 피해 {result.DamageApplied}" +
+                (result.TargetDefeated ? " / 적 처치" : string.Empty);
+            RefreshTerminalOutcome();
+            SelectFirstLivingEnemy();
+            Repaint();
+        }
+
+        private void EndPlayerTurn()
+        {
+            int tieBreakerSeed =
+                20260721 + session.CompletedRoundCount * 10;
+            if (!BattleRuntimeTestTurnService.TryEndPlayerTurn(
+                    session,
+                    tieBreakerSeed,
+                    out BattleRuntimeSessionRoundResult result,
+                    out BattleRuntimeSessionFailure sessionFailure,
+                    out BattleRuntimeRoundFailure roundFailure,
+                    out BattleTurnFailure turnFailure,
+                    out BattleRuntimeEnemyTurnPipelineFailure pipelineFailure,
+                    out BattleRuntimeEnemyTurnPlanFailure planFailure,
+                    out BattleRuntimeEnemyTurnFailure enemyTurnFailure,
+                    out int failedActionIndex))
+            {
+                lastMessage =
+                    $"턴 종료 실패: {sessionFailure} / {roundFailure} / " +
+                    $"{turnFailure} / {pipelineFailure} / {planFailure} / " +
+                    $"{enemyTurnFailure} / action {failedActionIndex}";
+                return;
+            }
+
+            lastMessage = result.Outcome == BattleOutcome.Ongoing
+                ? $"적 턴 완료. 플레이어 턴 " +
+                  $"{session.Runtime.Turn.PlayerTurnNumber} 시작."
+                : $"전투 종료: {OutcomeLabel(result.Outcome)}";
+            selectedBanishBattleCardId = null;
+            SelectFirstLivingEnemy();
+            Repaint();
+        }
+
+        private void RefreshTerminalOutcome()
+        {
+            if (session.IsFinished)
+            {
+                return;
+            }
+
+            if (BattleRuntimeSessionService.TryFinalizeTerminalOutcome(
+                    session,
+                    out BattleOutcome outcome,
+                    out BattleRuntimeSessionFailure failure))
+            {
+                lastMessage += $" 전투 종료: {OutcomeLabel(outcome)}";
+            }
+            else if (failure != BattleRuntimeSessionFailure.BattleOngoing)
+            {
+                lastMessage += $" 승패 확인 실패: {failure}";
+            }
+        }
+
+        private void SelectFirstLivingEnemy()
+        {
+            if (session?.Runtime == null)
+            {
+                selectedTargetEnemyId = null;
+                return;
+            }
+
+            BattleRuntimeState runtime = session.Runtime;
+            if (!string.IsNullOrWhiteSpace(selectedTargetEnemyId) &&
+                runtime.LivingEnemies.Contains(selectedTargetEnemyId))
+            {
+                return;
+            }
+
+            selectedTargetEnemyId = runtime.Enemies
+                .FirstOrDefault(enemy => enemy != null && enemy.IsAlive &&
+                    runtime.LivingEnemies.Contains(enemy.EnemyId))
+                ?.EnemyId;
+        }
+
+        private static bool RequiresEnemyTarget(string catalogCardId)
+        {
+            return string.Equals(
+                       catalogCardId,
+                       TestContentIds.C01,
+                       StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(
+                       catalogCardId,
+                       TestContentIds.C05,
+                       StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(
+                       catalogCardId,
+                       TestContentIds.C06,
+                       StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string OutcomeLabel(BattleOutcome outcome)
+        {
+            return outcome switch
+            {
+                BattleOutcome.Victory => "승리",
+                BattleOutcome.Defeat => "패배",
+                _ => "진행 중"
+            };
+        }
+
+        private static string PositionLabel(EnemyFieldPosition position)
+        {
+            return position switch
+            {
+                EnemyFieldPosition.Left => "왼쪽 적",
+                EnemyFieldPosition.Center => "가운데 적",
+                _ => "오른쪽 적"
+            };
+        }
+
+        private static string PlayerPositionLabel(
+            PlayerMonsterFieldPosition position)
+        {
+            return position switch
+            {
+                PlayerMonsterFieldPosition.Left => "왼쪽 아군",
+                PlayerMonsterFieldPosition.Center => "가운데 아군",
+                _ => "오른쪽 아군"
+            };
         }
     }
 }
