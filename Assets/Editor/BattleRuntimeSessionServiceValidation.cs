@@ -1107,14 +1107,42 @@ namespace HaveABreak.Editor
                 actions.Add($"공격 {turn.AttackCount}회");
             }
 
-            if (turn.Abilities.Count > 0)
+            foreach (EnemyPatternAbilityData ability in turn.Abilities)
             {
-                actions.Add($"능력 {turn.Abilities.Count}개");
+                if (ability == null)
+                {
+                    continue;
+                }
+
+                string targetSide = ability.AffectsFriendlySide
+                    ? "플레이어측"
+                    : "적측";
+                string targetRange = ability.IsAreaAbility
+                    ? "전체"
+                    : "단일";
+                actions.Add(
+                    $"{ability.AbilityId} · " +
+                    $"{StatusLabel(ability.StatusKeyword)} " +
+                    $"{ability.StatusAmount} · " +
+                    $"{targetSide} {targetRange}");
             }
 
             return actions.Count == 0
                 ? "행동 없음"
                 : string.Join(" → ", actions);
+        }
+
+        private static string StatusLabel(StatusKeyword keyword)
+        {
+            return keyword switch
+            {
+                StatusKeyword.Injury => "부상",
+                StatusKeyword.Bind => "속박",
+                StatusKeyword.Stun => "기절",
+                StatusKeyword.Weaken => "약화",
+                StatusKeyword.Vulnerable => "취약",
+                _ => "효과 없음"
+            };
         }
 
         private void RefreshTerminalOutcome()

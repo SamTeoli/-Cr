@@ -23,3 +23,13 @@ MonoBehaviour:
       moveSteps: 1
       attackCount: 1
       abilities: []
+    - moves: 0
+      moveDirection: 0
+      moveSteps: 1
+      attackCount: 0
+      abilities:
+      - abilityId: TEST-ABILITY-INJURY
+        affectsFriendlySide: 1
+        isAreaAbility: 0
+        statusKeyword: 1
+        statusAmount: 1
