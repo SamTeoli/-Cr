@@ -90,6 +90,12 @@ ID 계층은 수록카드ID(`CatalogCardId`), 보유카드ID(`OwnedCardId`),
 `Application.persistentDataPath/active-battle-checkpoint.json`이다. 임의 시점 전투 전체
 복원은 사건·효과 대기열까지 보존하는 후속 단계로 유지한다.
 
+체크포인트 수명주기는 `ActiveBattleCheckpointLifecycleService`가 담당한다. 저장 파일의
+전투·조우 식별자를 현재 활성 전투와 대조한 뒤에만 전투 완료와 파일 정리를 연결하며,
+완료 조건을 충족하지 못하면 체크포인트를 유지한다. 정상 완료 후에는 본 파일과 남은
+임시·백업 파일을 함께 정리한다. 손상된 파일도 메타데이터 검사로 식별하고 명시적인
+`TryClear` 호출로 안전하게 제거할 수 있다.
+
 `EnchantData`는 인첸트 정의 ID, 이름, 등급, 호환 카드 종류와 같은 카드 중복 허용 여부를
 가진다. `RunCardEnchantState`는 카드별 기본 슬롯 1칸과 최대 3칸, 실제 장착 순서와 활성
 상태를 런 동안 관리한다. 보상·상점 인첸트는 빈 슬롯과 호환성을 최종 재검사한 뒤 즉시
