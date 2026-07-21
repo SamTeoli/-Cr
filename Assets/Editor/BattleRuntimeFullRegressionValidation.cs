@@ -71,6 +71,9 @@ namespace HaveABreak.Editor
                 "Runtime card play events",
                 BattleRuntimeCardPlayServiceValidation.Validate);
             valid &= Run(
+                "Unified player card actions C01-C12",
+                BattleRuntimePlayerCardActionValidation.Validate);
+            valid &= Run(
                 "Player monster attacks",
                 BattleRuntimePlayerAttackValidation.Validate);
             valid &= Run(

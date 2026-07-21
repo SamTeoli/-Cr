@@ -419,4 +419,363 @@ namespace HaveABreak.Editor
             public EnemyFieldPosition Position { get; }
         }
     }
+
+    internal static class BattleRuntimePlayerCardActionValidation
+    {
+        [MenuItem("Have a Break/Validate Unified Player Card Actions")]
+        private static void ValidateFromMenu()
+        {
+            bool valid = Validate();
+            EditorUtility.DisplayDialog(
+                "Unified Player Card Actions",
+                valid
+                    ? "Unified player card actions C01-C12 passed."
+                    : "Unified player card actions failed. Check the Console.",
+                "OK");
+        }
+
+        internal static bool Validate()
+        {
+            CardDatabase database =
+                AssetDatabase.LoadAssetAtPath<CardDatabase>(
+                    "Assets/GameData/CardDatabase.asset");
+            if (database == null || database.Cards.Count != 12)
+            {
+                Debug.LogError(
+                    "Unified player action validation requires C01-C12.");
+                return false;
+            }
+
+            Dictionary<string, CardData> cards = database.Cards.ToDictionary(
+                card => card.CatalogCardId,
+                StringComparer.OrdinalIgnoreCase);
+            bool valid = ValidateInvalidInputs(cards) &&
+                         ValidateMonsterRoutes(cards) &&
+                         ValidateSkillRoutes(cards) &&
+                         ValidateInstalledRoutes(cards);
+            if (valid)
+            {
+                Debug.Log("Unified player card actions C01-C12 passed.");
+            }
+            else
+            {
+                Debug.LogError("Unified player card actions failed.");
+            }
+
+            return valid;
+        }
+
+        private static bool ValidateInvalidInputs(
+            IReadOnlyDictionary<string, CardData> cards)
+        {
+            if (!cards.TryGetValue(TestContentIds.C05, out CardData c05) ||
+                !cards.TryGetValue(TestContentIds.C07, out CardData c07) ||
+                !cards.TryGetValue(TestContentIds.C03, out CardData c03))
+            {
+                return false;
+            }
+
+            BattleRuntimeState targetRuntime = Start(
+                c05, 1, null, 1, out BattleCardInstance targetSource, out _);
+            int targetMana = targetRuntime?.CardPlay.Mana.CurrentMana ?? -1;
+            int targetEvents = targetRuntime?.EventLog.Events.Count ?? -1;
+            bool targetRejected = targetRuntime != null &&
+                !BattleRuntimePlayerCardActionService.TryResolve(
+                    targetRuntime,
+                    targetSource.Ids.BattleCardId,
+                    "MISSING-ENEMY",
+                    null,
+                    out _,
+                    out BattleRuntimePlayerCardActionFailure targetFailure,
+                    out BattleRuntimeCardPlayFailure targetPlayFailure,
+                    out CardPlayFailure targetCardFailure) &&
+                targetFailure ==
+                BattleRuntimePlayerCardActionFailure.MissingTarget &&
+                targetPlayFailure == BattleRuntimeCardPlayFailure.None &&
+                targetCardFailure == CardPlayFailure.None &&
+                targetSource.Zone == CardZone.Hand &&
+                targetRuntime.CardPlay.Mana.CurrentMana == targetMana &&
+                targetRuntime.EventLog.Events.Count == targetEvents;
+
+            BattleRuntimeState banishRuntime = Start(
+                c07, 1, c03, 1,
+                out BattleCardInstance banishSource,
+                out BattleCardInstance selectable);
+            int banishMana = banishRuntime?.CardPlay.Mana.CurrentMana ?? -1;
+            int banishEvents = banishRuntime?.EventLog.Events.Count ?? -1;
+            bool banishRejected = banishRuntime != null &&
+                !BattleRuntimePlayerCardActionService.TryResolve(
+                    banishRuntime,
+                    banishSource.Ids.BattleCardId,
+                    null,
+                    banishSource.Ids.BattleCardId,
+                    out _,
+                    out BattleRuntimePlayerCardActionFailure banishFailure,
+                    out _,
+                    out _) &&
+                banishFailure == BattleRuntimePlayerCardActionFailure
+                    .InvalidBanishSelection &&
+                banishSource.Zone == CardZone.Hand &&
+                selectable.Zone == CardZone.Hand &&
+                banishRuntime.CardPlay.Mana.CurrentMana == banishMana &&
+                banishRuntime.EventLog.Events.Count == banishEvents;
+
+            return targetRejected && banishRejected;
+        }
+
+        private static bool ValidateMonsterRoutes(
+            IReadOnlyDictionary<string, CardData> cards)
+        {
+            string[] ids =
+            {
+                TestContentIds.C01,
+                TestContentIds.C02,
+                TestContentIds.C03,
+                TestContentIds.C04
+            };
+            foreach (string id in ids)
+            {
+                if (!cards.TryGetValue(id, out CardData card))
+                {
+                    return false;
+                }
+
+                BattleRuntimeState runtime = Start(
+                    card, 1, null, 1, out BattleCardInstance source, out _);
+                if (!Resolve(
+                        runtime,
+                        source,
+                        Is(id, TestContentIds.C01) ? "ENEMY-A" : null,
+                        null,
+                        out BattleRuntimePlayerCardActionResult result) ||
+                    result.Play.SummonedMonster == null ||
+                    source.Zone != CardZone.MonsterField)
+                {
+                    return false;
+                }
+
+                bool expectsEffect = Is(id, TestContentIds.C01) ||
+                                     Is(id, TestContentIds.C02);
+                if (expectsEffect != (result.SummonEffect != null) ||
+                    result.SkillEffect != null || result.C07Effect != null ||
+                    result.TrapInstallation != null)
+                {
+                    return false;
+                }
+
+                if (Is(id, TestContentIds.C01) &&
+                    (result.SummonEffect.C01Result.ResolvedTargetEnemyId !=
+                     "ENEMY-A" ||
+                     runtime.EnemyPositions.FindPosition("ENEMY-A") !=
+                     EnemyFieldPosition.Left))
+                {
+                    return false;
+                }
+
+                if (Is(id, TestContentIds.C02) &&
+                    runtime.NextSkillModifiers.PendingCount != 1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool ValidateSkillRoutes(
+            IReadOnlyDictionary<string, CardData> cards)
+        {
+            if (!cards.TryGetValue(TestContentIds.C03, out CardData c03))
+            {
+                return false;
+            }
+
+            string[] ids =
+            {
+                TestContentIds.C05,
+                TestContentIds.C06,
+                TestContentIds.C07
+            };
+            foreach (string id in ids)
+            {
+                if (!cards.TryGetValue(id, out CardData card))
+                {
+                    return false;
+                }
+
+                int enemyCount = Is(id, TestContentIds.C06) ? 3 : 1;
+                CardData extra = Is(id, TestContentIds.C07) ? c03 : null;
+                BattleRuntimeState runtime = Start(
+                    card,
+                    Is(id, TestContentIds.C06) ? 5 : 1,
+                    extra,
+                    enemyCount,
+                    out BattleCardInstance source,
+                    out BattleCardInstance selected);
+                if (!Resolve(
+                        runtime,
+                        source,
+                        Is(id, TestContentIds.C07) ? null : "ENEMY-A",
+                        selected?.Ids.BattleCardId,
+                        out BattleRuntimePlayerCardActionResult result) ||
+                    !Is(id, TestContentIds.C07) &&
+                    source.Zone != CardZone.Graveyard)
+                {
+                    return false;
+                }
+
+                if ((Is(id, TestContentIds.C05) ||
+                     Is(id, TestContentIds.C06)) &&
+                    (result.SkillEffect == null || result.C07Effect != null))
+                {
+                    return false;
+                }
+
+                if (Is(id, TestContentIds.C07) &&
+                    (result.C07Effect == null || selected == null ||
+                     selected.Zone != CardZone.Banished))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool ValidateInstalledRoutes(
+            IReadOnlyDictionary<string, CardData> cards)
+        {
+            string[] ids =
+            {
+                TestContentIds.C08,
+                TestContentIds.C09,
+                TestContentIds.C10,
+                TestContentIds.C11,
+                TestContentIds.C12
+            };
+            foreach (string id in ids)
+            {
+                if (!cards.TryGetValue(id, out CardData card))
+                {
+                    return false;
+                }
+
+                BattleRuntimeState runtime = Start(
+                    card, 1, null, 1, out BattleCardInstance source, out _);
+                if (!Resolve(
+                        runtime,
+                        source,
+                        null,
+                        null,
+                        out BattleRuntimePlayerCardActionResult result) ||
+                    source.Zone != CardZone.SkillField)
+                {
+                    return false;
+                }
+
+                bool isTrap = card.CardType == CardType.Trap;
+                if (isTrap != (result.TrapInstallation != null) ||
+                    runtime.TrapInstallations.Count != (isTrap ? 1 : 0) ||
+                    result.SummonEffect != null ||
+                    result.SkillEffect != null ||
+                    result.C07Effect != null)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool Resolve(
+            BattleRuntimeState runtime,
+            BattleCardInstance source,
+            string targetEnemyId,
+            string selectedBanishBattleCardId,
+            out BattleRuntimePlayerCardActionResult result)
+        {
+            result = null;
+            return runtime != null && source != null &&
+                   BattleRuntimePlayerCardActionService.TryResolve(
+                       runtime,
+                       source.Ids.BattleCardId,
+                       targetEnemyId,
+                       selectedBanishBattleCardId,
+                       out result,
+                       out BattleRuntimePlayerCardActionFailure failure,
+                       out BattleRuntimeCardPlayFailure playFailure,
+                       out CardPlayFailure cardPlayFailure) &&
+                   failure == BattleRuntimePlayerCardActionFailure.None &&
+                   playFailure == BattleRuntimeCardPlayFailure.None &&
+                   cardPlayFailure == CardPlayFailure.None &&
+                   result != null;
+        }
+
+        private static BattleRuntimeState Start(
+            CardData sourceData,
+            int sourceLevel,
+            CardData extraData,
+            int enemyCount,
+            out BattleCardInstance source,
+            out BattleCardInstance extra)
+        {
+            source = Instance(sourceData, sourceLevel, "SOURCE");
+            extra = extraData == null
+                ? null
+                : Instance(extraData, 1, "EXTRA");
+            List<BattleCardInstance> deck = new() { source };
+            if (extra != null)
+            {
+                deck.Add(extra);
+            }
+
+            BattleRuntimeState runtime = new(deck, 353, 20);
+            if (enemyCount >= 1 && !runtime.TryAddEnemy(
+                    "ENEMY-A", 3, 10, EnemyFieldPosition.Center, out _))
+            {
+                return null;
+            }
+
+            if (enemyCount >= 2 && !runtime.TryAddEnemy(
+                    "ENEMY-B", 5, 10, EnemyFieldPosition.Left, out _))
+            {
+                return null;
+            }
+
+            if (enemyCount >= 3 && !runtime.TryAddEnemy(
+                    "ENEMY-C", 4, 10, EnemyFieldPosition.Right, out _))
+            {
+                return null;
+            }
+
+            return runtime.Turn.TryBeginBattle(out _) &&
+                   runtime.Turn.TryConfirmStartingHand(
+                       Array.Empty<string>(), out _, out _, out _)
+                ? runtime
+                : null;
+        }
+
+        private static BattleCardInstance Instance(
+            CardData card,
+            int level,
+            string suffix)
+        {
+            return new BattleCardInstance(
+                card,
+                new CardInstanceIds(
+                    card.CatalogCardId,
+                    $"OWNED-ACTION-{card.CatalogCardId}-{suffix}",
+                    $"BATTLE-ACTION-{card.CatalogCardId}-{suffix}"),
+                level,
+                CardZone.DrawPile);
+        }
+
+        private static bool Is(string actual, string expected)
+        {
+            return string.Equals(
+                actual,
+                expected,
+                StringComparison.OrdinalIgnoreCase);
+        }
+    }
 }
