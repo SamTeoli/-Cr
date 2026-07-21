@@ -237,6 +237,9 @@ namespace HaveABreak.Editor
                 "Enemy encounter data and battle bootstrap",
                 EnemyEncounterAndBootstrapValidation.Validate);
             valid &= Run(
+                "Prototype enemy ability patterns and C10",
+                PrototypeEnemyAbilityPatternValidation.Validate);
+            valid &= Run(
                 "Encounter lifecycle, settlement, and rewards",
                 BattleRuntimeEncounterFlowValidation.Validate);
             valid &= Run(
