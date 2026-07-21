@@ -80,6 +80,29 @@ namespace HaveABreak.Editor
                 "OK");
         }
 
+        [MenuItem("Have a Break/Validate Prototype Enemy Move Attack Ability")]
+        private static void ValidateMoveAttackAbilityFromMenu()
+        {
+            bool valid = Validate();
+            if (valid)
+            {
+                Debug.Log(
+                    "Prototype enemy move-attack-ability flow passed.");
+            }
+            else
+            {
+                Debug.LogError(
+                    "Prototype enemy move-attack-ability flow failed.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Prototype Enemy Move Attack Ability Validation",
+                valid
+                    ? "Prototype enemy move-attack-ability flow passed."
+                    : "Prototype enemy move-attack-ability flow failed. Check the Console.",
+                "OK");
+        }
+
         internal static bool Validate()
         {
             EncounterData encounter = FindEncounter();
@@ -106,12 +129,14 @@ namespace HaveABreak.Editor
                        "TEST-ABILITY-BIND",
                        StatusKeyword.Bind,
                        false,
+                       true,
                        true) &&
                    ValidateSlot(
                        encounter.EnemySlots[1],
                        EnemyFieldPosition.Center,
                        "TEST-ABILITY-INJURY",
                        StatusKeyword.Injury,
+                       false,
                        false,
                        false) &&
                    ValidateSlot(
@@ -120,6 +145,7 @@ namespace HaveABreak.Editor
                        "TEST-ABILITY-WEAKEN-AREA",
                        StatusKeyword.Weaken,
                        true,
+                       false,
                        false);
         }
 
@@ -129,7 +155,8 @@ namespace HaveABreak.Editor
             string expectedAbilityId,
             StatusKeyword expectedStatus,
             bool expectedArea,
-            bool expectedMovement)
+            bool expectedMovement,
+            bool expectedCombinedAbility)
         {
             if (slot?.Enemy?.ActionPattern?.Turns == null ||
                 slot.Position != expectedPosition ||
@@ -152,7 +179,8 @@ namespace HaveABreak.Editor
                 abilityTurn.Abilities.Count != 1 ||
                 movementTurn.Moves != expectedMovement ||
                 movementTurn.MoveSteps != 1 ||
-                movementTurn.Abilities.Count != 0 ||
+                movementTurn.Abilities.Count !=
+                    (expectedCombinedAbility ? 1 : 0) ||
                 movementTurn.AttackCount != 1 ||
                 (expectedMovement &&
                  movementTurn.MoveDirection != EnemyMoveDirection.Right))
@@ -160,7 +188,25 @@ namespace HaveABreak.Editor
                 return false;
             }
 
-            EnemyPatternAbilityData ability = abilityTurn.Abilities[0];
+            return ValidateAbility(
+                       abilityTurn.Abilities[0],
+                       expectedAbilityId,
+                       expectedStatus,
+                       expectedArea) &&
+                   (!expectedCombinedAbility ||
+                    ValidateAbility(
+                        movementTurn.Abilities[0],
+                        expectedAbilityId,
+                        expectedStatus,
+                        expectedArea));
+        }
+
+        private static bool ValidateAbility(
+            EnemyPatternAbilityData ability,
+            string expectedAbilityId,
+            StatusKeyword expectedStatus,
+            bool expectedArea)
+        {
             return ability != null &&
                    string.Equals(
                        ability.AbilityId,
@@ -237,14 +283,22 @@ namespace HaveABreak.Editor
             string leftEnemyId = encounter.EnemySlots[0].EnemyInstanceId;
             string centerEnemyId = encounter.EnemySlots[1].EnemyInstanceId;
             string rightEnemyId = encounter.EnemySlots[2].EnemyInstanceId;
-            return movementActions.Count == 4 &&
+            return movementActions.Count == 5 &&
                    movementActions[0].Command.ActionType ==
                    BattleRuntimeEnemyTurnActionType.Move &&
                    movementActions[0].MoveResult != null &&
                    !movementActions[0].MoveResult.ReplacedByTrap &&
                    movementActions[0].MoveResult.ResolvedSteps == 1 &&
                    movementActions[0].MoveResult.Moves.Count == 3 &&
-                   movementActions.Skip(1).All(action =>
+                   movementActions[1].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Attack &&
+                   movementActions[2].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Ability &&
+                   movementActions[2].AbilityResult != null &&
+                   !movementActions[2].AbilityResult.Cancelled &&
+                   movementActions[2].Command.Ability.AbilityId ==
+                   "TEST-ABILITY-BIND" &&
+                   movementActions.Skip(3).All(action =>
                        action.Command.ActionType ==
                        BattleRuntimeEnemyTurnActionType.Attack) &&
                    session.Runtime.EnemyPositions.FindPosition(leftEnemyId) ==
@@ -254,7 +308,7 @@ namespace HaveABreak.Editor
                    session.Runtime.EnemyPositions.FindPosition(rightEnemyId) ==
                    EnemyFieldPosition.Left &&
                    session.Runtime.Player.CurrentHealth == 23 &&
-                   session.Runtime.Player.Status.Bind == 0 &&
+                   session.Runtime.Player.Status.Bind == 1 &&
                    session.Runtime.Player.Status.Injury == 0 &&
                    session.Runtime.Player.Status.Weaken == 0 &&
                    session.Runtime.Turn.PlayerTurnNumber == 4;
