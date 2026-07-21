@@ -9,6 +9,27 @@ namespace HaveABreak.Editor
 {
     internal static class BattleRuntimeSessionServiceValidation
     {
+        [MenuItem("Have a Break/Validate Unified Player Turn End")]
+        private static void ValidateUnifiedPlayerTurnEndFromMenu()
+        {
+            bool valid = ValidateUnifiedPlayerTurnEnd();
+            if (valid)
+            {
+                Debug.Log("Unified player turn end passed.");
+            }
+            else
+            {
+                Debug.LogError("Unified player turn end failed.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Unified Player Turn End Validation",
+                valid
+                    ? "Unified player turn end passed."
+                    : "Unified player turn end failed. Check the Console.",
+                "OK");
+        }
+
         [MenuItem("Have a Break/Validate Multi-Round Battle Runtime Session")]
         private static void ValidateFromMenu()
         {
@@ -38,12 +59,103 @@ namespace HaveABreak.Editor
                 "two consecutive rounds",
                 () => c01 != null && ValidateTwoRounds(c01));
             valid &= Run(
+                "unified player turn end",
+                ValidateUnifiedPlayerTurnEnd);
+            valid &= Run(
                 "terminal outcome locking",
                 ValidateTerminalLocking);
             valid &= Run(
                 "session lifecycle rejection",
                 ValidateLifecycleRejection);
             return valid;
+        }
+
+        private static bool ValidateUnifiedPlayerTurnEnd()
+        {
+            BattleRuntimeState runtime = new(
+                Array.Empty<BattleCardInstance>(),
+                424,
+                5,
+                30);
+            if (!runtime.TryAddEnemy(
+                    "ENEMY-TEST-TURN-RIGHT",
+                    3,
+                    10,
+                    EnemyFieldPosition.Right,
+                    out _) ||
+                !runtime.TryAddEnemy(
+                    "ENEMY-TEST-TURN-LEFT",
+                    1,
+                    10,
+                    EnemyFieldPosition.Left,
+                    out _) ||
+                !runtime.TryAddEnemy(
+                    "ENEMY-TEST-TURN-CENTER",
+                    2,
+                    10,
+                    EnemyFieldPosition.Center,
+                    out _))
+            {
+                return false;
+            }
+
+            BattleRuntimeSessionState session = new(runtime);
+            if (!BattleRuntimeSessionService.TryBegin(
+                    session,
+                    Array.Empty<string>(),
+                    out _, out _, out _, out _) ||
+                !BattleRuntimeTestTurnService.TryEndPlayerTurn(
+                    session,
+                    4240,
+                    out BattleRuntimeSessionRoundResult result,
+                    out BattleRuntimeSessionFailure sessionFailure,
+                    out BattleRuntimeRoundFailure roundFailure,
+                    out BattleTurnFailure playerTurnEndFailure,
+                    out BattleRuntimeEnemyTurnPipelineFailure pipelineFailure,
+                    out BattleRuntimeEnemyTurnPlanFailure planFailure,
+                    out BattleRuntimeEnemyTurnFailure enemyTurnFailure,
+                    out int failedActionIndex))
+            {
+                return false;
+            }
+
+            IReadOnlyList<BattleRuntimeEnemyTurnCommand> commands =
+                result.Round.EnemyTurnPipeline.Plan.Commands;
+            return sessionFailure == BattleRuntimeSessionFailure.None &&
+                   roundFailure == BattleRuntimeRoundFailure.None &&
+                   playerTurnEndFailure == BattleTurnFailure.None &&
+                   pipelineFailure ==
+                   BattleRuntimeEnemyTurnPipelineFailure.None &&
+                   planFailure == BattleRuntimeEnemyTurnPlanFailure.None &&
+                   enemyTurnFailure == BattleRuntimeEnemyTurnFailure.None &&
+                   failedActionIndex == -1 &&
+                   result.CompletedRoundCount == 1 &&
+                   result.Outcome == BattleOutcome.Ongoing &&
+                   result.PlayerTurnStarted &&
+                   result.Round.ProcessedEnemyActionCount == 3 &&
+                   commands.Count == 3 &&
+                   IsSingleAttack(commands[0], "ENEMY-TEST-TURN-LEFT") &&
+                   IsSingleAttack(commands[1], "ENEMY-TEST-TURN-CENTER") &&
+                   IsSingleAttack(commands[2], "ENEMY-TEST-TURN-RIGHT") &&
+                   runtime.Player.CurrentHealth == 24 &&
+                   runtime.Turn.Phase == BattleTurnPhase.PlayerAction &&
+                   runtime.Turn.PlayerTurnNumber == 2;
+        }
+
+        private static bool IsSingleAttack(
+            BattleRuntimeEnemyTurnCommand command,
+            string expectedEnemyId)
+        {
+            return command != null &&
+                   command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Attack &&
+                   command.UsesAutomaticTargeting &&
+                   command.AutomaticAttackCount == 1 &&
+                   command.AttackTieBreakerValues.Count == 1 &&
+                   string.Equals(
+                       command.EnemyId,
+                       expectedEnemyId,
+                       StringComparison.Ordinal);
         }
 
         private static bool ValidateTwoRounds(CardData card)
