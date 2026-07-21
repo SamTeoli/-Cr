@@ -276,8 +276,13 @@ namespace HaveABreak.Cards
             string ownedCardId,
             out RunCampaignFailure failure)
         {
-            if (progress?.RunState == null || progress.RunDeck == null ||
-                !ValidateNode(campaign, progress.RunState,
+            if (progress?.RunState == null || progress.RunDeck == null)
+            {
+                failure = RunCampaignFailure.InvalidState;
+                return false;
+            }
+
+            if (!ValidateNode(campaign, progress.RunState,
                     RunNodeType.RestOrUpgrade, out failure))
             {
                 return false;
@@ -363,8 +368,13 @@ namespace HaveABreak.Cards
             out RunCampaignFailure failure)
         {
             attachmentFailure = EnchantAttachmentFailure.None;
-            if (progress?.RunState == null || progress.RunDeck == null ||
-                !ValidateNode(campaign, progress.RunState,
+            if (progress?.RunState == null || progress.RunDeck == null)
+            {
+                failure = RunCampaignFailure.InvalidState;
+                return false;
+            }
+
+            if (!ValidateNode(campaign, progress.RunState,
                     RunNodeType.Shop, out failure))
             {
                 return false;
