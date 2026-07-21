@@ -164,8 +164,27 @@ namespace HaveABreak.Cards
             int adjustedAttack = Mathf.Max(
                 0, declaration.Attacker.Attack - weakenReduction);
 
+            int monsterVulnerableBonus = adjustedAttack > 0
+                ? target.Status.ConsumeVulnerable()
+                : 0;
+            if (monsterVulnerableBonus > 0)
+            {
+                runtime.EventLog.Record(
+                    BattleEventType.StatusApplied,
+                    "MonsterVulnerableConsumedByEnemyAttack",
+                    declaration.Attacker.EnemyId,
+                    declaration.Attacker.EnemyId,
+                    target.BattleCardId,
+                    parentEventId: declaration.DeclaredAttack.EventId,
+                    beforeValue: monsterVulnerableBonus,
+                    afterValue: target.Status.Vulnerable);
+            }
+
+            int damageBeforeDefense =
+                adjustedAttack + monsterVulnerableBonus;
+
             int defenseBefore = target.Defense;
-            int defenseConsumed = target.ConsumeDefense(adjustedAttack);
+            int defenseConsumed = target.ConsumeDefense(damageBeforeDefense);
             BattleEventRecord defenseConsumedEvent = null;
             if (defenseConsumed > 0)
             {
@@ -180,7 +199,7 @@ namespace HaveABreak.Cards
                     afterValue: target.Defense);
             }
 
-            int damageAfterDefense = adjustedAttack - defenseConsumed;
+            int damageAfterDefense = damageBeforeDefense - defenseConsumed;
             int monsterHealthBefore = target.CurrentHealth;
             int monsterDamage = target.ApplyDamage(damageAfterDefense);
             BattleEventRecord monsterDamageEvent = null;
@@ -199,8 +218,25 @@ namespace HaveABreak.Cards
 
             int overflowDamage = Mathf.Max(
                 0, damageAfterDefense - monsterDamage);
+            int playerVulnerableBonus = overflowDamage > 0
+                ? runtime.Player.Status.ConsumeVulnerable()
+                : 0;
+            if (playerVulnerableBonus > 0)
+            {
+                runtime.EventLog.Record(
+                    BattleEventType.StatusApplied,
+                    "PlayerVulnerableConsumedByOverflowAttack",
+                    declaration.Attacker.EnemyId,
+                    declaration.Attacker.EnemyId,
+                    BattlePlayerState.PlayerTargetId,
+                    parentEventId: declaration.DeclaredAttack.EventId,
+                    beforeValue: playerVulnerableBonus,
+                    afterValue: runtime.Player.Status.Vulnerable);
+            }
+
             int playerHealthBefore = runtime.Player.CurrentHealth;
-            int playerDamage = runtime.Player.ApplyDamage(overflowDamage);
+            int playerDamage = runtime.Player.ApplyDamage(
+                overflowDamage + playerVulnerableBonus);
             BattleEventRecord playerDamageEvent = null;
             if (playerDamage > 0)
             {
@@ -245,9 +281,11 @@ namespace HaveABreak.Cards
                 declaration,
                 weakenReduction,
                 adjustedAttack,
+                monsterVulnerableBonus,
                 defenseConsumed,
                 monsterDamage,
                 overflowDamage,
+                playerVulnerableBonus,
                 playerDamage,
                 defenseConsumedEvent,
                 monsterDamageEvent,

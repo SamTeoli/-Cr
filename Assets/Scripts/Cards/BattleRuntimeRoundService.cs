@@ -56,6 +56,16 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (playerTurnEndEffects.Outcome != BattleOutcome.Ongoing)
+            {
+                result = new BattleRuntimeRoundResult(
+                    playerTurnEndEffects,
+                    null,
+                    playerTurnEndEffects.Outcome);
+                failure = BattleRuntimeRoundFailure.None;
+                return true;
+            }
+
             if (!BattleRuntimeEnemyTurnPipelineService.TryResolve(
                     runtime,
                     enemyCommands,

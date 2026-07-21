@@ -176,6 +176,7 @@ namespace HaveABreak.Cards
             }
 
             int beforeHealth = targetsPlayer ? player.CurrentHealth : monsterTarget.CurrentHealth;
+            int vulnerableBonus = 0;
             if (healing)
             {
                 if (targetsPlayer)
@@ -189,13 +190,36 @@ namespace HaveABreak.Cards
             }
             else
             {
+                BattleCommonStatusState targetStatus = targetsPlayer
+                    ? player.Status
+                    : monsterTarget.Status;
+                vulnerableBonus = command.Value > 0
+                    ? targetStatus.ConsumeVulnerable()
+                    : 0;
+                if (vulnerableBonus > 0)
+                {
+                    string vulnerableTargetId = targetsPlayer
+                        ? BattlePlayerState.PlayerTargetId
+                        : monsterTarget.BattleCardId;
+                    eventLog.Record(
+                        BattleEventType.StatusApplied,
+                        "VulnerableConsumedByEffectDamage",
+                        command.SourceId,
+                        command.SourceId,
+                        vulnerableTargetId,
+                        parentEventId: sourceEvent.EventId,
+                        sourceEffectId: command.EffectId,
+                        beforeValue: vulnerableBonus,
+                        afterValue: targetStatus.Vulnerable);
+                }
+
                 if (targetsPlayer)
                 {
-                    player.ApplyDamage(command.Value);
+                    player.ApplyDamage(command.Value + vulnerableBonus);
                 }
                 else
                 {
-                    monsterTarget.ApplyDamage(command.Value);
+                    monsterTarget.ApplyDamage(command.Value + vulnerableBonus);
                 }
             }
 

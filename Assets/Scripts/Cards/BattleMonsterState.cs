@@ -16,6 +16,7 @@ namespace HaveABreak.Cards
         [SerializeField] private int counter;
         [SerializeField] private int defense;
         [SerializeField] private int attackEnhancement;
+        [SerializeField] private BattleCommonStatusState status;
 
         public BattleMonsterState(BattleCardInstance card, RunCardEnchantState enchants = null)
         {
@@ -35,6 +36,7 @@ namespace HaveABreak.Cards
             baseMaximumHealth = Mathf.Max(1, resolved.Health);
             maximumHealth = baseMaximumHealth;
             currentHealth = maximumHealth;
+            status = new BattleCommonStatusState();
             ApplyEnchantState(enchants);
         }
 
@@ -48,6 +50,8 @@ namespace HaveABreak.Cards
         public int CurrentHealth => currentHealth;
         public int Counter => counter;
         public int Defense => defense;
+        public BattleCommonStatusState Status =>
+            status ??= new BattleCommonStatusState();
         public bool IsDestructionCandidate => currentHealth <= 0;
 
         public bool ApplyEnchantState(RunCardEnchantState enchants)

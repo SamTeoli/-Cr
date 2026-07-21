@@ -60,8 +60,25 @@ namespace HaveABreak.Cards
                 snapshot.Attack, Mathf.Max(0, status.Weaken));
             int adjustedAttack = Mathf.Max(
                 0, snapshot.Attack - weakenReduction);
+            int playerVulnerableBonus = adjustedAttack > 0
+                ? runtime.Player.Status.ConsumeVulnerable()
+                : 0;
+            if (playerVulnerableBonus > 0)
+            {
+                runtime.EventLog.Record(
+                    BattleEventType.StatusApplied,
+                    "PlayerVulnerableConsumedByEnemyAttack",
+                    attacker.EnemyId,
+                    attacker.EnemyId,
+                    BattlePlayerState.PlayerTargetId,
+                    parentEventId: declaredAttack.EventId,
+                    beforeValue: playerVulnerableBonus,
+                    afterValue: runtime.Player.Status.Vulnerable);
+            }
+
             int healthBefore = runtime.Player.CurrentHealth;
-            int playerDamage = runtime.Player.ApplyDamage(adjustedAttack);
+            int playerDamage = runtime.Player.ApplyDamage(
+                adjustedAttack + playerVulnerableBonus);
             BattleEventRecord playerDamageEvent = null;
             if (playerDamage > 0)
             {
@@ -90,6 +107,7 @@ namespace HaveABreak.Cards
                 declaredAttack,
                 weakenReduction,
                 adjustedAttack,
+                playerVulnerableBonus,
                 playerDamage,
                 playerDamageEvent,
                 completedAttack);

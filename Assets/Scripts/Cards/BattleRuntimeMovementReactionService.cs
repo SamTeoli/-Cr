@@ -36,6 +36,20 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
+                if (!monster.Status.CanUseAbility)
+                {
+                    runtime.EventLog.Record(
+                        BattleEventType.PlayerMonsterActionBlocked,
+                        "PlayerMonsterAbilityBlockedByStun",
+                        monster.BattleCardId,
+                        monster.BattleCardId,
+                        monster.BattleCardId,
+                        parentEventId: movedEvent.EventId,
+                        beforeValue: monster.Status.Stun,
+                        afterValue: monster.Status.Stun);
+                    continue;
+                }
+
                 if (C04TerminalCatResolver.TryResolve(
                         movedEvent,
                         runtime.Turn.PlayerTurnNumber,

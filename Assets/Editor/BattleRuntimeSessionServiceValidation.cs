@@ -728,6 +728,13 @@ namespace HaveABreak.Editor
                 $"{runtime.Player.MaximumHealth}    " +
                 $"마력: {runtime.CardPlay.Mana.CurrentMana}/" +
                 $"{runtime.CardPlay.Mana.MaximumMana}");
+            BattleCommonStatusState playerStatus = runtime.Player.Status;
+            EditorGUILayout.LabelField(
+                $"플레이어 상태: 부상 {playerStatus.Injury}  " +
+                $"약화 {playerStatus.Weaken}  " +
+                $"취약 {playerStatus.Vulnerable}  " +
+                $"속박 {playerStatus.Bind}  " +
+                $"기절 {playerStatus.Stun}");
 
             if (!string.IsNullOrWhiteSpace(lastMessage))
             {
@@ -823,7 +830,12 @@ namespace HaveABreak.Editor
                         $"{monster.Card.SourceCard.DisplayName}\n" +
                         $"공격 {monster.Attack}  HP " +
                         $"{monster.CurrentHealth}/{monster.MaximumHealth}\n" +
-                        $"방어 {monster.Defense}",
+                        $"방어 {monster.Defense}\n" +
+                        $"부상 {monster.Status.Injury}  " +
+                        $"약화 {monster.Status.Weaken}  " +
+                        $"취약 {monster.Status.Vulnerable}  " +
+                        $"속박 {monster.Status.Bind}  " +
+                        $"기절 {monster.Status.Stun}",
                         EditorStyles.wordWrappedLabel);
                     using (new EditorGUI.DisabledScope(
                                session.IsFinished ||

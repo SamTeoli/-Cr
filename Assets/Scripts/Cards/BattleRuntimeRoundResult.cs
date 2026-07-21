@@ -4,19 +4,22 @@ namespace HaveABreak.Cards
     {
         internal BattleRuntimeRoundResult(
             BattleRuntimeTurnEffectResult playerTurnEndEffects,
-            BattleRuntimeEnemyTurnPipelineResult enemyTurnPipeline)
+            BattleRuntimeEnemyTurnPipelineResult enemyTurnPipeline,
+            BattleOutcome outcome = BattleOutcome.Ongoing)
         {
             PlayerTurnEndEffects = playerTurnEndEffects;
             EnemyTurnPipeline = enemyTurnPipeline;
+            Outcome = enemyTurnPipeline != null
+                ? enemyTurnPipeline.TurnResult.Outcome
+                : outcome;
         }
 
         public BattleRuntimeTurnEffectResult PlayerTurnEndEffects { get; }
         public BattleRuntimeEnemyTurnPipelineResult EnemyTurnPipeline { get; }
-        public BattleOutcome Outcome =>
-            EnemyTurnPipeline.TurnResult.Outcome;
+        public BattleOutcome Outcome { get; }
         public bool PlayerTurnStarted =>
-            EnemyTurnPipeline.TurnResult.PlayerTurnStarted;
+            EnemyTurnPipeline?.TurnResult?.PlayerTurnStarted ?? false;
         public int ProcessedEnemyActionCount =>
-            EnemyTurnPipeline.TurnResult.ProcessedActionCount;
+            EnemyTurnPipeline?.TurnResult?.ProcessedActionCount ?? 0;
     }
 }
