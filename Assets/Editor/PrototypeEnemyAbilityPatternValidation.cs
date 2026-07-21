@@ -129,17 +129,45 @@ namespace HaveABreak.Editor
                 "OK");
         }
 
+        [MenuItem("Have a Break/Validate Prototype C12 Movement Reaction")]
+        private static void ValidateC12MovementReactionFromMenu()
+        {
+            EncounterData encounter = FindEncounter();
+            CardData c12 = FindCard(TestContentIds.C12);
+            bool valid = encounter != null && c12 != null &&
+                         ValidateC12MovementReaction(encounter, c12);
+            if (valid)
+            {
+                Debug.Log(
+                    "Prototype C12 movement reaction flow passed.");
+            }
+            else
+            {
+                Debug.LogError(
+                    "Prototype C12 movement reaction flow failed.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Prototype C12 Movement Reaction Validation",
+                valid
+                    ? "Prototype C12 movement reaction flow passed."
+                    : "Prototype C12 movement reaction flow failed. Check the Console.",
+                "OK");
+        }
+
         internal static bool Validate()
         {
             EncounterData encounter = FindEncounter();
             CardData c01 = FindCard(TestContentIds.C01);
             CardData c08 = FindCard(TestContentIds.C08);
             CardData c10 = FindCard(TestContentIds.C10);
+            CardData c12 = FindCard(TestContentIds.C12);
             return encounter != null && c01 != null && c08 != null &&
-                   c10 != null &&
+                   c10 != null && c12 != null &&
                    ValidateAuthoredPatterns(encounter) &&
                    ValidateStatusApplications(encounter, c01) &&
                    ValidateC08MovementReplacement(encounter, c08) &&
+                   ValidateC12MovementReaction(encounter, c12) &&
                    ValidateC10Cancellation(encounter, c10);
         }
 
@@ -424,6 +452,99 @@ namespace HaveABreak.Editor
                    trap.Zone == CardZone.SkillField &&
                    session.Runtime.TrapInstallations.Find(
                        trap.Ids.BattleCardId) != null &&
+                   session.Runtime.Turn.PlayerTurnNumber == 4;
+        }
+
+        private static bool ValidateC12MovementReaction(
+            EncounterData encounter,
+            CardData c12)
+        {
+            if (!TryCreateSession(
+                    encounter,
+                    c12,
+                    1,
+                    "C12-MOVE",
+                    out BattleRuntimeSessionState session,
+                    out BattleCardInstance barrier) ||
+                !BattleRuntimePlayerCardActionService.TryResolve(
+                    session.Runtime,
+                    barrier.Ids.BattleCardId,
+                    null,
+                    null,
+                    out BattleRuntimePlayerCardActionResult cardAction,
+                    out _,
+                    out _,
+                    out _) ||
+                cardAction.Play == null ||
+                cardAction.TrapInstallation != null)
+            {
+                return false;
+            }
+
+            if (!TryResolvePatternRound(session, encounter, 4290, out _) ||
+                session.Runtime.Player.CurrentHealth != 27 ||
+                !TryResolvePatternRound(session, encounter, 4291, out _) ||
+                session.Runtime.Player.Status.Bind != 1 ||
+                session.Runtime.Player.Status.Injury != 1 ||
+                session.Runtime.Player.Status.Weaken != 1 ||
+                !TryResolvePatternRound(
+                    session,
+                    encounter,
+                    4292,
+                    out BattleRuntimeSessionRoundResult result))
+            {
+                return false;
+            }
+
+            IReadOnlyList<BattleRuntimeEnemyTurnActionResult> actions =
+                result.Round.EnemyTurnPipeline.TurnResult.ActionResults;
+            string leftEnemyId = encounter.EnemySlots[0].EnemyInstanceId;
+            string centerEnemyId = encounter.EnemySlots[1].EnemyInstanceId;
+            string rightEnemyId = encounter.EnemySlots[2].EnemyInstanceId;
+            BattleEnemyRuntimeState leftEnemy =
+                session.Runtime.FindEnemy(leftEnemyId);
+
+            return actions.Count == 5 &&
+                   actions[0].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Move &&
+                   actions[0].MoveResult != null &&
+                   !actions[0].MoveResult.ReplacedByTrap &&
+                   actions[0].MoveResult.ResolvedSteps == 1 &&
+                   actions[0].MoveResult.Moves.Count == 3 &&
+                   actions[0].MoveResult.ResolvedC12Count == 1 &&
+                   actions[0].MoveResult.VulnerableGained == 1 &&
+                   actions[0].MoveResult.DamageApplied == 0 &&
+                   actions[1].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Attack &&
+                   !actions[1].WasBlockedByStatus &&
+                   actions[2].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Ability &&
+                   actions[2].AbilityResult != null &&
+                   !actions[2].AbilityResult.Cancelled &&
+                   actions.Skip(3).All(action =>
+                       action.Command.ActionType ==
+                       BattleRuntimeEnemyTurnActionType.Attack &&
+                       !action.WasBlockedByStatus) &&
+                   session.Runtime.EnemyPositions.FindPosition(leftEnemyId) ==
+                   EnemyFieldPosition.Center &&
+                   session.Runtime.EnemyPositions.FindPosition(centerEnemyId) ==
+                   EnemyFieldPosition.Right &&
+                   session.Runtime.EnemyPositions.FindPosition(rightEnemyId) ==
+                   EnemyFieldPosition.Left &&
+                   session.Runtime.EnemyStatuses.Find(leftEnemyId).Vulnerable ==
+                   1 &&
+                   session.Runtime.EnemyStatuses.Find(centerEnemyId).Vulnerable ==
+                   0 &&
+                   session.Runtime.EnemyStatuses.Find(rightEnemyId).Vulnerable ==
+                   0 &&
+                   leftEnemy != null &&
+                   leftEnemy.Vital.CurrentHealth == 12 &&
+                   session.Runtime.Player.CurrentHealth == 23 &&
+                   session.Runtime.Player.Status.Bind == 1 &&
+                   session.Runtime.Player.Status.Injury == 0 &&
+                   session.Runtime.Player.Status.Weaken == 0 &&
+                   barrier.Zone == CardZone.SkillField &&
+                   session.Runtime.TrapInstallations.Count == 0 &&
                    session.Runtime.Turn.PlayerTurnNumber == 4;
         }
 
