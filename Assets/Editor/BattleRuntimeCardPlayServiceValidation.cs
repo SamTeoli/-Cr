@@ -111,4 +111,312 @@ namespace HaveABreak.Editor
             return valid;
         }
     }
+
+    internal static class BattleRuntimePlayerAttackValidation
+    {
+        [MenuItem("Have a Break/Validate Player Monster Attack")]
+        private static void ValidateFromMenu()
+        {
+            bool valid = Validate();
+            EditorUtility.DisplayDialog(
+                "Player Monster Attack Validation",
+                valid
+                    ? "Player monster attack flow passed."
+                    : "Player monster attack flow failed. Check the Console.",
+                "OK");
+        }
+
+        internal static bool Validate()
+        {
+            CardData c03 = FindCard(TestContentIds.C03);
+            CardData c04 = FindCard(TestContentIds.C04);
+            bool valid = c03 != null && c04 != null &&
+                         ValidateFirstTurnVictoryAndVulnerable(c04) &&
+                         ValidateAttackLimitAndNextTurn(c04) &&
+                         ValidateC03AttackEvent(c03);
+
+            if (valid)
+            {
+                Debug.Log("Player monster attack flow passed.");
+            }
+            else
+            {
+                Debug.LogError("Player monster attack flow failed.");
+            }
+
+            return valid;
+        }
+
+        private static bool ValidateFirstTurnVictoryAndVulnerable(
+            CardData card)
+        {
+            BattleRuntimeState runtime = Start(
+                card,
+                "ATTACK-VICTORY",
+                3,
+                new[]
+                {
+                    new EnemySetup(
+                        "ENEMY-ATTACK-VICTORY",
+                        3,
+                        EnemyFieldPosition.Center)
+                },
+                out BattleMonsterState attacker);
+            BattleEnemyStatusState status = runtime?.EnemyStatuses.Find(
+                "ENEMY-ATTACK-VICTORY");
+            if (runtime == null || attacker == null || status == null ||
+                status.ApplyVulnerable(2) != 2)
+            {
+                return false;
+            }
+
+            bool resolved = BattleRuntimePlayerAttackService.TryResolve(
+                runtime,
+                attacker.BattleCardId,
+                "ENEMY-ATTACK-VICTORY",
+                out BattleRuntimePlayerAttackResult result,
+                out BattleRuntimePlayerAttackFailure failure);
+            return resolved &&
+                   failure == BattleRuntimePlayerAttackFailure.None &&
+                   result != null &&
+                   result.Attacker == attacker &&
+                   result.BaseAttack == 1 &&
+                   result.VulnerableBonus == 2 &&
+                   result.FinalDamage == 3 &&
+                   result.DamageApplied == 3 &&
+                   result.TargetDefeated &&
+                   status.Vulnerable == 0 &&
+                   result.DeclaredAttack.EventType ==
+                   BattleEventType.AttackDeclared &&
+                   result.VulnerableConsumedEvent != null &&
+                   result.VulnerableConsumedEvent.ParentEventId ==
+                   result.DeclaredAttack.EventId &&
+                   result.DamageEvent != null &&
+                   result.DamageEvent.ParentEventId ==
+                   result.DeclaredAttack.EventId &&
+                   result.CompletedAttack.ParentEventId ==
+                   result.DeclaredAttack.EventId &&
+                   runtime.LivingEnemies.Count == 0 &&
+                   !runtime.EnemyPositions.FindPosition(
+                       "ENEMY-ATTACK-VICTORY").HasValue &&
+                   runtime.Turn.Phase == BattleTurnPhase.PlayerAction &&
+                   new BattleOutcomeEvaluator(
+                       runtime.Player,
+                       runtime.LivingEnemies).Evaluate() ==
+                   BattleOutcome.Victory;
+        }
+
+        private static bool ValidateAttackLimitAndNextTurn(CardData card)
+        {
+            BattleRuntimeState runtime = Start(
+                card,
+                "ATTACK-LIMIT",
+                3,
+                new[]
+                {
+                    new EnemySetup(
+                        "ENEMY-ATTACK-LIMIT-A",
+                        10,
+                        EnemyFieldPosition.Left),
+                    new EnemySetup(
+                        "ENEMY-ATTACK-LIMIT-B",
+                        10,
+                        EnemyFieldPosition.Right)
+                },
+                out BattleMonsterState attacker);
+            if (runtime == null || attacker == null ||
+                !BattleRuntimePlayerAttackService.TryResolve(
+                    runtime,
+                    attacker.BattleCardId,
+                    "ENEMY-ATTACK-LIMIT-A",
+                    out _,
+                    out BattleRuntimePlayerAttackFailure firstFailure) ||
+                firstFailure != BattleRuntimePlayerAttackFailure.None)
+            {
+                return false;
+            }
+
+            BattleEnemyRuntimeState second = runtime.FindEnemy(
+                "ENEMY-ATTACK-LIMIT-B");
+            BattleEnemyStatusState secondStatus =
+                runtime.EnemyStatuses.Find(second.EnemyId);
+            int secondHealthBefore = second.Vital.CurrentHealth;
+            if (secondStatus == null || secondStatus.ApplyVulnerable(2) != 2)
+            {
+                return false;
+            }
+
+            bool duplicateRejected =
+                !BattleRuntimePlayerAttackService.TryResolve(
+                    runtime,
+                    attacker.BattleCardId,
+                    second.EnemyId,
+                    out _,
+                    out BattleRuntimePlayerAttackFailure duplicateFailure);
+            if (!duplicateRejected ||
+                duplicateFailure !=
+                BattleRuntimePlayerAttackFailure.AttackAlreadyUsed ||
+                second.Vital.CurrentHealth != secondHealthBefore ||
+                secondStatus.Vulnerable != 2 ||
+                runtime.Turn.Phase != BattleTurnPhase.PlayerAction ||
+                !runtime.Turn.TryEndPlayerTurn(out _) ||
+                !runtime.Turn.TryCompleteEnemyTurn(out _))
+            {
+                return false;
+            }
+
+            return BattleRuntimePlayerAttackService.TryResolve(
+                       runtime,
+                       attacker.BattleCardId,
+                       second.EnemyId,
+                       out BattleRuntimePlayerAttackResult nextTurnResult,
+                       out BattleRuntimePlayerAttackFailure nextTurnFailure) &&
+                   nextTurnFailure ==
+                   BattleRuntimePlayerAttackFailure.None &&
+                   nextTurnResult != null &&
+                   nextTurnResult.VulnerableBonus == 2 &&
+                   runtime.Turn.PlayerTurnNumber == 2 &&
+                   secondStatus.Vulnerable == 0 &&
+                   second.Vital.CurrentHealth ==
+                   secondHealthBefore - attacker.Attack - 2;
+        }
+
+        private static bool ValidateC03AttackEvent(CardData card)
+        {
+            BattleRuntimeState runtime = Start(
+                card,
+                "ATTACK-C03",
+                1,
+                new[]
+                {
+                    new EnemySetup(
+                        "ENEMY-ATTACK-C03",
+                        10,
+                        EnemyFieldPosition.Center)
+                },
+                out BattleMonsterState attacker,
+                out int firstPlayerTurnEventIndex);
+            if (runtime == null || attacker == null ||
+                !BattleRuntimePlayerAttackService.TryResolve(
+                    runtime,
+                    attacker.BattleCardId,
+                    "ENEMY-ATTACK-C03",
+                    out _,
+                    out _) ||
+                !BattleRuntimeTurnEffectService.TryEndPlayerTurn(
+                    runtime,
+                    firstPlayerTurnEventIndex,
+                    out BattleRuntimeTurnEffectResult turnResult,
+                    out BattleTurnFailure turnFailure))
+            {
+                return false;
+            }
+
+            return turnFailure == BattleTurnFailure.None &&
+                   turnResult != null &&
+                   turnResult.TotalDefenseGained == 0 &&
+                   attacker.Defense == 0;
+        }
+
+        private static BattleRuntimeState Start(
+            CardData card,
+            string suffix,
+            int level,
+            IEnumerable<EnemySetup> enemies,
+            out BattleMonsterState attacker)
+        {
+            return Start(
+                card,
+                suffix,
+                level,
+                enemies,
+                out attacker,
+                out _);
+        }
+
+        private static BattleRuntimeState Start(
+            CardData card,
+            string suffix,
+            int level,
+            IEnumerable<EnemySetup> enemies,
+            out BattleMonsterState attacker,
+            out int firstPlayerTurnEventIndex)
+        {
+            attacker = null;
+            firstPlayerTurnEventIndex = 0;
+            BattleCardInstance cardInstance = new(
+                card,
+                new CardInstanceIds(
+                    card.CatalogCardId,
+                    $"OWNED-{suffix}",
+                    $"BATTLE-{suffix}"),
+                level,
+                CardZone.DrawPile);
+            BattleRuntimeState runtime = new(
+                new[] { cardInstance },
+                352,
+                5);
+            foreach (EnemySetup enemy in enemies)
+            {
+                if (!runtime.TryAddEnemy(
+                        enemy.EnemyId,
+                        0,
+                        enemy.Health,
+                        enemy.Position,
+                        out _))
+                {
+                    return null;
+                }
+            }
+
+            if (!runtime.Turn.TryBeginBattle(out _) ||
+                !runtime.Turn.TryConfirmStartingHand(
+                    Array.Empty<string>(), out _, out _, out _))
+            {
+                return null;
+            }
+
+            firstPlayerTurnEventIndex = runtime.EventLog.Events.Count;
+            if (!BattleRuntimeCardPlayService.TryPlay(
+                    runtime,
+                    cardInstance.Ids.BattleCardId,
+                    out BattleRuntimeCardPlayResult playResult,
+                    out _,
+                    out _))
+            {
+                return null;
+            }
+
+            attacker = playResult.SummonedMonster;
+            return runtime;
+        }
+
+        private static CardData FindCard(string catalogCardId)
+        {
+            return AssetDatabase.FindAssets("t:CardData")
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Select(AssetDatabase.LoadAssetAtPath<CardData>)
+                .FirstOrDefault(card => card != null && string.Equals(
+                    card.CatalogCardId,
+                    catalogCardId,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        private readonly struct EnemySetup
+        {
+            public EnemySetup(
+                string enemyId,
+                int health,
+                EnemyFieldPosition position)
+            {
+                EnemyId = enemyId;
+                Health = health;
+                Position = position;
+            }
+
+            public string EnemyId { get; }
+            public int Health { get; }
+            public EnemyFieldPosition Position { get; }
+        }
+    }
 }

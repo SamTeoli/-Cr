@@ -71,6 +71,9 @@ namespace HaveABreak.Editor
                 "Runtime card play events",
                 BattleRuntimeCardPlayServiceValidation.Validate);
             valid &= Run(
+                "Player monster attacks",
+                BattleRuntimePlayerAttackValidation.Validate);
+            valid &= Run(
                 "C01 C02 summon effects",
                 BattleRuntimeSummonEffectServiceValidation.Validate);
             valid &= Run("C03 turn end effect", () => ValidateC03(c03));
