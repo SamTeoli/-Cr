@@ -155,6 +155,33 @@ namespace HaveABreak.Editor
                 "OK");
         }
 
+        [MenuItem("Have a Break/Validate Prototype C08 C12 Priority")]
+        private static void ValidateC08C12PriorityFromMenu()
+        {
+            EncounterData encounter = FindEncounter();
+            CardData c08 = FindCard(TestContentIds.C08);
+            CardData c12 = FindCard(TestContentIds.C12);
+            bool valid = encounter != null && c08 != null && c12 != null &&
+                         ValidateC08C12Priority(encounter, c08, c12);
+            if (valid)
+            {
+                Debug.Log(
+                    "Prototype C08 and C12 priority flow passed.");
+            }
+            else
+            {
+                Debug.LogError(
+                    "Prototype C08 and C12 priority flow failed.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Prototype C08 C12 Priority Validation",
+                valid
+                    ? "Prototype C08 and C12 priority flow passed."
+                    : "Prototype C08 and C12 priority flow failed. Check the Console.",
+                "OK");
+        }
+
         internal static bool Validate()
         {
             EncounterData encounter = FindEncounter();
@@ -168,6 +195,7 @@ namespace HaveABreak.Editor
                    ValidateStatusApplications(encounter, c01) &&
                    ValidateC08MovementReplacement(encounter, c08) &&
                    ValidateC12MovementReaction(encounter, c12) &&
+                   ValidateC08C12Priority(encounter, c08, c12) &&
                    ValidateC10Cancellation(encounter, c10);
         }
 
@@ -548,6 +576,116 @@ namespace HaveABreak.Editor
                    session.Runtime.Turn.PlayerTurnNumber == 4;
         }
 
+        private static bool ValidateC08C12Priority(
+            EncounterData encounter,
+            CardData c08,
+            CardData c12)
+        {
+            if (!TryCreateSession(
+                    encounter,
+                    c08,
+                    1,
+                    "C08-C12-TRAP",
+                    c12,
+                    1,
+                    "C08-C12-BARRIER",
+                    out BattleRuntimeSessionState session,
+                    out BattleCardInstance trap,
+                    out BattleCardInstance barrier) ||
+                !BattleRuntimePlayerCardActionService.TryResolve(
+                    session.Runtime,
+                    trap.Ids.BattleCardId,
+                    null,
+                    null,
+                    out BattleRuntimePlayerCardActionResult trapAction,
+                    out _,
+                    out _,
+                    out _) ||
+                trapAction.TrapInstallation == null ||
+                !BattleRuntimePlayerCardActionService.TryResolve(
+                    session.Runtime,
+                    barrier.Ids.BattleCardId,
+                    null,
+                    null,
+                    out BattleRuntimePlayerCardActionResult barrierAction,
+                    out _,
+                    out _,
+                    out _) ||
+                barrierAction.Play == null ||
+                barrierAction.TrapInstallation != null)
+            {
+                return false;
+            }
+
+            if (!TryResolvePatternRound(session, encounter, 4293, out _) ||
+                session.Runtime.Player.CurrentHealth != 27 ||
+                !TryResolvePatternRound(session, encounter, 4294, out _) ||
+                session.Runtime.Player.Status.Bind != 1 ||
+                session.Runtime.Player.Status.Injury != 1 ||
+                session.Runtime.Player.Status.Weaken != 1 ||
+                !TryResolvePatternRound(
+                    session,
+                    encounter,
+                    4295,
+                    out BattleRuntimeSessionRoundResult result))
+            {
+                return false;
+            }
+
+            IReadOnlyList<BattleRuntimeEnemyTurnActionResult> actions =
+                result.Round.EnemyTurnPipeline.TurnResult.ActionResults;
+            string leftEnemyId = encounter.EnemySlots[0].EnemyInstanceId;
+            string centerEnemyId = encounter.EnemySlots[1].EnemyInstanceId;
+            string rightEnemyId = encounter.EnemySlots[2].EnemyInstanceId;
+
+            return actions.Count == 5 &&
+                   actions[0].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Move &&
+                   actions[0].MoveResult != null &&
+                   actions[0].MoveResult.ReplacedByTrap &&
+                   actions[0].MoveResult.TriggeredTrapBattleCardId ==
+                   trap.Ids.BattleCardId &&
+                   actions[0].MoveResult.ResolvedSteps == 0 &&
+                   actions[0].MoveResult.Moves.Count == 0 &&
+                   actions[0].MoveResult.ResolvedC12Count == 0 &&
+                   actions[0].MoveResult.VulnerableGained == 0 &&
+                   actions[0].MoveResult.DamageApplied == 0 &&
+                   actions[1].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Attack &&
+                   actions[1].WasBlockedByStatus &&
+                   actions[1].BlockedByStatus == StatusKeyword.Bind &&
+                   actions[2].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Ability &&
+                   actions[2].AbilityResult != null &&
+                   !actions[2].AbilityResult.Cancelled &&
+                   actions.Skip(3).All(action =>
+                       action.Command.ActionType ==
+                       BattleRuntimeEnemyTurnActionType.Attack &&
+                       !action.WasBlockedByStatus) &&
+                   session.Runtime.EnemyPositions.FindPosition(leftEnemyId) ==
+                   EnemyFieldPosition.Left &&
+                   session.Runtime.EnemyPositions.FindPosition(centerEnemyId) ==
+                   EnemyFieldPosition.Center &&
+                   session.Runtime.EnemyPositions.FindPosition(rightEnemyId) ==
+                   EnemyFieldPosition.Right &&
+                   session.Runtime.EnemyStatuses.Find(leftEnemyId).Vulnerable ==
+                   0 &&
+                   session.Runtime.EnemyStatuses.Find(centerEnemyId).Vulnerable ==
+                   0 &&
+                   session.Runtime.EnemyStatuses.Find(rightEnemyId).Vulnerable ==
+                   0 &&
+                   session.Runtime.Player.CurrentHealth == 24 &&
+                   session.Runtime.Player.Status.Bind == 1 &&
+                   session.Runtime.Player.Status.Injury == 0 &&
+                   session.Runtime.Player.Status.Weaken == 0 &&
+                   trap.Zone == CardZone.SkillField &&
+                   barrier.Zone == CardZone.SkillField &&
+                   session.Runtime.TrapInstallations.Count == 1 &&
+                   session.Runtime.TrapInstallations.Find(
+                       trap.Ids.BattleCardId) != null &&
+                   session.Runtime.Turn.PlayerTurnNumber == 4;
+        }
+
         private static bool ValidateC10Cancellation(
             EncounterData encounter,
             CardData c10)
@@ -624,6 +762,59 @@ namespace HaveABreak.Editor
                     new RunBattleState(30, 30, 0),
                     encounter,
                     4500 + cardLevel,
+                    10,
+                    out BattleRuntimeBootstrapResult bootstrap,
+                    out _,
+                    out _) ||
+                !BattleRuntimeSessionService.TryBegin(
+                    bootstrap.Session,
+                    Array.Empty<string>(),
+                    out _,
+                    out _,
+                    out _,
+                    out _))
+            {
+                session = null;
+                return false;
+            }
+
+            session = bootstrap.Session;
+            return true;
+        }
+
+        private static bool TryCreateSession(
+            EncounterData encounter,
+            CardData firstCard,
+            int firstCardLevel,
+            string firstSuffix,
+            CardData secondCard,
+            int secondCardLevel,
+            string secondSuffix,
+            out BattleRuntimeSessionState session,
+            out BattleCardInstance firstInstance,
+            out BattleCardInstance secondInstance)
+        {
+            firstInstance = new BattleCardInstance(
+                firstCard,
+                new CardInstanceIds(
+                    firstCard.CatalogCardId,
+                    $"OWNED-PROTOTYPE-ABILITY-{firstSuffix}",
+                    $"BATTLE-PROTOTYPE-ABILITY-{firstSuffix}"),
+                firstCardLevel,
+                CardZone.DrawPile);
+            secondInstance = new BattleCardInstance(
+                secondCard,
+                new CardInstanceIds(
+                    secondCard.CatalogCardId,
+                    $"OWNED-PROTOTYPE-ABILITY-{secondSuffix}",
+                    $"BATTLE-PROTOTYPE-ABILITY-{secondSuffix}"),
+                secondCardLevel,
+                CardZone.DrawPile);
+            if (!BattleRuntimeBootstrapService.TryCreate(
+                    new[] { firstInstance, secondInstance },
+                    new RunBattleState(30, 30, 0),
+                    encounter,
+                    4600 + firstCardLevel + secondCardLevel,
                     10,
                     out BattleRuntimeBootstrapResult bootstrap,
                     out _,
