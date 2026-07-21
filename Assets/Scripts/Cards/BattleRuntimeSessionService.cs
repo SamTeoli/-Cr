@@ -158,4 +158,61 @@ namespace HaveABreak.Cards
             return true;
         }
     }
+
+    // Disposable default enemy turn for the prototype play screen. Enemy
+    // definitions currently expose only attack and health, so the screen can
+    // end a turn without inventing commands or duplicating turn orchestration.
+    // Replace this adapter when authored enemy behavior data is introduced.
+    public static class BattleRuntimeTestTurnService
+    {
+        public static bool TryEndPlayerTurn(
+            BattleRuntimeSessionState session,
+            int tieBreakerSeed,
+            out BattleRuntimeSessionRoundResult result,
+            out BattleRuntimeSessionFailure failure,
+            out BattleRuntimeRoundFailure roundFailure,
+            out BattleTurnFailure playerTurnEndFailure,
+            out BattleRuntimeEnemyTurnPipelineFailure pipelineFailure,
+            out BattleRuntimeEnemyTurnPlanFailure planFailure,
+            out BattleRuntimeEnemyTurnFailure enemyTurnFailure,
+            out int failedActionIndex)
+        {
+            List<BattleRuntimeEnemyTurnCommand> commands = new();
+            BattleRuntimeState runtime = session?.Runtime;
+            if (runtime?.LivingEnemies != null)
+            {
+                int activeEnemyIndex = 0;
+                foreach (BattleEnemyRuntimeState enemy in runtime.Enemies)
+                {
+                    if (enemy == null || !enemy.IsAlive ||
+                        !runtime.LivingEnemies.Contains(enemy.EnemyId))
+                    {
+                        continue;
+                    }
+
+                    commands.Add(
+                        BattleRuntimeEnemyTurnCommand.CreateAutomaticAttack(
+                            enemy.EnemyId,
+                            1,
+                            new[]
+                            {
+                                unchecked(tieBreakerSeed + activeEnemyIndex)
+                            }));
+                    activeEnemyIndex++;
+                }
+            }
+
+            return BattleRuntimeSessionService.TryResolveRound(
+                session,
+                commands,
+                out result,
+                out failure,
+                out roundFailure,
+                out playerTurnEndFailure,
+                out pipelineFailure,
+                out planFailure,
+                out enemyTurnFailure,
+                out failedActionIndex);
+        }
+    }
 }
