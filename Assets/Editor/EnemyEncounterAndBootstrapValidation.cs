@@ -331,7 +331,7 @@ namespace HaveABreak.Editor
                 planFailure != BattleRuntimeEnemyTurnPlanFailure.None ||
                 enemyTurnFailure != BattleRuntimeEnemyTurnFailure.None ||
                 failedActionIndex != -1 || round == null ||
-                round.ProcessedEnemyActionCount != 3 ||
+                round.Round.ProcessedEnemyActionCount != 3 ||
                 bootstrap.Runtime.Player.CurrentHealth != 19 ||
                 bootstrap.Runtime.EnemyPositions.FindPosition(
                     "TEST-ENEMY-43-A") != EnemyFieldPosition.Right ||
