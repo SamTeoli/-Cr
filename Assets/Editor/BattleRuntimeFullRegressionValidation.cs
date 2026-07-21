@@ -309,7 +309,13 @@ namespace HaveABreak.Editor
                 CardZone.DrawPile);
             BattleRuntimeState runtime = new(new[] { instance }, 35);
 
-            if (!runtime.Turn.TryBeginBattle(out _) ||
+            if (!runtime.TryAddEnemy(
+                    "RUNTIME-35I-C03-ENEMY",
+                    1,
+                    10,
+                    EnemyFieldPosition.Center,
+                    out _) ||
+                !runtime.Turn.TryBeginBattle(out _) ||
                 !runtime.Turn.TryConfirmStartingHand(
                     Array.Empty<string>(), out _, out _, out _) ||
                 !runtime.Deck.Zones.TryMove(
@@ -335,6 +341,7 @@ namespace HaveABreak.Editor
                    result != null &&
                    result.ResolvedC03Count == 1 &&
                    result.TotalDefenseGained == 3 &&
+                   result.Outcome == BattleOutcome.Ongoing &&
                    monster.Defense == 3 &&
                    runtime.Turn.Phase == BattleTurnPhase.EnemyTurn;
         }

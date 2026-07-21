@@ -95,6 +95,12 @@ namespace HaveABreak.Editor
 
             BattleRuntimeState runtime = Start(cards, 2);
             if (runtime == null ||
+                !runtime.TryAddEnemy(
+                    "RUNTIME-35F-C11-ENEMY",
+                    1,
+                    10,
+                    EnemyFieldPosition.Center,
+                    out _) ||
                 barrier.Zone != CardZone.Hand ||
                 ally.Zone != CardZone.Hand ||
                 !runtime.Deck.Zones.TryMove(
