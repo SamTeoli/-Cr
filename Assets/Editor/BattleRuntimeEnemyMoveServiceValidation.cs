@@ -11,9 +11,9 @@ namespace HaveABreak.Editor
         [MenuItem("Have a Break/Validate Runtime Enemy Move And C08")]
         private static void ValidateFromMenu()
         {
-            CardData c04 = FindCard("C04");
-            CardData c08 = FindCard("C08");
-            CardData c12 = FindCard("C12");
+            CardData c04 = FindCard(TestContentIds.C04);
+            CardData c08 = FindCard(TestContentIds.C08);
+            CardData c12 = FindCard(TestContentIds.C12);
             bool valid = c04 != null && c08 != null && c12 != null &&
                          ValidateC08Replacement(c08) &&
                          ValidateMovementReactions(c04, c12);
@@ -37,7 +37,7 @@ namespace HaveABreak.Editor
 
         private static bool ValidateC08Replacement(CardData card)
         {
-            BattleCardInstance trap = Instance(card, 5, "C08");
+            BattleCardInstance trap = Instance(card, 5, TestContentIds.C08);
             BattleRuntimeState runtime = Start(
                 new[] { trap }, "C08-ENEMY");
             if (runtime == null ||
@@ -97,8 +97,8 @@ namespace HaveABreak.Editor
             CardData c04,
             CardData c12)
         {
-            BattleCardInstance cat = Instance(c04, 1, "C04");
-            BattleCardInstance barrier = Instance(c12, 5, "C12");
+            BattleCardInstance cat = Instance(c04, 1, TestContentIds.C04);
+            BattleCardInstance barrier = Instance(c12, 5, TestContentIds.C12);
             BattleRuntimeState runtime = Start(
                 new[] { cat, barrier }, "MOVE-ENEMY");
             if (runtime == null ||

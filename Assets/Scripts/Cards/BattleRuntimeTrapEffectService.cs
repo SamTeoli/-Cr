@@ -44,7 +44,7 @@ namespace HaveABreak.Cards
             out int replacementSteps)
         {
             replacementSteps = requestedSteps;
-            if (!CanRespond(runtime, installation, "C08"))
+            if (!CanRespond(runtime, installation, TestContentIds.C08))
             {
                 return false;
             }
@@ -71,7 +71,7 @@ namespace HaveABreak.Cards
             out int defenseGained)
         {
             defenseGained = 0;
-            if (!CanRespond(runtime, installation, "C09"))
+            if (!CanRespond(runtime, installation, TestContentIds.C09))
             {
                 return false;
             }
@@ -99,7 +99,7 @@ namespace HaveABreak.Cards
         {
             cancelled = false;
             returnedToHand = false;
-            if (!CanRespond(runtime, installation, "C10"))
+            if (!CanRespond(runtime, installation, TestContentIds.C10))
             {
                 return false;
             }

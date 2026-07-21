@@ -55,9 +55,9 @@ namespace HaveABreak.Editor
             }
 
             BattleCardInstance c01 = cards.First(card =>
-                card.SourceCard.CatalogCardId == "C01");
+                card.SourceCard.CatalogCardId == TestContentIds.C01);
             BattleCardInstance c05 = cards.First(card =>
-                card.SourceCard.CatalogCardId == "C05");
+                card.SourceCard.CatalogCardId == TestContentIds.C05);
             valid &= runtime.Deck.Zones.TryMove(
                 c01.Ids.BattleCardId, CardZone.Hand, out _);
             valid &= runtime.Deck.Zones.TryMove(

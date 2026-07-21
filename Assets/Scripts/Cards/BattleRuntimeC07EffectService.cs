@@ -17,7 +17,7 @@ namespace HaveABreak.Cards
                 playResult.PlayedEvent ||
                 !string.Equals(
                     playResult.Card.SourceCard.CatalogCardId,
-                    "C07",
+                    TestContentIds.C07,
                     StringComparison.OrdinalIgnoreCase))
             {
                 return false;

@@ -31,7 +31,7 @@ namespace HaveABreak.Editor
 
         internal static bool Validate()
         {
-            CardData c01 = FindCard("C01");
+            CardData c01 = FindCard(TestContentIds.C01);
             bool valid = c01 != null;
             valid &= Run(
                 "automatic command validation",

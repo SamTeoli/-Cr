@@ -12,10 +12,10 @@ namespace HaveABreak.Editor
         [MenuItem("Have a Break/Validate Runtime C08 C09 C10 Trap Effects")]
         private static void ValidateFromMenu()
         {
-            CardData c01 = FindCard("C01");
-            CardData c08 = FindCard("C08");
-            CardData c09 = FindCard("C09");
-            CardData c10 = FindCard("C10");
+            CardData c01 = FindCard(TestContentIds.C01);
+            CardData c08 = FindCard(TestContentIds.C08);
+            CardData c09 = FindCard(TestContentIds.C09);
+            CardData c10 = FindCard(TestContentIds.C10);
             bool cardsFound = c01 != null && c08 != null &&
                               c09 != null && c10 != null;
             bool c08Valid = cardsFound && ValidateC08(c08);
@@ -45,7 +45,7 @@ namespace HaveABreak.Editor
         private static bool ValidateC08(CardData card)
         {
             if (!TryPrepareEnemyTurn(
-                    card, null, "C08", out BattleRuntimeState runtime,
+                    card, null, TestContentIds.C08, out BattleRuntimeState runtime,
                     out BattleRuntimeTrapInstallation installation,
                     out _))
             {
@@ -74,7 +74,7 @@ namespace HaveABreak.Editor
         private static bool ValidateC09(CardData monsterCard, CardData trapCard)
         {
             if (!TryPrepareEnemyTurn(
-                    trapCard, monsterCard, "C09",
+                    trapCard, monsterCard, TestContentIds.C09,
                     out BattleRuntimeState runtime,
                     out BattleRuntimeTrapInstallation installation,
                     out BattleMonsterState ally))
@@ -101,7 +101,7 @@ namespace HaveABreak.Editor
         private static bool ValidateC10(CardData card)
         {
             if (!TryPrepareEnemyTurn(
-                    card, null, "C10", out BattleRuntimeState runtime,
+                    card, null, TestContentIds.C10, out BattleRuntimeState runtime,
                     out BattleRuntimeTrapInstallation installation,
                     out _))
             {

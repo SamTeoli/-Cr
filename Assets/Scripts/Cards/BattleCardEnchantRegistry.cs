@@ -68,7 +68,7 @@ namespace HaveABreak.Cards
             {
                 if (!slot.IsEmpty && slot.Active && string.Equals(
                         slot.Enchant.DefinitionId,
-                        "E07",
+                        TestContentIds.E07,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     return true;

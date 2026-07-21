@@ -9,7 +9,7 @@ namespace HaveABreak.Cards
         public const int MaximumLevel = 5;
 
         [Header("Identity")]
-        [SerializeField] private string catalogCardId = "C01";
+        [SerializeField] private string catalogCardId;
         [SerializeField] private string displayName = "New Card";
         [SerializeField] private CardRarity rarity = CardRarity.Common;
         [SerializeField, Min(0)] private int manaCost;

@@ -31,9 +31,9 @@ namespace HaveABreak.Editor
 
         private static bool ValidateC05()
         {
-            CardData card = FindCard("C05");
+            CardData card = FindCard(TestContentIds.C05);
             if (!TryCreateStartedRuntime(
-                    card, 1, "C05", out BattleRuntimeState runtime,
+                    card, 1, TestContentIds.C05, out BattleRuntimeState runtime,
                     out BattleCardInstance instance))
             {
                 return false;
@@ -58,7 +58,7 @@ namespace HaveABreak.Editor
             BattleEnemyStatusState target = runtime.EnemyStatuses.Find("ENEMY-A");
             valid &= failure == BattleRuntimeSkillEffectFailure.None &&
                      result != null &&
-                     result.CatalogCardId == "C05" &&
+                     result.CatalogCardId == TestContentIds.C05 &&
                      result.TargetEnemyId == "ENEMY-A" &&
                      result.MovedSteps == 1 &&
                      result.WeakenGained == 1 &&
@@ -79,9 +79,9 @@ namespace HaveABreak.Editor
 
         private static bool ValidateC06()
         {
-            CardData card = FindCard("C06");
+            CardData card = FindCard(TestContentIds.C06);
             if (!TryCreateStartedRuntime(
-                    card, 5, "C06", out BattleRuntimeState runtime,
+                    card, 5, TestContentIds.C06, out BattleRuntimeState runtime,
                     out BattleCardInstance instance))
             {
                 return false;
@@ -107,7 +107,7 @@ namespace HaveABreak.Editor
             BattleEnemyStatusState secondary = runtime.EnemyStatuses.Find("ENEMY-B");
             valid &= failure == BattleRuntimeSkillEffectFailure.None &&
                      result != null &&
-                     result.CatalogCardId == "C06" &&
+                     result.CatalogCardId == TestContentIds.C06 &&
                      result.TargetEnemyId == "ENEMY-A" &&
                      result.SecondaryEnemyId == "ENEMY-B" &&
                      target != null &&

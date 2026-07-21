@@ -63,7 +63,7 @@ namespace HaveABreak.Cards
                 foreach (RunEnchantSlot slot in enchants.Slots)
                 {
                     if (!slot.IsEmpty && slot.Active &&
-                        string.Equals(slot.Enchant.DefinitionId, "E01", StringComparison.OrdinalIgnoreCase))
+                        string.Equals(slot.Enchant.DefinitionId, TestContentIds.E01, StringComparison.OrdinalIgnoreCase))
                     {
                         activeWarmSeats++;
                     }

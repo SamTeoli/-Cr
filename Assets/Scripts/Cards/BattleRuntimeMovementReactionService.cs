@@ -30,7 +30,7 @@ namespace HaveABreak.Cards
                     monster.Card.Zone != CardZone.MonsterField ||
                     !string.Equals(
                         monster.Card.SourceCard.CatalogCardId,
-                        "C04",
+                        TestContentIds.C04,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -58,7 +58,7 @@ namespace HaveABreak.Cards
                     card.SourceCard.CardType != CardType.Barrier ||
                     !string.Equals(
                         card.SourceCard.CatalogCardId,
-                        "C12",
+                        TestContentIds.C12,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     continue;

@@ -31,10 +31,10 @@ namespace HaveABreak.Editor
 
         internal static bool Validate()
         {
-            CardData c01 = FindCard("C01");
-            CardData c08 = FindCard("C08");
-            CardData c09 = FindCard("C09");
-            CardData c10 = FindCard("C10");
+            CardData c01 = FindCard(TestContentIds.C01);
+            CardData c08 = FindCard(TestContentIds.C08);
+            CardData c09 = FindCard(TestContentIds.C09);
+            CardData c10 = FindCard(TestContentIds.C10);
             return c01 != null && c08 != null && c09 != null && c10 != null &&
                    ValidateCompletedTurn(c01, c08, c09, c10) &&
                    ValidateDefeatStopsTurn(c01);
@@ -47,9 +47,9 @@ namespace HaveABreak.Editor
             CardData c10)
         {
             BattleCardInstance ally = Instance(c01, 1, "ALLY");
-            BattleCardInstance c08Trap = Instance(c08, 5, "C08");
-            BattleCardInstance c09Trap = Instance(c09, 5, "C09");
-            BattleCardInstance c10Trap = Instance(c10, 5, "C10");
+            BattleCardInstance c08Trap = Instance(c08, 5, TestContentIds.C08);
+            BattleCardInstance c09Trap = Instance(c09, 5, TestContentIds.C09);
+            BattleCardInstance c10Trap = Instance(c10, 5, TestContentIds.C10);
             BattleRuntimeState runtime = new(
                 new[] { ally, c08Trap, c09Trap, c10Trap },
                 371,

@@ -11,8 +11,8 @@ namespace HaveABreak.Editor
         [MenuItem("Have a Break/Validate Runtime Enemy Attack Damage")]
         private static void ValidateFromMenu()
         {
-            CardData c01 = FindCard("C01");
-            CardData c09 = FindCard("C09");
+            CardData c01 = FindCard(TestContentIds.C01);
+            CardData c09 = FindCard(TestContentIds.C09);
             bool valid = c01 != null && c09 != null &&
                          ValidateC09Overflow(c01, c09) &&
                          ValidateWeakenAndDefense(c01);

@@ -23,16 +23,16 @@ namespace HaveABreak.Editor
 
         internal static bool Validate()
         {
-            CardData c01Data = FindCard("C01");
-            CardData c02Data = FindCard("C02");
+            CardData c01Data = FindCard(TestContentIds.C01);
+            CardData c02Data = FindCard(TestContentIds.C02);
             if (c01Data == null || c02Data == null)
             {
                 Debug.LogError("Runtime summon validation requires C01 and C02.");
                 return false;
             }
 
-            BattleCardInstance c01 = CreateCard(c01Data, "C01");
-            BattleCardInstance c02 = CreateCard(c02Data, "C02");
+            BattleCardInstance c01 = CreateCard(c01Data, TestContentIds.C01);
+            BattleCardInstance c02 = CreateCard(c02Data, TestContentIds.C02);
             BattleRuntimeState runtime = new(
                 new List<BattleCardInstance> { c01, c02 }, 352);
             bool valid = runtime.TryAddEnemy(
@@ -60,7 +60,7 @@ namespace HaveABreak.Editor
                 out BattleRuntimeSummonEffectResult c01Effect,
                 out BattleRuntimeSummonEffectFailure c01Failure);
             valid &= c01Failure == BattleRuntimeSummonEffectFailure.None &&
-                     c01Effect.CatalogCardId == "C01" &&
+                     c01Effect.CatalogCardId == TestContentIds.C01 &&
                      c01Effect.C01Result.MovementSucceeded &&
                      c01Effect.C01Result.ResolvedTargetEnemyId == "ENEMY-A" &&
                      runtime.EnemyPositions.FindPosition("ENEMY-A") ==
@@ -81,7 +81,7 @@ namespace HaveABreak.Editor
                 out BattleRuntimeSummonEffectResult c02Effect,
                 out BattleRuntimeSummonEffectFailure c02Failure);
             valid &= c02Failure == BattleRuntimeSummonEffectFailure.None &&
-                     c02Effect.CatalogCardId == "C02" &&
+                     c02Effect.CatalogCardId == TestContentIds.C02 &&
                      c02Effect.C02Result.CostReduction == 1 &&
                      runtime.NextSkillModifiers.PendingCount == 1 &&
                      runtime.CardPlay.Mana.CurrentMana == 0 &&

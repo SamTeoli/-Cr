@@ -30,7 +30,7 @@ namespace HaveABreak.Cards
 
             string catalogCardId =
                 playResult.Card.SourceCard.CatalogCardId;
-            if (string.Equals(catalogCardId, "C01", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(catalogCardId, TestContentIds.C01, StringComparison.OrdinalIgnoreCase))
             {
                 if (!targetDeclaration.HasValue)
                 {
@@ -59,7 +59,7 @@ namespace HaveABreak.Cards
                 return true;
             }
 
-            if (string.Equals(catalogCardId, "C02", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(catalogCardId, TestContentIds.C02, StringComparison.OrdinalIgnoreCase))
             {
                 if (!C02LanternBearerResolver.TryResolve(
                         playResult.SummonedEvent,

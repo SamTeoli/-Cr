@@ -29,7 +29,7 @@ namespace HaveABreak.Cards
                     monster.Card.Zone != CardZone.MonsterField ||
                     !string.Equals(
                         monster.Card.SourceCard.CatalogCardId,
-                        "C03",
+                        TestContentIds.C03,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     continue;

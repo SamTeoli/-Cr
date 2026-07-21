@@ -37,7 +37,7 @@ namespace HaveABreak.Cards
             }
 
             string catalogCardId = playResult.Card.SourceCard.CatalogCardId;
-            if (string.Equals(catalogCardId, "C05", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(catalogCardId, TestContentIds.C05, StringComparison.OrdinalIgnoreCase))
             {
                 if (!C05PlatformPushResolver.TryResolve(
                         playResult.PlayedEvent,
@@ -67,7 +67,7 @@ namespace HaveABreak.Cards
                 return true;
             }
 
-            if (string.Equals(catalogCardId, "C06", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(catalogCardId, TestContentIds.C06, StringComparison.OrdinalIgnoreCase))
             {
                 List<BattleEnemyAttackSnapshot> livingEnemies = new();
                 foreach (BattleEnemyRuntimeState enemy in runtime.Enemies)

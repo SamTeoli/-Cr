@@ -11,8 +11,8 @@ namespace HaveABreak.Editor
         [MenuItem("Have a Break/Validate Runtime Trap Installation Registry")]
         private static void ValidateFromMenu()
         {
-            CardData c08 = FindCard("C08");
-            CardData c10 = FindCard("C10");
+            CardData c08 = FindCard(TestContentIds.C08);
+            CardData c10 = FindCard(TestContentIds.C10);
             bool valid = c08 != null && c10 != null &&
                          ValidateRegistrationAndPruning(c08) &&
                          ValidateC10Removal(c10);
@@ -36,7 +36,7 @@ namespace HaveABreak.Editor
 
         private static bool ValidateRegistrationAndPruning(CardData card)
         {
-            BattleRuntimeState runtime = Start(card, 1, "C08");
+            BattleRuntimeState runtime = Start(card, 1, TestContentIds.C08);
             if (runtime == null ||
                 !BattleRuntimeCardPlayService.TryPlay(
                     runtime,
@@ -70,7 +70,7 @@ namespace HaveABreak.Editor
 
         private static bool ValidateC10Removal(CardData card)
         {
-            BattleRuntimeState runtime = Start(card, 5, "C10");
+            BattleRuntimeState runtime = Start(card, 5, TestContentIds.C10);
             if (runtime == null ||
                 !runtime.TryAddEnemy(
                     "ENEMY-A",
