@@ -103,14 +103,43 @@ namespace HaveABreak.Editor
                 "OK");
         }
 
+        [MenuItem("Have a Break/Validate Prototype C08 Movement Replacement")]
+        private static void ValidateC08MovementReplacementFromMenu()
+        {
+            EncounterData encounter = FindEncounter();
+            CardData c08 = FindCard(TestContentIds.C08);
+            bool valid = encounter != null && c08 != null &&
+                         ValidateC08MovementReplacement(encounter, c08);
+            if (valid)
+            {
+                Debug.Log(
+                    "Prototype C08 movement replacement flow passed.");
+            }
+            else
+            {
+                Debug.LogError(
+                    "Prototype C08 movement replacement flow failed.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Prototype C08 Movement Replacement Validation",
+                valid
+                    ? "Prototype C08 movement replacement flow passed."
+                    : "Prototype C08 movement replacement flow failed. Check the Console.",
+                "OK");
+        }
+
         internal static bool Validate()
         {
             EncounterData encounter = FindEncounter();
             CardData c01 = FindCard(TestContentIds.C01);
+            CardData c08 = FindCard(TestContentIds.C08);
             CardData c10 = FindCard(TestContentIds.C10);
-            return encounter != null && c01 != null && c10 != null &&
+            return encounter != null && c01 != null && c08 != null &&
+                   c10 != null &&
                    ValidateAuthoredPatterns(encounter) &&
                    ValidateStatusApplications(encounter, c01) &&
+                   ValidateC08MovementReplacement(encounter, c08) &&
                    ValidateC10Cancellation(encounter, c10);
         }
 
@@ -311,6 +340,90 @@ namespace HaveABreak.Editor
                    session.Runtime.Player.Status.Bind == 1 &&
                    session.Runtime.Player.Status.Injury == 0 &&
                    session.Runtime.Player.Status.Weaken == 0 &&
+                   session.Runtime.Turn.PlayerTurnNumber == 4;
+        }
+
+        private static bool ValidateC08MovementReplacement(
+            EncounterData encounter,
+            CardData c08)
+        {
+            if (!TryCreateSession(
+                    encounter,
+                    c08,
+                    1,
+                    "C08-MOVE",
+                    out BattleRuntimeSessionState session,
+                    out BattleCardInstance trap) ||
+                !BattleRuntimePlayerCardActionService.TryResolve(
+                    session.Runtime,
+                    trap.Ids.BattleCardId,
+                    null,
+                    null,
+                    out BattleRuntimePlayerCardActionResult cardAction,
+                    out _,
+                    out _,
+                    out _) ||
+                cardAction.TrapInstallation == null)
+            {
+                return false;
+            }
+
+            if (!TryResolvePatternRound(session, encounter, 4260, out _) ||
+                session.Runtime.Player.CurrentHealth != 27 ||
+                !TryResolvePatternRound(session, encounter, 4270, out _) ||
+                session.Runtime.Player.Status.Bind != 1 ||
+                session.Runtime.Player.Status.Injury != 1 ||
+                session.Runtime.Player.Status.Weaken != 1 ||
+                !TryResolvePatternRound(
+                    session,
+                    encounter,
+                    4280,
+                    out BattleRuntimeSessionRoundResult result))
+            {
+                return false;
+            }
+
+            IReadOnlyList<BattleRuntimeEnemyTurnActionResult> actions =
+                result.Round.EnemyTurnPipeline.TurnResult.ActionResults;
+            string leftEnemyId = encounter.EnemySlots[0].EnemyInstanceId;
+            string centerEnemyId = encounter.EnemySlots[1].EnemyInstanceId;
+            string rightEnemyId = encounter.EnemySlots[2].EnemyInstanceId;
+
+            return actions.Count == 5 &&
+                   actions[0].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Move &&
+                   actions[0].MoveResult != null &&
+                   actions[0].MoveResult.ReplacedByTrap &&
+                   actions[0].MoveResult.TriggeredTrapBattleCardId ==
+                   trap.Ids.BattleCardId &&
+                   actions[0].MoveResult.ResolvedSteps == 0 &&
+                   actions[0].MoveResult.Moves.Count == 0 &&
+                   actions[1].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Attack &&
+                   actions[1].WasBlockedByStatus &&
+                   actions[1].BlockedByStatus == StatusKeyword.Bind &&
+                   actions[2].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Ability &&
+                   actions[2].AbilityResult != null &&
+                   !actions[2].AbilityResult.Cancelled &&
+                   actions.Skip(3).All(action =>
+                       action.Command.ActionType ==
+                       BattleRuntimeEnemyTurnActionType.Attack &&
+                       !action.WasBlockedByStatus) &&
+                   session.Runtime.EnemyPositions.FindPosition(leftEnemyId) ==
+                   EnemyFieldPosition.Left &&
+                   session.Runtime.EnemyPositions.FindPosition(centerEnemyId) ==
+                   EnemyFieldPosition.Center &&
+                   session.Runtime.EnemyPositions.FindPosition(rightEnemyId) ==
+                   EnemyFieldPosition.Right &&
+                   session.Runtime.EnemyStatuses.Find(leftEnemyId).Bind == 0 &&
+                   session.Runtime.Player.CurrentHealth == 24 &&
+                   session.Runtime.Player.Status.Bind == 1 &&
+                   session.Runtime.Player.Status.Injury == 0 &&
+                   session.Runtime.Player.Status.Weaken == 0 &&
+                   trap.Zone == CardZone.SkillField &&
+                   session.Runtime.TrapInstallations.Find(
+                       trap.Ids.BattleCardId) != null &&
                    session.Runtime.Turn.PlayerTurnNumber == 4;
         }
 
