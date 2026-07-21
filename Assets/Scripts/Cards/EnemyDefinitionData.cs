@@ -139,6 +139,8 @@ namespace HaveABreak.Cards
         [SerializeField] private string abilityId;
         [SerializeField] private bool affectsFriendlySide = true;
         [SerializeField] private bool isAreaAbility;
+        [SerializeField] private StatusKeyword statusKeyword;
+        [SerializeField, Min(0)] private int statusAmount;
 
         private EnemyPatternAbilityData()
         {
@@ -147,15 +149,26 @@ namespace HaveABreak.Cards
         public EnemyPatternAbilityData(
             string id,
             bool affectsAllies,
-            bool isArea)
+            bool isArea,
+            StatusKeyword appliedStatus =
+                global::HaveABreak.Cards.StatusKeyword.None,
+            int appliedAmount = 0)
         {
             abilityId = id?.Trim();
             affectsFriendlySide = affectsAllies;
             isAreaAbility = isArea;
+            statusKeyword = appliedStatus;
+            statusAmount = appliedAmount;
         }
 
         public string AbilityId => abilityId;
         public bool AffectsFriendlySide => affectsFriendlySide;
         public bool IsAreaAbility => isAreaAbility;
+        public StatusKeyword StatusKeyword => statusKeyword;
+        public int StatusAmount => statusAmount;
+        public bool HasStatusEffect =>
+            statusKeyword !=
+            global::HaveABreak.Cards.StatusKeyword.None &&
+            statusAmount > 0;
     }
 }

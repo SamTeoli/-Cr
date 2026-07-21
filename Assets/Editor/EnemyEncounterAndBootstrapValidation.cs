@@ -113,7 +113,9 @@ namespace HaveABreak.Editor
                                     new EnemyPatternAbilityData(
                                         "TEST-ABILITY-43",
                                         true,
-                                        false)
+                                        false,
+                                        StatusKeyword.Weaken,
+                                        2)
                                 }),
                             new EnemyTurnPatternStep(
                                 false,
@@ -136,7 +138,9 @@ namespace HaveABreak.Editor
                                     new EnemyPatternAbilityData(
                                         null,
                                         true,
-                                        false)
+                                        false,
+                                        StatusKeyword.Bind,
+                                        0)
                                 }),
                             new EnemyTurnPatternStep(
                                 false,
@@ -208,6 +212,9 @@ namespace HaveABreak.Editor
                    firstTurn.AttackCount == 2 &&
                    firstTurn.Abilities.Count == 1 &&
                    firstTurn.Abilities[0].AbilityId == "TEST-ABILITY-43" &&
+                   firstTurn.Abilities[0].StatusKeyword ==
+                   StatusKeyword.Weaken &&
+                   firstTurn.Abilities[0].StatusAmount == 2 &&
                    EncounterDataValidationService
                        .ValidateEnemy(validEnemy).Count == 0 &&
                    EncounterDataValidationService
@@ -300,7 +307,10 @@ namespace HaveABreak.Editor
                 commands[1].AttackTieBreakerValues[1] != 701 ||
                 commands[2].ActionType !=
                 BattleRuntimeEnemyTurnActionType.Ability ||
-                commands[2].Ability.AbilityId != "TEST-ABILITY-43")
+                commands[2].Ability.AbilityId != "TEST-ABILITY-43" ||
+                commands[2].Ability.StatusKeyword != StatusKeyword.Weaken ||
+                commands[2].Ability.StatusAmount != 2 ||
+                commands[2].Ability.TargetTieBreakerValue != 702)
             {
                 return false;
             }
@@ -333,6 +343,7 @@ namespace HaveABreak.Editor
                 failedActionIndex != -1 || round == null ||
                 round.Round.ProcessedEnemyActionCount != 3 ||
                 bootstrap.Runtime.Player.CurrentHealth != 19 ||
+                bootstrap.Runtime.Player.Status.Weaken != 2 ||
                 bootstrap.Runtime.EnemyPositions.FindPosition(
                     "TEST-ENEMY-43-A") != EnemyFieldPosition.Right ||
                 bootstrap.Runtime.Turn.PlayerTurnNumber != 2)

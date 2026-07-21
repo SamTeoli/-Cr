@@ -198,6 +198,9 @@ namespace HaveABreak.Editor
                           "ValidateLevelFourAreaCancellation",
                           c10));
             valid &= Run(
+                "Enemy status ability effects",
+                BattleRuntimeEnemyAbilityStatusValidation.Validate);
+            valid &= Run(
                 "Enemy turn orchestration",
                 BattleRuntimeEnemyTurnServiceValidation.Validate);
             valid &= Run(

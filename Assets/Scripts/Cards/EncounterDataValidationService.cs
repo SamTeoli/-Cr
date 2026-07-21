@@ -104,6 +104,19 @@ namespace HaveABreak.Cards
                         errors.Add(
                             $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} has duplicate ability ID '{ability.AbilityId}'.");
                     }
+
+                    if (ability != null &&
+                        (!Enum.IsDefined(
+                             typeof(StatusKeyword),
+                             ability.StatusKeyword) ||
+                         (ability.StatusKeyword == StatusKeyword.None &&
+                          ability.StatusAmount != 0) ||
+                         (ability.StatusKeyword != StatusKeyword.None &&
+                          ability.StatusAmount <= 0)))
+                    {
+                        errors.Add(
+                            $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} ability {abilityIndex} has an invalid status effect.");
+                    }
                 }
             }
         }
