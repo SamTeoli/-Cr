@@ -320,7 +320,13 @@ namespace HaveABreak.Cards
                          patternTurn.Abilities)
                 {
                     if (ability == null ||
-                        string.IsNullOrWhiteSpace(ability.AbilityId))
+                        string.IsNullOrWhiteSpace(ability.AbilityId) ||
+                        !System.Enum.IsDefined(
+                            typeof(StatusKeyword),
+                            ability.StatusKeyword) ||
+                        (ability.StatusKeyword == StatusKeyword.None
+                            ? ability.StatusAmount != 0
+                            : ability.StatusAmount <= 0))
                     {
                         failure =
                             BattleRuntimeEnemyPatternFailure.InvalidPattern;
@@ -335,7 +341,12 @@ namespace HaveABreak.Cards
                                 enemy.EnemyId,
                                 false,
                                 ability.AffectsFriendlySide,
-                                ability.IsAreaAbility)));
+                                ability.IsAreaAbility,
+                                ability.StatusKeyword,
+                                ability.StatusAmount,
+                                unchecked(
+                                    tieBreakerSeed + tieBreakerOffset))));
+                    tieBreakerOffset++;
                 }
             }
 

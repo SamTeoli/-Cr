@@ -51,7 +51,9 @@ namespace HaveABreak.Editor
                 "ENEMY-C10-LEVEL5",
                 false,
                 true,
-                false);
+                false,
+                StatusKeyword.Injury,
+                2);
             bool resolved = BattleRuntimeEnemyAbilityService.TryResolve(
                 runtime,
                 ability,
@@ -73,6 +75,9 @@ namespace HaveABreak.Editor
                    BattleEventType.EnemyAbilityCancelled &&
                    result.ResolutionEvent.ParentEventId ==
                    result.DeclaredEvent.EventId &&
+                   result.TotalStatusApplied == 0 &&
+                   result.AffectedTargetCount == 0 &&
+                   runtime.Player.Status.Injury == 0 &&
                    trap.Zone == CardZone.Hand &&
                    status != null && status.Weaken == 1 &&
                    runtime.TrapInstallations.Count == 0;
@@ -95,7 +100,9 @@ namespace HaveABreak.Editor
                 "ENEMY-C10-LEVEL3-AREA",
                 false,
                 true,
-                true);
+                true,
+                StatusKeyword.Injury,
+                2);
             bool resolved = BattleRuntimeEnemyAbilityService.TryResolve(
                 runtime,
                 ability,
@@ -113,6 +120,9 @@ namespace HaveABreak.Editor
                        result.TriggeredTrapBattleCardId) &&
                    result.ResolutionEvent.EventType ==
                    BattleEventType.EnemyAbilityCompleted &&
+                   result.TotalStatusApplied == 2 &&
+                   result.AffectedTargetCount == 1 &&
+                   runtime.Player.Status.Injury == 2 &&
                    trap.Zone == CardZone.SkillField &&
                    status != null && status.Weaken == 0 &&
                    runtime.TrapInstallations.Count == 1;
@@ -135,7 +145,9 @@ namespace HaveABreak.Editor
                 "ENEMY-C10-LEVEL4-AREA",
                 false,
                 true,
-                true);
+                true,
+                StatusKeyword.Injury,
+                2);
             bool resolved = BattleRuntimeEnemyAbilityService.TryResolve(
                 runtime,
                 ability,
@@ -153,6 +165,9 @@ namespace HaveABreak.Editor
                    trap.Ids.BattleCardId &&
                    result.ResolutionEvent.EventType ==
                    BattleEventType.EnemyAbilityCancelled &&
+                   result.TotalStatusApplied == 0 &&
+                   result.AffectedTargetCount == 0 &&
+                   runtime.Player.Status.Injury == 0 &&
                    trap.Zone == CardZone.Graveyard &&
                    status != null && status.Weaken == 1 &&
                    runtime.TrapInstallations.Count == 0;

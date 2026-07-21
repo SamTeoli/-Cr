@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace HaveABreak.Cards
 {
     public sealed class BattleRuntimeEnemyAbilityResult
@@ -8,7 +10,9 @@ namespace HaveABreak.Cards
             BattleEventRecord resolutionEvent,
             bool cancelled,
             bool returnedTrapToHand,
-            string triggeredTrapBattleCardId)
+            string triggeredTrapBattleCardId,
+            IEnumerable<BattleEventRecord> statusApplicationEvents,
+            int totalStatusApplied)
         {
             Ability = ability;
             DeclaredEvent = declaredEvent;
@@ -16,6 +20,10 @@ namespace HaveABreak.Cards
             Cancelled = cancelled;
             ReturnedTrapToHand = returnedTrapToHand;
             TriggeredTrapBattleCardId = triggeredTrapBattleCardId;
+            StatusApplicationEvents = statusApplicationEvents == null
+                ? new List<BattleEventRecord>()
+                : new List<BattleEventRecord>(statusApplicationEvents);
+            TotalStatusApplied = totalStatusApplied;
         }
 
         public EnemyAbilityResolutionContext Ability { get; }
@@ -24,5 +32,8 @@ namespace HaveABreak.Cards
         public bool Cancelled { get; }
         public bool ReturnedTrapToHand { get; }
         public string TriggeredTrapBattleCardId { get; }
+        public IReadOnlyList<BattleEventRecord> StatusApplicationEvents { get; }
+        public int TotalStatusApplied { get; }
+        public int AffectedTargetCount => StatusApplicationEvents.Count;
     }
 }

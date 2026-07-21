@@ -20,6 +20,32 @@ namespace HaveABreak.Cards
         public bool CanAttack => bind <= 0 && stun <= 0;
         public bool CanUseAbility => stun <= 0;
 
+        public int GetAmount(StatusKeyword keyword)
+        {
+            return keyword switch
+            {
+                StatusKeyword.Injury => injury,
+                StatusKeyword.Bind => bind,
+                StatusKeyword.Stun => stun,
+                StatusKeyword.Weaken => weaken,
+                StatusKeyword.Vulnerable => vulnerable,
+                _ => 0
+            };
+        }
+
+        public int Apply(StatusKeyword keyword, int amount)
+        {
+            return keyword switch
+            {
+                StatusKeyword.Injury => ApplyInjury(amount),
+                StatusKeyword.Bind => ApplyBind(amount),
+                StatusKeyword.Stun => ApplyStun(amount),
+                StatusKeyword.Weaken => ApplyWeaken(amount),
+                StatusKeyword.Vulnerable => ApplyVulnerable(amount),
+                _ => 0
+            };
+        }
+
         public int ApplyInjury(int amount)
         {
             int applied = Mathf.Max(0, amount);
