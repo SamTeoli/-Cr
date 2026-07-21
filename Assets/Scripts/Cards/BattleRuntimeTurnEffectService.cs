@@ -35,6 +35,19 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
+                if (!monster.Status.CanUseAbility)
+                {
+                    runtime.EventLog.Record(
+                        BattleEventType.PlayerMonsterActionBlocked,
+                        "PlayerMonsterAbilityBlockedByStun",
+                        monster.BattleCardId,
+                        monster.BattleCardId,
+                        monster.BattleCardId,
+                        beforeValue: monster.Status.Stun,
+                        afterValue: monster.Status.Stun);
+                    continue;
+                }
+
                 if (!C03SeatRepairerTurnEndResolver.TryResolve(
                         monster,
                         runtime.Turn.PlayerTurnNumber,
@@ -50,14 +63,30 @@ namespace HaveABreak.Cards
                 defenseGained += c03Result.DefenseGained;
             }
 
+            if (!BattleRuntimeFriendlyStatusTurnService.TryResolveTurnEnd(
+                    runtime,
+                    out BattleRuntimeFriendlyStatusTurnResult statusTurnEnd))
+            {
+                return false;
+            }
+
             runtime.DefenseRetention.EndPlayerTurn();
-            if (!runtime.Turn.TryEndPlayerTurn(out turnFailure))
+            BattleOutcome outcome = new BattleOutcomeEvaluator(
+                runtime.Player,
+                runtime.LivingEnemies).Evaluate();
+            if (outcome == BattleOutcome.Ongoing &&
+                !runtime.Turn.TryEndPlayerTurn(out turnFailure))
             {
                 return false;
             }
 
             result = new BattleRuntimeTurnEffectResult(
-                resolvedCount, 0, defenseGained, 0);
+                resolvedCount,
+                0,
+                defenseGained,
+                0,
+                statusTurnEnd,
+                outcome);
             return true;
         }
 

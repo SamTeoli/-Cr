@@ -102,7 +102,8 @@ namespace HaveABreak.Cards
         EnemyAbilityDeclared,
         EnemyAbilityCancelled,
         EnemyAbilityCompleted,
-        EnemyActionBlocked
+        EnemyActionBlocked,
+        PlayerMonsterActionBlocked
     }
 
     public enum EffectProcessingStage

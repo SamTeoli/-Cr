@@ -204,6 +204,9 @@ namespace HaveABreak.Editor
                 "Common enemy status turn flow",
                 BattleRuntimeCommonEnemyStatusValidation.Validate);
             valid &= Run(
+                "Common player and ally status turn flow",
+                BattleRuntimeCommonFriendlyStatusValidation.Validate);
+            valid &= Run(
                 "Enemy turn planning and intents",
                 BattleRuntimeEnemyTurnPlanValidation.Validate);
             valid &= Run(

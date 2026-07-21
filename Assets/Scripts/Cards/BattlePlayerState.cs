@@ -11,6 +11,7 @@ namespace HaveABreak.Cards
 
         [SerializeField] private int maximumHealth;
         [SerializeField] private int currentHealth;
+        [SerializeField] private BattleCommonStatusState status;
 
         private BattlePlayerState()
         {
@@ -20,10 +21,13 @@ namespace HaveABreak.Cards
         {
             this.maximumHealth = Mathf.Max(1, maximumHealth);
             currentHealth = this.maximumHealth;
+            status = new BattleCommonStatusState();
         }
 
         public int MaximumHealth => maximumHealth;
         public int CurrentHealth => currentHealth;
+        public BattleCommonStatusState Status =>
+            status ??= new BattleCommonStatusState();
         public bool IsDefeated => currentHealth <= 0;
 
         public int ApplyDamage(int amount)

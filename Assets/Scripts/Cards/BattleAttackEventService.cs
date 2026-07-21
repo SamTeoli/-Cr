@@ -50,6 +50,7 @@ namespace HaveABreak.Cards
         InvalidTurnPhase,
         InvalidAttacker,
         InvalidTarget,
+        ActionBlockedByStatus,
         AttackAlreadyUsed,
         BeginActionFailed,
         EnemyCleanupFailed,
@@ -63,6 +64,8 @@ namespace HaveABreak.Cards
             BattleMonsterState attacker,
             BattleEnemyRuntimeState target,
             int baseAttack,
+            int weakenReduction,
+            int adjustedAttack,
             int vulnerableBonus,
             int damageApplied,
             bool targetDefeated,
@@ -74,6 +77,8 @@ namespace HaveABreak.Cards
             Attacker = attacker;
             Target = target;
             BaseAttack = baseAttack;
+            WeakenReduction = weakenReduction;
+            AdjustedAttack = adjustedAttack;
             VulnerableBonus = vulnerableBonus;
             DamageApplied = damageApplied;
             TargetDefeated = targetDefeated;
@@ -86,8 +91,10 @@ namespace HaveABreak.Cards
         public BattleMonsterState Attacker { get; }
         public BattleEnemyRuntimeState Target { get; }
         public int BaseAttack { get; }
+        public int WeakenReduction { get; }
+        public int AdjustedAttack { get; }
         public int VulnerableBonus { get; }
-        public int FinalDamage => BaseAttack + VulnerableBonus;
+        public int FinalDamage => AdjustedAttack + VulnerableBonus;
         public int DamageApplied { get; }
         public bool TargetDefeated { get; }
         public BattleEventRecord DeclaredAttack { get; }
@@ -133,6 +140,13 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!attacker.Status.CanAttack)
+            {
+                failure =
+                    BattleRuntimePlayerAttackFailure.ActionBlockedByStatus;
+                return false;
+            }
+
             BattleEnemyRuntimeState target = runtime.FindEnemy(targetEnemyId);
             BattleEnemyStatusState targetStatus =
                 runtime.EnemyStatuses.Find(targetEnemyId);
@@ -164,9 +178,16 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            int vulnerableBonus = targetStatus.Vulnerable;
+            int weakenReduction = Mathf.Min(
+                attacker.Attack,
+                Mathf.Max(0, attacker.Status.Weaken));
+            int adjustedAttack = Mathf.Max(
+                0, attacker.Attack - weakenReduction);
+            int vulnerableBonus = adjustedAttack > 0
+                ? targetStatus.Vulnerable
+                : 0;
             int finalDamage = Mathf.Max(
-                0, attacker.Attack + vulnerableBonus);
+                0, adjustedAttack + vulnerableBonus);
             BattleEventRecord declaredAttack = runtime.EventLog.Record(
                 BattleEventType.AttackDeclared,
                 "PlayerMonsterAttackDeclared",
@@ -237,6 +258,8 @@ namespace HaveABreak.Cards
                 attacker,
                 target,
                 attacker.Attack,
+                weakenReduction,
+                adjustedAttack,
                 vulnerableBonus,
                 damageApplied,
                 targetDefeated,

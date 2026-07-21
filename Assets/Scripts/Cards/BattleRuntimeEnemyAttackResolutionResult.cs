@@ -8,9 +8,11 @@ namespace HaveABreak.Cards
             BattleRuntimeEnemyAttackDeclarationResult declaration,
             int weakenReduction,
             int adjustedAttack,
+            int monsterVulnerableBonus,
             int defenseConsumed,
             int monsterDamage,
             int overflowDamage,
+            int playerVulnerableBonus,
             int playerDamage,
             BattleEventRecord defenseConsumedEvent,
             BattleEventRecord monsterDamageEvent,
@@ -21,9 +23,11 @@ namespace HaveABreak.Cards
             Declaration = declaration;
             WeakenReduction = weakenReduction;
             AdjustedAttack = adjustedAttack;
+            MonsterVulnerableBonus = monsterVulnerableBonus;
             DefenseConsumed = defenseConsumed;
             MonsterDamage = monsterDamage;
             OverflowDamage = overflowDamage;
+            PlayerVulnerableBonus = playerVulnerableBonus;
             PlayerDamage = playerDamage;
             DefenseConsumedEvent = defenseConsumedEvent;
             MonsterDamageEvent = monsterDamageEvent;
@@ -36,9 +40,13 @@ namespace HaveABreak.Cards
         public int RawAttack => Declaration.Attacker.Attack;
         public int WeakenReduction { get; }
         public int AdjustedAttack { get; }
+        public int MonsterVulnerableBonus { get; }
+        public int DamageBeforeDefense =>
+            AdjustedAttack + MonsterVulnerableBonus;
         public int DefenseConsumed { get; }
         public int MonsterDamage { get; }
         public int OverflowDamage { get; }
+        public int PlayerVulnerableBonus { get; }
         public int PlayerDamage { get; }
         public BattleEventRecord DefenseConsumedEvent { get; }
         public BattleEventRecord MonsterDamageEvent { get; }
