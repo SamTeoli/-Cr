@@ -115,5 +115,16 @@ namespace HaveABreak.Cards
             weaken = Mathf.Max(0, weaken - 1);
             return before - weaken;
         }
+
+        public int ClearAll()
+        {
+            int cleared = injury + weaken + vulnerable + bind + stun;
+            injury = 0;
+            weaken = 0;
+            vulnerable = 0;
+            bind = 0;
+            stun = 0;
+            return cleared;
+        }
     }
 }

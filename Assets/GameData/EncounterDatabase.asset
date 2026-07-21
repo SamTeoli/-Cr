@@ -14,3 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EncounterDatabase
   encounters:
   - {fileID: 11400000, guid: 37c10000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: 37c20000000000000000000000000002, type: 2}
+  - {fileID: 11400000, guid: 37c30000000000000000000000000003, type: 2}
+  - {fileID: 11400000, guid: 37c40000000000000000000000000004, type: 2}

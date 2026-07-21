@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 430a0000000000000000000000000003, type: 3}
+  m_Name: PT03_MidBoss
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EncounterData
+  encounterId: TEST-ENCOUNTER-PROTOTYPE-MIDBOSS
+  displayName: "시험 전투 · 중간보스 조우"
+  encounterGrade: 2
+  enemySlots:
+  - enemyInstanceId: TEST-ENEMY-LEFT
+    enemy: {fileID: 11400000, guid: 37e10000000000000000000000000001, type: 2}
+    position: 0
+  - enemyInstanceId: TEST-ENEMY-CENTER
+    enemy: {fileID: 11400000, guid: 37e20000000000000000000000000002, type: 2}
+    position: 1
+  - enemyInstanceId: TEST-ENEMY-RIGHT
+    enemy: {fileID: 11400000, guid: 37e30000000000000000000000000003, type: 2}
+    position: 2

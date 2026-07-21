@@ -284,6 +284,9 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Run save slot inspection",
                 RunSaveSlotServiceValidation.Validate);
+            valid &= Run(
+                "Integrated run nodes, shop, consumables, and graded encounters",
+                HaveABreak.EditorTools.IntegratedRunPrototypeValidation.Validate);
 
             if (valid)
             {
