@@ -34,6 +34,29 @@ namespace HaveABreak.Editor
                 "OK");
         }
 
+        [MenuItem("Have a Break/Validate Prototype Enemy Movement Pattern")]
+        private static void ValidateMovementFromMenu()
+        {
+            bool valid = Validate();
+            if (valid)
+            {
+                Debug.Log(
+                    "Prototype enemy movement pattern flow passed.");
+            }
+            else
+            {
+                Debug.LogError(
+                    "Prototype enemy movement pattern flow failed.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Prototype Enemy Movement Pattern Validation",
+                valid
+                    ? "Prototype enemy movement pattern flow passed."
+                    : "Prototype enemy movement pattern flow failed. Check the Console.",
+                "OK");
+        }
+
         internal static bool Validate()
         {
             EncounterData encounter = FindEncounter();
@@ -59,19 +82,22 @@ namespace HaveABreak.Editor
                        EnemyFieldPosition.Left,
                        "TEST-ABILITY-BIND",
                        StatusKeyword.Bind,
-                       false) &&
+                       false,
+                       true) &&
                    ValidateSlot(
                        encounter.EnemySlots[1],
                        EnemyFieldPosition.Center,
                        "TEST-ABILITY-INJURY",
                        StatusKeyword.Injury,
+                       false,
                        false) &&
                    ValidateSlot(
                        encounter.EnemySlots[2],
                        EnemyFieldPosition.Right,
                        "TEST-ABILITY-WEAKEN-AREA",
                        StatusKeyword.Weaken,
-                       true);
+                       true,
+                       false);
         }
 
         private static bool ValidateSlot(
@@ -79,11 +105,12 @@ namespace HaveABreak.Editor
             EnemyFieldPosition expectedPosition,
             string expectedAbilityId,
             StatusKeyword expectedStatus,
-            bool expectedArea)
+            bool expectedArea,
+            bool expectedMovement)
         {
             if (slot?.Enemy?.ActionPattern?.Turns == null ||
                 slot.Position != expectedPosition ||
-                slot.Enemy.ActionPattern.Turns.Count != 2)
+                slot.Enemy.ActionPattern.Turns.Count != 3)
             {
                 return false;
             }
@@ -92,11 +119,21 @@ namespace HaveABreak.Editor
                 slot.Enemy.ActionPattern.Turns[0];
             EnemyTurnPatternStep abilityTurn =
                 slot.Enemy.ActionPattern.Turns[1];
+            EnemyTurnPatternStep movementTurn =
+                slot.Enemy.ActionPattern.Turns[2];
             if (attackTurn == null || abilityTurn == null ||
+                movementTurn == null ||
                 attackTurn.Moves || attackTurn.AttackCount != 1 ||
                 attackTurn.Abilities.Count != 0 ||
                 abilityTurn.Moves || abilityTurn.AttackCount != 0 ||
-                abilityTurn.Abilities.Count != 1)
+                abilityTurn.Abilities.Count != 1 ||
+                movementTurn.Moves != expectedMovement ||
+                movementTurn.MoveSteps != 1 ||
+                movementTurn.Abilities.Count != 0 ||
+                (expectedMovement &&
+                 (movementTurn.MoveDirection != EnemyMoveDirection.Right ||
+                  movementTurn.AttackCount != 0)) ||
+                (!expectedMovement && movementTurn.AttackCount != 1))
             {
                 return false;
             }
@@ -149,17 +186,56 @@ namespace HaveABreak.Editor
 
             IReadOnlyList<BattleRuntimeEnemyTurnActionResult> actions =
                 result.Round.EnemyTurnPipeline.TurnResult.ActionResults;
-            return actions.Count == 3 &&
-                   actions.All(action =>
+            if (actions.Count != 3 ||
+                !actions.All(action =>
+                    action.Command.ActionType ==
+                    BattleRuntimeEnemyTurnActionType.Ability &&
+                    action.AbilityResult != null &&
+                    !action.AbilityResult.Cancelled) ||
+                session.Runtime.Player.CurrentHealth != 27 ||
+                session.Runtime.Player.Status.Bind != 1 ||
+                session.Runtime.Player.Status.Injury != 1 ||
+                session.Runtime.Player.Status.Weaken != 1 ||
+                session.Runtime.Turn.PlayerTurnNumber != 3)
+            {
+                return false;
+            }
+
+            if (!TryResolvePatternRound(
+                    session,
+                    encounter,
+                    4250,
+                    out BattleRuntimeSessionRoundResult movementResult))
+            {
+                return false;
+            }
+
+            IReadOnlyList<BattleRuntimeEnemyTurnActionResult> movementActions =
+                movementResult.Round.EnemyTurnPipeline.TurnResult.ActionResults;
+            string leftEnemyId = encounter.EnemySlots[0].EnemyInstanceId;
+            string centerEnemyId = encounter.EnemySlots[1].EnemyInstanceId;
+            string rightEnemyId = encounter.EnemySlots[2].EnemyInstanceId;
+            return movementActions.Count == 3 &&
+                   movementActions[0].Command.ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Move &&
+                   movementActions[0].MoveResult != null &&
+                   !movementActions[0].MoveResult.ReplacedByTrap &&
+                   movementActions[0].MoveResult.ResolvedSteps == 1 &&
+                   movementActions[0].MoveResult.Moves.Count == 3 &&
+                   movementActions.Skip(1).All(action =>
                        action.Command.ActionType ==
-                       BattleRuntimeEnemyTurnActionType.Ability &&
-                       action.AbilityResult != null &&
-                       !action.AbilityResult.Cancelled) &&
-                   session.Runtime.Player.CurrentHealth == 27 &&
-                   session.Runtime.Player.Status.Bind == 1 &&
-                   session.Runtime.Player.Status.Injury == 1 &&
-                   session.Runtime.Player.Status.Weaken == 1 &&
-                   session.Runtime.Turn.PlayerTurnNumber == 3;
+                       BattleRuntimeEnemyTurnActionType.Attack) &&
+                   session.Runtime.EnemyPositions.FindPosition(leftEnemyId) ==
+                   EnemyFieldPosition.Center &&
+                   session.Runtime.EnemyPositions.FindPosition(centerEnemyId) ==
+                   EnemyFieldPosition.Right &&
+                   session.Runtime.EnemyPositions.FindPosition(rightEnemyId) ==
+                   EnemyFieldPosition.Left &&
+                   session.Runtime.Player.CurrentHealth == 24 &&
+                   session.Runtime.Player.Status.Bind == 0 &&
+                   session.Runtime.Player.Status.Injury == 0 &&
+                   session.Runtime.Player.Status.Weaken == 0 &&
+                   session.Runtime.Turn.PlayerTurnNumber == 4;
         }
 
         private static bool ValidateC10Cancellation(
