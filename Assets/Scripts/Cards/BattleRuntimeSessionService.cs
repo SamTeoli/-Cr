@@ -159,10 +159,10 @@ namespace HaveABreak.Cards
         }
     }
 
-    // Disposable default enemy turn for the prototype play screen. Enemy
-    // definitions currently expose only attack and health, so the screen can
-    // end a turn without inventing commands or duplicating turn orchestration.
-    // Replace this adapter when authored enemy behavior data is introduced.
+    // Disposable default enemy turn for the prototype play screen. That screen
+    // still creates enemies directly rather than through an encounter, so it
+    // cannot use the authored pattern service below until encounter data is
+    // connected in the next integration step.
     public static class BattleRuntimeTestTurnService
     {
         public static bool TryEndPlayerTurn(
@@ -207,6 +207,181 @@ namespace HaveABreak.Cards
                 commands,
                 out result,
                 out failure,
+                out roundFailure,
+                out playerTurnEndFailure,
+                out pipelineFailure,
+                out planFailure,
+                out enemyTurnFailure,
+                out failedActionIndex);
+        }
+    }
+
+    public enum BattleRuntimeEnemyPatternFailure
+    {
+        None,
+        InvalidSession,
+        InvalidEncounter,
+        InvalidTurnNumber,
+        EncounterEnemyMissing,
+        InvalidPattern
+    }
+
+    public static class BattleRuntimeEnemyPatternService
+    {
+        public static bool TryCreateCommands(
+            BattleRuntimeSessionState session,
+            EncounterData encounter,
+            int tieBreakerSeed,
+            out List<BattleRuntimeEnemyTurnCommand> commands,
+            out BattleRuntimeEnemyPatternFailure failure)
+        {
+            commands = new List<BattleRuntimeEnemyTurnCommand>();
+            BattleRuntimeState runtime = session?.Runtime;
+            if (runtime?.LivingEnemies == null)
+            {
+                failure = BattleRuntimeEnemyPatternFailure.InvalidSession;
+                return false;
+            }
+
+            if (encounter?.EnemySlots == null)
+            {
+                failure = BattleRuntimeEnemyPatternFailure.InvalidEncounter;
+                return false;
+            }
+
+            int playerTurnNumber = runtime.Turn.PlayerTurnNumber;
+            if (playerTurnNumber <= 0)
+            {
+                failure = BattleRuntimeEnemyPatternFailure.InvalidTurnNumber;
+                return false;
+            }
+
+            int tieBreakerOffset = 0;
+            foreach (EncounterEnemySlot slot in encounter.EnemySlots)
+            {
+                if (slot?.Enemy == null ||
+                    string.IsNullOrWhiteSpace(slot.EnemyInstanceId))
+                {
+                    failure = BattleRuntimeEnemyPatternFailure.InvalidEncounter;
+                    return false;
+                }
+
+                BattleEnemyRuntimeState enemy =
+                    runtime.FindEnemy(slot.EnemyInstanceId);
+                if (enemy == null)
+                {
+                    failure =
+                        BattleRuntimeEnemyPatternFailure.EncounterEnemyMissing;
+                    return false;
+                }
+
+                if (!enemy.IsAlive ||
+                    !runtime.LivingEnemies.Contains(enemy.EnemyId))
+                {
+                    continue;
+                }
+
+                if (!slot.Enemy.ActionPattern.TryGetTurn(
+                        playerTurnNumber,
+                        out EnemyTurnPatternStep patternTurn))
+                {
+                    failure = BattleRuntimeEnemyPatternFailure.InvalidPattern;
+                    return false;
+                }
+
+                if (patternTurn.Moves)
+                {
+                    commands.Add(
+                        BattleRuntimeEnemyTurnCommand.CreateMove(
+                            enemy.EnemyId,
+                            patternTurn.MoveDirection,
+                            patternTurn.MoveSteps));
+                }
+
+                if (patternTurn.AttackCount > 0)
+                {
+                    List<int> tieBreakerValues = new();
+                    for (int attackIndex = 0;
+                         attackIndex < patternTurn.AttackCount;
+                         attackIndex++)
+                    {
+                        tieBreakerValues.Add(unchecked(
+                            tieBreakerSeed + tieBreakerOffset));
+                        tieBreakerOffset++;
+                    }
+
+                    commands.Add(
+                        BattleRuntimeEnemyTurnCommand.CreateAutomaticAttack(
+                            enemy.EnemyId,
+                            patternTurn.AttackCount,
+                            tieBreakerValues));
+                }
+
+                foreach (EnemyPatternAbilityData ability in
+                         patternTurn.Abilities)
+                {
+                    if (ability == null ||
+                        string.IsNullOrWhiteSpace(ability.AbilityId))
+                    {
+                        failure =
+                            BattleRuntimeEnemyPatternFailure.InvalidPattern;
+                        commands.Clear();
+                        return false;
+                    }
+
+                    commands.Add(
+                        BattleRuntimeEnemyTurnCommand.CreateAbility(
+                            new EnemyAbilityResolutionContext(
+                                ability.AbilityId,
+                                enemy.EnemyId,
+                                false,
+                                ability.AffectsFriendlySide,
+                                ability.IsAreaAbility)));
+                }
+            }
+
+            failure = BattleRuntimeEnemyPatternFailure.None;
+            return true;
+        }
+
+        public static bool TryEndPlayerTurn(
+            BattleRuntimeSessionState session,
+            EncounterData encounter,
+            int tieBreakerSeed,
+            out BattleRuntimeSessionRoundResult result,
+            out BattleRuntimeEnemyPatternFailure patternFailure,
+            out BattleRuntimeSessionFailure sessionFailure,
+            out BattleRuntimeRoundFailure roundFailure,
+            out BattleTurnFailure playerTurnEndFailure,
+            out BattleRuntimeEnemyTurnPipelineFailure pipelineFailure,
+            out BattleRuntimeEnemyTurnPlanFailure planFailure,
+            out BattleRuntimeEnemyTurnFailure enemyTurnFailure,
+            out int failedActionIndex)
+        {
+            result = null;
+            sessionFailure = BattleRuntimeSessionFailure.None;
+            roundFailure = BattleRuntimeRoundFailure.None;
+            playerTurnEndFailure = BattleTurnFailure.None;
+            pipelineFailure = BattleRuntimeEnemyTurnPipelineFailure.None;
+            planFailure = BattleRuntimeEnemyTurnPlanFailure.None;
+            enemyTurnFailure = BattleRuntimeEnemyTurnFailure.None;
+            failedActionIndex = -1;
+
+            if (!TryCreateCommands(
+                    session,
+                    encounter,
+                    tieBreakerSeed,
+                    out List<BattleRuntimeEnemyTurnCommand> commands,
+                    out patternFailure))
+            {
+                return false;
+            }
+
+            return BattleRuntimeSessionService.TryResolveRound(
+                session,
+                commands,
+                out result,
+                out sessionFailure,
                 out roundFailure,
                 out playerTurnEndFailure,
                 out pipelineFailure,

@@ -64,6 +64,18 @@ namespace HaveABreak.Editor
                 "OK");
         }
 
+        [MenuItem("Have a Break/Validate Enemy Action Patterns")]
+        private static void ValidateActionPatternsFromMenu()
+        {
+            bool valid = Validate();
+            EditorUtility.DisplayDialog(
+                "Enemy Action Pattern Validation",
+                valid
+                    ? "Enemy action pattern flow passed."
+                    : "Enemy action pattern flow failed. Check the Console.",
+                "OK");
+        }
+
         internal static bool Validate()
         {
             CardData c01 = FindCard(TestContentIds.C01);
@@ -87,7 +99,51 @@ namespace HaveABreak.Editor
                     "Test Enemy",
                     2,
                     7);
+                validEnemy.EditorSetActionPattern(
+                    new EnemyActionPatternData(
+                        new[]
+                        {
+                            new EnemyTurnPatternStep(
+                                true,
+                                EnemyMoveDirection.Right,
+                                1,
+                                2,
+                                new[]
+                                {
+                                    new EnemyPatternAbilityData(
+                                        "TEST-ABILITY-43",
+                                        true,
+                                        false)
+                                }),
+                            new EnemyTurnPatternStep(
+                                false,
+                                EnemyMoveDirection.Left,
+                                1,
+                                1)
+                        }));
                 invalidEnemy.EditorInitialize(null, null, -1, 0);
+                invalidEnemy.EditorSetActionPattern(
+                    new EnemyActionPatternData(
+                        new[]
+                        {
+                            new EnemyTurnPatternStep(
+                                true,
+                                (EnemyMoveDirection)99,
+                                0,
+                                -1,
+                                new[]
+                                {
+                                    new EnemyPatternAbilityData(
+                                        null,
+                                        true,
+                                        false)
+                                }),
+                            new EnemyTurnPatternStep(
+                                false,
+                                EnemyMoveDirection.Left,
+                                1,
+                                0)
+                        }));
                 validEncounter.EditorInitialize(
                     "TEST-ENCOUNTER-43",
                     "Test Encounter",
@@ -119,6 +175,7 @@ namespace HaveABreak.Editor
                            validEncounter,
                            invalidEncounter) &&
                        ValidateBootstrap(c01, validEnemy, validEncounter) &&
+                       ValidateActionPatternRound(c01, validEncounter) &&
                        ValidateRejectedBootstrap(c01, invalidEncounter);
             }
             finally
@@ -136,12 +193,27 @@ namespace HaveABreak.Editor
             EncounterData validEncounter,
             EncounterData invalidEncounter)
         {
-            return EncounterDataValidationService
+            bool firstTurnFound = validEnemy.ActionPattern.TryGetTurn(
+                1,
+                out EnemyTurnPatternStep firstTurn);
+            bool repeatedTurnFound = validEnemy.ActionPattern.TryGetTurn(
+                3,
+                out EnemyTurnPatternStep repeatedTurn);
+            return firstTurnFound &&
+                   repeatedTurnFound &&
+                   firstTurn == repeatedTurn &&
+                   firstTurn.Moves &&
+                   firstTurn.MoveDirection == EnemyMoveDirection.Right &&
+                   firstTurn.MoveSteps == 1 &&
+                   firstTurn.AttackCount == 2 &&
+                   firstTurn.Abilities.Count == 1 &&
+                   firstTurn.Abilities[0].AbilityId == "TEST-ABILITY-43" &&
+                   EncounterDataValidationService
                        .ValidateEnemy(validEnemy).Count == 0 &&
                    EncounterDataValidationService
                        .ValidateEncounter(validEncounter).Count == 0 &&
                    EncounterDataValidationService
-                       .ValidateEnemy(invalidEnemy).Count >= 4 &&
+                       .ValidateEnemy(invalidEnemy).Count >= 8 &&
                    EncounterDataValidationService
                        .ValidateEncounter(invalidEncounter).Count >= 2;
         }
@@ -182,6 +254,105 @@ namespace HaveABreak.Editor
                    runtimeEnemy.Vital.CurrentHealth == enemy.MaximumHealth &&
                    result.Runtime.EnemyPositions.FindPosition(
                        runtimeEnemy.EnemyId) == EnemyFieldPosition.Center;
+        }
+
+        private static bool ValidateActionPatternRound(
+            CardData card,
+            EncounterData encounter)
+        {
+            BattleRuntimeBootstrapService.TryCreate(
+                new[] { Instance(card, "PATTERN") },
+                new RunBattleState(30, 23, 0),
+                encounter,
+                435,
+                5,
+                out BattleRuntimeBootstrapResult bootstrap,
+                out BattleRuntimeBootstrapFailure bootstrapFailure,
+                out List<string> errors);
+            BattleRuntimeSessionState session = bootstrap?.Session;
+            if (bootstrapFailure != BattleRuntimeBootstrapFailure.None ||
+                errors.Count != 0 || session == null ||
+                !BattleRuntimeSessionService.TryBegin(
+                    session,
+                    Array.Empty<string>(),
+                    out _,
+                    out BattleRuntimeSessionFailure beginFailure,
+                    out StartingHandRedrawFailure redrawFailure,
+                    out BattleTurnFailure beginTurnFailure) ||
+                beginFailure != BattleRuntimeSessionFailure.None ||
+                redrawFailure != StartingHandRedrawFailure.None ||
+                beginTurnFailure != BattleTurnFailure.None ||
+                !BattleRuntimeEnemyPatternService.TryCreateCommands(
+                    session,
+                    encounter,
+                    700,
+                    out List<BattleRuntimeEnemyTurnCommand> commands,
+                    out BattleRuntimeEnemyPatternFailure commandFailure) ||
+                commandFailure != BattleRuntimeEnemyPatternFailure.None ||
+                commands.Count != 3 ||
+                commands[0].ActionType !=
+                BattleRuntimeEnemyTurnActionType.Move ||
+                commands[1].ActionType !=
+                BattleRuntimeEnemyTurnActionType.Attack ||
+                commands[1].AutomaticAttackCount != 2 ||
+                commands[1].AttackTieBreakerValues.Count != 2 ||
+                commands[1].AttackTieBreakerValues[0] != 700 ||
+                commands[1].AttackTieBreakerValues[1] != 701 ||
+                commands[2].ActionType !=
+                BattleRuntimeEnemyTurnActionType.Ability ||
+                commands[2].Ability.AbilityId != "TEST-ABILITY-43")
+            {
+                return false;
+            }
+
+            if (!BattleRuntimeEnemyPatternService.TryEndPlayerTurn(
+                    session,
+                    encounter,
+                    700,
+                    out BattleRuntimeSessionRoundResult round,
+                    out BattleRuntimeEnemyPatternFailure patternFailure,
+                    out BattleRuntimeSessionFailure sessionFailure,
+                    out BattleRuntimeRoundFailure roundFailure,
+                    out BattleTurnFailure playerTurnEndFailure,
+                    out BattleRuntimeEnemyTurnPipelineFailure pipelineFailure,
+                    out BattleRuntimeEnemyTurnPlanFailure planFailure,
+                    out BattleRuntimeEnemyTurnFailure enemyTurnFailure,
+                    out int failedActionIndex))
+            {
+                return false;
+            }
+
+            if (patternFailure != BattleRuntimeEnemyPatternFailure.None ||
+                sessionFailure != BattleRuntimeSessionFailure.None ||
+                roundFailure != BattleRuntimeRoundFailure.None ||
+                playerTurnEndFailure != BattleTurnFailure.None ||
+                pipelineFailure !=
+                BattleRuntimeEnemyTurnPipelineFailure.None ||
+                planFailure != BattleRuntimeEnemyTurnPlanFailure.None ||
+                enemyTurnFailure != BattleRuntimeEnemyTurnFailure.None ||
+                failedActionIndex != -1 || round == null ||
+                round.ProcessedEnemyActionCount != 3 ||
+                bootstrap.Runtime.Player.CurrentHealth != 19 ||
+                bootstrap.Runtime.EnemyPositions.FindPosition(
+                    "TEST-ENEMY-43-A") != EnemyFieldPosition.Right ||
+                bootstrap.Runtime.Turn.PlayerTurnNumber != 2)
+            {
+                return false;
+            }
+
+            return BattleRuntimeEnemyPatternService.TryCreateCommands(
+                       session,
+                       encounter,
+                       800,
+                       out List<BattleRuntimeEnemyTurnCommand> secondTurn,
+                       out patternFailure) &&
+                   patternFailure ==
+                   BattleRuntimeEnemyPatternFailure.None &&
+                   secondTurn.Count == 1 &&
+                   secondTurn[0].ActionType ==
+                   BattleRuntimeEnemyTurnActionType.Attack &&
+                   secondTurn[0].AutomaticAttackCount == 1 &&
+                   secondTurn[0].AttackTieBreakerValues[0] == 800;
         }
 
         private static bool ValidateRejectedBootstrap(

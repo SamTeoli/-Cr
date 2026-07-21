@@ -34,7 +34,78 @@ namespace HaveABreak.Cards
                 errors.Add($"Enemy '{enemy.EnemyId}' health must be positive.");
             }
 
+            ValidateActionPattern(enemy, errors);
+
             return errors;
+        }
+
+        private static void ValidateActionPattern(
+            EnemyDefinitionData enemy,
+            List<string> errors)
+        {
+            EnemyActionPatternData pattern = enemy.ActionPattern;
+            if (pattern?.Turns == null || pattern.Turns.Count == 0)
+            {
+                errors.Add(
+                    $"Enemy '{enemy.EnemyId}' requires at least one turn pattern.");
+                return;
+            }
+
+            for (int turnIndex = 0;
+                 turnIndex < pattern.Turns.Count;
+                 turnIndex++)
+            {
+                EnemyTurnPatternStep turn = pattern.Turns[turnIndex];
+                if (turn == null)
+                {
+                    errors.Add(
+                        $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} is null.");
+                    continue;
+                }
+
+                if (turn.Moves &&
+                    (turn.MoveSteps <= 0 ||
+                     (turn.MoveDirection != EnemyMoveDirection.Left &&
+                      turn.MoveDirection != EnemyMoveDirection.Right)))
+                {
+                    errors.Add(
+                        $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} has invalid movement.");
+                }
+
+                if (turn.AttackCount < 0)
+                {
+                    errors.Add(
+                        $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} has a negative attack count.");
+                }
+
+                if (!turn.Moves && turn.AttackCount == 0 &&
+                    turn.Abilities.Count == 0)
+                {
+                    errors.Add(
+                        $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} has no action.");
+                }
+
+                HashSet<string> abilityIds = new(
+                    StringComparer.OrdinalIgnoreCase);
+                for (int abilityIndex = 0;
+                     abilityIndex < turn.Abilities.Count;
+                     abilityIndex++)
+                {
+                    EnemyPatternAbilityData ability =
+                        turn.Abilities[abilityIndex];
+                    if (ability == null ||
+                        string.IsNullOrWhiteSpace(ability.AbilityId))
+                    {
+                        errors.Add(
+                            $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} ability {abilityIndex} requires an ID.");
+                    }
+                    else if (!abilityIds.Add(ability.AbilityId))
+                    {
+                        errors.Add(
+                            $"Enemy '{enemy.EnemyId}' turn pattern {turnIndex} has duplicate ability ID '{ability.AbilityId}'.");
+                    }
+                }
+            }
         }
 
         public static List<string> ValidateEncounter(EncounterData encounter)
