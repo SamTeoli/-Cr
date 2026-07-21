@@ -423,6 +423,58 @@ namespace HaveABreak.Cards
                 out failure);
         }
 
+        public static bool TryLoad(
+            string path,
+            CardDatabase cardDatabase,
+            EnchantDatabase enchantDatabase,
+            PlayerPermanentRewardState permanentRewards,
+            EncounterDatabase encounterDatabase,
+            out RunEncounterProgressState progress,
+            out EncounterData encounter,
+            out ActiveBattleCheckpointFailure failure)
+        {
+            progress = null;
+            encounter = null;
+            if (encounterDatabase == null ||
+                encounterDatabase.GetValidationErrors().Count != 0)
+            {
+                failure =
+                    ActiveBattleCheckpointFailure.InvalidEncounterDatabase;
+                return false;
+            }
+
+            if (!TryReadInfo(
+                    path,
+                    out ActiveBattleCheckpointInfo info,
+                    out failure))
+            {
+                return false;
+            }
+
+            if (!encounterDatabase.TryGetEncounter(
+                    info.EncounterId,
+                    out encounter))
+            {
+                failure = ActiveBattleCheckpointFailure.EncounterNotFound;
+                return false;
+            }
+
+            if (!TryLoad(
+                    path,
+                    cardDatabase,
+                    enchantDatabase,
+                    permanentRewards,
+                    encounter,
+                    out progress,
+                    out failure))
+            {
+                encounter = null;
+                return false;
+            }
+
+            return true;
+        }
+
         public static bool TryLoadDefault(
             CardDatabase cardDatabase,
             EnchantDatabase enchantDatabase,
@@ -440,6 +492,28 @@ namespace HaveABreak.Cards
                 permanentRewards,
                 encounter,
                 out progress,
+                out failure);
+        }
+
+        public static bool TryLoadDefault(
+            CardDatabase cardDatabase,
+            EnchantDatabase enchantDatabase,
+            PlayerPermanentRewardState permanentRewards,
+            EncounterDatabase encounterDatabase,
+            out RunEncounterProgressState progress,
+            out EncounterData encounter,
+            out string path,
+            out ActiveBattleCheckpointFailure failure)
+        {
+            path = DefaultPath;
+            return TryLoad(
+                path,
+                cardDatabase,
+                enchantDatabase,
+                permanentRewards,
+                encounterDatabase,
+                out progress,
+                out encounter,
                 out failure);
         }
 
