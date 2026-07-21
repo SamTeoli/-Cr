@@ -403,8 +403,12 @@ namespace HaveABreak.Editor
 
     internal static class PrototypeBattleHarnessFactory
     {
-        private const string DatabasePath =
+        private const string CardDatabasePath =
             "Assets/GameData/CardDatabase.asset";
+        private const string EncounterDatabasePath =
+            "Assets/GameData/EncounterDatabase.asset";
+        private const string PrototypeEncounterId =
+            "TEST-ENCOUNTER-PROTOTYPE-01";
 
         private static readonly string[] TestCardIds =
         {
@@ -423,15 +427,44 @@ namespace HaveABreak.Editor
         };
 
         internal static bool TryCreate(
-            out BattleRuntimeSessionState session,
+            out BattleRuntimeEncounterContext context,
             out string error)
         {
-            session = null;
-            CardDatabase database =
-                AssetDatabase.LoadAssetAtPath<CardDatabase>(DatabasePath);
-            if (database == null)
+            context = null;
+            CardDatabase cardDatabase =
+                AssetDatabase.LoadAssetAtPath<CardDatabase>(CardDatabasePath);
+            if (cardDatabase == null)
             {
-                error = $"Card database not found: {DatabasePath}";
+                error = $"Card database not found: {CardDatabasePath}";
+                return false;
+            }
+
+            EncounterDatabase encounterDatabase =
+                AssetDatabase.LoadAssetAtPath<EncounterDatabase>(
+                    EncounterDatabasePath);
+            if (encounterDatabase == null)
+            {
+                error =
+                    $"Encounter database not found: {EncounterDatabasePath}";
+                return false;
+            }
+
+            List<string> databaseErrors =
+                encounterDatabase.GetValidationErrors();
+            if (databaseErrors.Count > 0)
+            {
+                error =
+                    "Encounter database is invalid:\n" +
+                    string.Join("\n", databaseErrors);
+                return false;
+            }
+
+            if (!encounterDatabase.TryGetEncounter(
+                    PrototypeEncounterId,
+                    out EncounterData encounter))
+            {
+                error =
+                    $"Prototype encounter not found: {PrototypeEncounterId}";
                 return false;
             }
 
@@ -439,7 +472,9 @@ namespace HaveABreak.Editor
             for (int i = 0; i < TestCardIds.Length; i++)
             {
                 string catalogCardId = TestCardIds[i];
-                if (!database.TryGetCard(catalogCardId, out CardData card))
+                if (!cardDatabase.TryGetCard(
+                        catalogCardId,
+                        out CardData card))
                 {
                     error = $"Test card not found: {catalogCardId}";
                     return false;
@@ -455,43 +490,30 @@ namespace HaveABreak.Editor
                     CardZone.DrawPile));
             }
 
-            BattleRuntimeState runtime = new(deck, 20260721, 5, 30);
-            if (!TryAddEnemy(
-                    runtime,
-                    "TEST-ENEMY-LEFT",
-                    1,
-                    12,
-                    EnemyFieldPosition.Left) ||
-                !TryAddEnemy(
-                    runtime,
-                    "TEST-ENEMY-CENTER",
-                    1,
-                    12,
-                    EnemyFieldPosition.Center) ||
-                !TryAddEnemy(
-                    runtime,
-                    "TEST-ENEMY-RIGHT",
-                    1,
-                    12,
-                    EnemyFieldPosition.Right))
-            {
-                error = "Could not create the three prototype enemies.";
-                return false;
-            }
-
-            session = new BattleRuntimeSessionState(runtime);
-            if (!BattleRuntimeSessionService.TryBegin(
-                    session,
+            if (!BattleRuntimeEncounterFlowService.TryCreateAndBegin(
+                    deck,
+                    new RunBattleState(30, 30, 0),
+                    encounter,
+                    20260721,
+                    5,
                     Array.Empty<string>(),
-                    out _,
+                    20260721u,
+                    out context,
+                    out BattleRuntimeEncounterFlowFailure flowFailure,
+                    out BattleRuntimeBootstrapFailure bootstrapFailure,
                     out BattleRuntimeSessionFailure sessionFailure,
                     out StartingHandRedrawFailure redrawFailure,
-                    out BattleTurnFailure turnFailure))
+                    out BattleTurnFailure turnFailure,
+                    out List<string> validationErrors))
             {
                 error =
-                    $"Could not begin battle: {sessionFailure} / " +
-                    $"{redrawFailure} / {turnFailure}";
-                session = null;
+                    $"Could not create encounter battle: {flowFailure} / " +
+                    $"{bootstrapFailure} / {sessionFailure} / " +
+                    $"{redrawFailure} / {turnFailure}" +
+                    (validationErrors.Count == 0
+                        ? string.Empty
+                        : $"\n{string.Join("\n", validationErrors)}");
+                context = null;
                 return false;
             }
 
@@ -502,14 +524,22 @@ namespace HaveABreak.Editor
         internal static bool Validate()
         {
             if (!TryCreate(
-                    out BattleRuntimeSessionState session,
+                    out BattleRuntimeEncounterContext context,
                     out string error))
             {
                 Debug.LogError(error);
                 return false;
             }
 
+            BattleRuntimeSessionState session = context.Session;
             BattleRuntimeState runtime = session.Runtime;
+            bool patternCreated =
+                BattleRuntimeEnemyPatternService.TryCreateCommands(
+                    session,
+                    context.Encounter,
+                    20260721,
+                    out List<BattleRuntimeEnemyTurnCommand> commands,
+                    out BattleRuntimeEnemyPatternFailure patternFailure);
             return session.Started &&
                    !session.IsFinished &&
                    session.Outcome == BattleOutcome.Ongoing &&
@@ -520,28 +550,79 @@ namespace HaveABreak.Editor
                    runtime.Deck.Zones.Cards.Count == TestCardIds.Length &&
                    runtime.Deck.Zones.Count(CardZone.Hand) ==
                    BattleDeckState.StartingHandSize &&
-                   runtime.LivingEnemies.Count == 3 &&
-                   runtime.Enemies.Count == 3;
+                   context.Encounter != null &&
+                   string.Equals(
+                       context.Encounter.EncounterId,
+                       PrototypeEncounterId,
+                       StringComparison.Ordinal) &&
+                   MatchesEncounter(runtime, context.Encounter) &&
+                   patternCreated &&
+                   patternFailure == BattleRuntimeEnemyPatternFailure.None &&
+                   MatchesFirstTurnCommands(commands, context.Encounter);
         }
 
-        private static bool TryAddEnemy(
+        private static bool MatchesEncounter(
             BattleRuntimeState runtime,
-            string enemyId,
-            int attack,
-            int health,
-            EnemyFieldPosition position)
+            EncounterData encounter)
         {
-            return runtime.TryAddEnemy(
-                enemyId,
-                attack,
-                health,
-                position,
-                out _);
+            if (runtime == null || encounter?.EnemySlots == null ||
+                runtime.Enemies.Count != encounter.EnemySlots.Count ||
+                runtime.LivingEnemies.Count != encounter.EnemySlots.Count)
+            {
+                return false;
+            }
+
+            foreach (EncounterEnemySlot slot in encounter.EnemySlots)
+            {
+                BattleEnemyRuntimeState enemy =
+                    runtime.FindEnemy(slot.EnemyInstanceId);
+                if (enemy == null || !enemy.IsAlive ||
+                    enemy.Attack != slot.Enemy.Attack ||
+                    enemy.Vital.CurrentHealth != slot.Enemy.MaximumHealth ||
+                    runtime.EnemyPositions.FindPosition(enemy.EnemyId) !=
+                    slot.Position)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool MatchesFirstTurnCommands(
+            IReadOnlyList<BattleRuntimeEnemyTurnCommand> commands,
+            EncounterData encounter)
+        {
+            if (commands == null || encounter?.EnemySlots == null ||
+                commands.Count != encounter.EnemySlots.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < commands.Count; i++)
+            {
+                BattleRuntimeEnemyTurnCommand command = commands[i];
+                EncounterEnemySlot slot = encounter.EnemySlots[i];
+                if (command == null || slot == null ||
+                    command.ActionType !=
+                    BattleRuntimeEnemyTurnActionType.Attack ||
+                    command.AutomaticAttackCount != 1 ||
+                    !string.Equals(
+                        command.EnemyId,
+                        slot.EnemyInstanceId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
     public sealed class PrototypeBattleTestWindow : EditorWindow
     {
+        private BattleRuntimeEncounterContext context;
         private BattleRuntimeSessionState session;
         private string selectedTargetEnemyId;
         private string selectedBanishBattleCardId;
@@ -630,7 +711,10 @@ namespace HaveABreak.Editor
         {
             BattleRuntimeState runtime = session.Runtime;
             EditorGUILayout.LabelField(
-                "C01~C12 직접 조작 전투",
+                context?.Encounter == null
+                    ? "C01~C12 직접 조작 전투"
+                    : $"{context.Encounter.DisplayName} " +
+                      $"({context.Encounter.EncounterId})",
                 EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
                 "적을 먼저 선택한 뒤 카드를 사용하거나 아군 몬스터로 공격하세요. " +
@@ -677,13 +761,18 @@ namespace HaveABreak.Editor
                     BattleEnemyRuntimeState enemy = runtime.FindEnemy(enemyId);
                     BattleEnemyStatusState status =
                         runtime.EnemyStatuses.Find(enemyId);
+                    EncounterEnemySlot encounterSlot =
+                        FindEncounterSlot(enemyId);
+                    EnemyDefinitionData definition = encounterSlot?.Enemy;
                     bool selected = string.Equals(
                         selectedTargetEnemyId,
                         enemyId,
                         StringComparison.OrdinalIgnoreCase);
                     EditorGUILayout.LabelField(
+                        $"{definition?.DisplayName ?? enemyId}\n" +
                         $"{enemyId}\nHP {enemy.Vital.CurrentHealth}  " +
                         $"공격 {enemy.Attack}\n" +
+                        $"현재 패턴 {PatternLabel(definition)}\n" +
                         $"약화 {status?.Weaken ?? 0}  " +
                         $"취약 {status?.Vulnerable ?? 0}  " +
                         $"속박 {status?.Bind ?? 0}",
@@ -873,19 +962,22 @@ namespace HaveABreak.Editor
         private void StartNewBattle()
         {
             if (!PrototypeBattleHarnessFactory.TryCreate(
-                    out session,
+                    out context,
                     out string error))
             {
+                session = null;
                 selectedTargetEnemyId = null;
                 selectedBanishBattleCardId = null;
                 lastMessage = error;
                 return;
             }
 
+            session = context.Session;
             selectedBanishBattleCardId = null;
             SelectFirstLivingEnemy();
             lastMessage =
-                "테스트 전투를 시작했습니다. 카드와 수치는 검증용 임시 콘텐츠입니다.";
+                $"{context.Encounter.DisplayName} 전투를 실제 조우 데이터로 " +
+                "시작했습니다. 카드와 수치는 검증용 임시 콘텐츠입니다.";
             Repaint();
         }
 
@@ -940,10 +1032,12 @@ namespace HaveABreak.Editor
         {
             int tieBreakerSeed =
                 20260721 + session.CompletedRoundCount * 10;
-            if (!BattleRuntimeTestTurnService.TryEndPlayerTurn(
+            if (!BattleRuntimeEnemyPatternService.TryEndPlayerTurn(
                     session,
+                    context?.Encounter,
                     tieBreakerSeed,
                     out BattleRuntimeSessionRoundResult result,
+                    out BattleRuntimeEnemyPatternFailure patternFailure,
                     out BattleRuntimeSessionFailure sessionFailure,
                     out BattleRuntimeRoundFailure roundFailure,
                     out BattleTurnFailure turnFailure,
@@ -953,7 +1047,8 @@ namespace HaveABreak.Editor
                     out int failedActionIndex))
             {
                 lastMessage =
-                    $"턴 종료 실패: {sessionFailure} / {roundFailure} / " +
+                    $"턴 종료 실패: {patternFailure} / {sessionFailure} / " +
+                    $"{roundFailure} / " +
                     $"{turnFailure} / {pipelineFailure} / {planFailure} / " +
                     $"{enemyTurnFailure} / action {failedActionIndex}";
                 return;
@@ -966,6 +1061,46 @@ namespace HaveABreak.Editor
             selectedBanishBattleCardId = null;
             SelectFirstLivingEnemy();
             Repaint();
+        }
+
+        private EncounterEnemySlot FindEncounterSlot(string enemyId)
+        {
+            return context?.Encounter?.EnemySlots?.FirstOrDefault(
+                slot => slot != null && string.Equals(
+                    slot.EnemyInstanceId,
+                    enemyId,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        private string PatternLabel(EnemyDefinitionData definition)
+        {
+            if (definition?.ActionPattern == null || session?.Runtime == null ||
+                !definition.ActionPattern.TryGetTurn(
+                    session.Runtime.Turn.PlayerTurnNumber,
+                    out EnemyTurnPatternStep turn))
+            {
+                return "없음";
+            }
+
+            List<string> actions = new();
+            if (turn.Moves)
+            {
+                actions.Add($"{turn.MoveDirection} {turn.MoveSteps}칸 이동");
+            }
+
+            if (turn.AttackCount > 0)
+            {
+                actions.Add($"공격 {turn.AttackCount}회");
+            }
+
+            if (turn.Abilities.Count > 0)
+            {
+                actions.Add($"능력 {turn.Abilities.Count}개");
+            }
+
+            return actions.Count == 0
+                ? "행동 없음"
+                : string.Join(" → ", actions);
         }
 
         private void RefreshTerminalOutcome()

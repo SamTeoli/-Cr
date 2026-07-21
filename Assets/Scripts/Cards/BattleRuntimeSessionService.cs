@@ -159,10 +159,9 @@ namespace HaveABreak.Cards
         }
     }
 
-    // Disposable default enemy turn for the prototype play screen. That screen
-    // still creates enemies directly rather than through an encounter, so it
-    // cannot use the authored pattern service below until encounter data is
-    // connected in the next integration step.
+    // Regression-only default enemy turn. The prototype play screen uses the
+    // authored encounter pattern service below; this adapter remains for the
+    // focused unified-turn regression that has no encounter asset.
     public static class BattleRuntimeTestTurnService
     {
         public static bool TryEndPlayerTurn(
