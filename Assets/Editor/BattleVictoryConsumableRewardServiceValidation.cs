@@ -35,9 +35,9 @@ namespace HaveABreak.Editor
         internal static bool Validate()
         {
             RunEncounterProgressState progress = CreateProgress();
-            EnchantData e01 = FindEnchant("E01");
-            EnchantData e03 = FindEnchant("E03");
-            EnchantData e06 = FindEnchant("E06");
+            EnchantData e01 = FindEnchant(TestContentIds.E01);
+            EnchantData e03 = FindEnchant(TestContentIds.E03);
+            EnchantData e06 = FindEnchant(TestContentIds.E06);
             if (progress == null || e01 == null ||
                 e03 == null || e06 == null)
             {

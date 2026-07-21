@@ -31,9 +31,9 @@ namespace HaveABreak.Editor
 
         internal static bool Validate()
         {
-            CardData c01 = FindCard("C01");
-            CardData c02 = FindCard("C02");
-            EnchantData e01 = FindEnchant("E01");
+            CardData c01 = FindCard(TestContentIds.C01);
+            CardData c02 = FindCard(TestContentIds.C02);
+            EnchantData e01 = FindEnchant(TestContentIds.E01);
             if (c01 == null || c02 == null || e01 == null)
             {
                 return false;
@@ -181,7 +181,7 @@ namespace HaveABreak.Editor
                 emptyFailure == RunDeckFailure.InvalidDeck;
 
             RunDeckState runDeck = new();
-            CardData c01 = FindCard("C01");
+            CardData c01 = FindCard(TestContentIds.C01);
             if (c01 == null ||
                 !runDeck.TryAdd(
                     new RunCardInstance(c01, "OWNED-45-INVALID-ID"),

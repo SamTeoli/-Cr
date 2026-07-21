@@ -159,7 +159,7 @@ namespace HaveABreak.Editor
 
         private static bool ValidatePlanExecution()
         {
-            CardData c01 = FindCard("C01");
+            CardData c01 = FindCard(TestContentIds.C01);
             if (c01 == null)
             {
                 return false;

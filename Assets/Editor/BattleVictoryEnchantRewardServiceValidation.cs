@@ -33,11 +33,11 @@ namespace HaveABreak.Editor
         internal static bool Validate()
         {
             RunDeckState runDeck = BuildRunDeck();
-            EnchantData e01 = FindEnchant("E01");
-            EnchantData e02 = FindEnchant("E02");
-            EnchantData e03 = FindEnchant("E03");
-            EnchantData e04 = FindEnchant("E04");
-            EnchantData e06 = FindEnchant("E06");
+            EnchantData e01 = FindEnchant(TestContentIds.E01);
+            EnchantData e02 = FindEnchant(TestContentIds.E02);
+            EnchantData e03 = FindEnchant(TestContentIds.E03);
+            EnchantData e04 = FindEnchant(TestContentIds.E04);
+            EnchantData e06 = FindEnchant(TestContentIds.E06);
             if (runDeck == null || e01 == null || e02 == null ||
                 e03 == null || e04 == null || e06 == null)
             {

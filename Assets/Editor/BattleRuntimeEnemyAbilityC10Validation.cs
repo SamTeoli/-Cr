@@ -11,7 +11,7 @@ namespace HaveABreak.Editor
         [MenuItem("Have a Break/Validate Runtime Enemy Ability And C10")]
         private static void ValidateFromMenu()
         {
-            CardData c10 = FindCard("C10");
+            CardData c10 = FindCard(TestContentIds.C10);
             bool valid = c10 != null &&
                          ValidateLevelFiveSingleTarget(c10) &&
                          ValidateLevelThreeAreaRestriction(c10) &&

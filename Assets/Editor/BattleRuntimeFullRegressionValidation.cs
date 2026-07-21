@@ -12,6 +12,32 @@ namespace HaveABreak.Editor
         private const BindingFlags StaticMethods =
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
 
+        [MenuItem("Have a Break/Tests/Run Complete Test Harness")]
+        private static void ValidateCompleteTestHarnessFromMenu()
+        {
+            bool contentValid = AllCardAndEnchantRegressionValidation.Validate();
+            bool runtimeValid = Validate();
+            bool valid = contentValid && runtimeValid;
+
+            if (valid)
+            {
+                Debug.Log(
+                    "Complete test harness passed: test content, runtime, saves, and settlement.");
+            }
+            else
+            {
+                Debug.LogError(
+                    "Complete test harness failed. Check the first Console error.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Have a Break Test Harness",
+                valid
+                    ? "Complete test harness passed."
+                    : "Test harness failed. Check the Console.",
+                "OK");
+        }
+
         [MenuItem("Have a Break/Validate Full Battle Runtime C01-C12")]
         private static void ValidateFromMenu()
         {
@@ -26,16 +52,16 @@ namespace HaveABreak.Editor
 
         internal static bool Validate()
         {
-            CardData c01 = FindCard("C01");
-            CardData c03 = FindCard("C03");
-            CardData c04 = FindCard("C04");
-            CardData c05 = FindCard("C05");
-            CardData c07 = FindCard("C07");
-            CardData c08 = FindCard("C08");
-            CardData c09 = FindCard("C09");
-            CardData c10 = FindCard("C10");
-            CardData c11 = FindCard("C11");
-            CardData c12 = FindCard("C12");
+            CardData c01 = FindCard(TestContentIds.C01);
+            CardData c03 = FindCard(TestContentIds.C03);
+            CardData c04 = FindCard(TestContentIds.C04);
+            CardData c05 = FindCard(TestContentIds.C05);
+            CardData c07 = FindCard(TestContentIds.C07);
+            CardData c08 = FindCard(TestContentIds.C08);
+            CardData c09 = FindCard(TestContentIds.C09);
+            CardData c10 = FindCard(TestContentIds.C10);
+            CardData c11 = FindCard(TestContentIds.C11);
+            CardData c12 = FindCard(TestContentIds.C12);
 
             bool valid = true;
             valid &= Run(

@@ -6,7 +6,7 @@ namespace HaveABreak.Cards
     [Serializable]
     public sealed class CardEffectData
     {
-        [SerializeField] private string effectId = "E01";
+        [SerializeField] private string effectId;
         [SerializeField] private EffectTrigger trigger;
         [SerializeField] private EffectTarget target;
         [SerializeField] private EffectOperation operation;

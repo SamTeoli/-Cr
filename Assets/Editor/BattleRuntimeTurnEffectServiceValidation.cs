@@ -9,16 +9,16 @@ public static class BattleRuntimeTurnEffectServiceValidation
     [MenuItem("Have a Break/Validate Runtime C03 C04 Turn Effects")]
     public static void Validate()
     {
-        CardData c03 = FindCard("C03");
-        CardData c04 = FindCard("C04");
+        CardData c03 = FindCard(TestContentIds.C03);
+        CardData c04 = FindCard(TestContentIds.C04);
         if (c03 == null || c04 == null)
         {
             Fail("C03 or C04 card data was not found.");
             return;
         }
 
-        BattleCardInstance c03Instance = CreateInstance(c03, "C03");
-        BattleCardInstance c04Instance = CreateInstance(c04, "C04");
+        BattleCardInstance c03Instance = CreateInstance(c03, TestContentIds.C03);
+        BattleCardInstance c04Instance = CreateInstance(c04, TestContentIds.C04);
         BattleRuntimeState runtime = new BattleRuntimeState(
             new[] { c03Instance, c04Instance }, 35);
 

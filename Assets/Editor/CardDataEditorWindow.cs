@@ -15,7 +15,7 @@ namespace HaveABreak.Editor
 
         private CardType cardType;
         private CardRarity rarity;
-        private string catalogCardId = "C01";
+        private string catalogCardId = string.Empty;
         private string displayName = "New Card";
         private int manaCost;
         private Vector2 scroll;
@@ -285,12 +285,12 @@ namespace HaveABreak.Editor
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
             bool valid = true;
-            valid &= ValidateResolvedCard(cards, "C01", 5, 3, 4, 8, "이동 성공 시에도 이 몬스터가 방어 1을 얻습니다.");
-            valid &= ValidateResolvedCard(cards, "C05", 3, 0, 0, 0, "효과 동일");
-            valid &= ValidateResolvedCard(cards, "C10", 2, 1, 0, 0, "효과 동일");
-            valid &= ValidateResolvedCard(cards, "C12", 5, 1, 0, 0, "취약 부여 후 피해 1");
+            valid &= ValidateResolvedCard(cards, TestContentIds.C01, 5, 3, 4, 8, "이동 성공 시에도 이 몬스터가 방어 1을 얻습니다.");
+            valid &= ValidateResolvedCard(cards, TestContentIds.C05, 3, 0, 0, 0, "효과 동일");
+            valid &= ValidateResolvedCard(cards, TestContentIds.C10, 2, 1, 0, 0, "효과 동일");
+            valid &= ValidateResolvedCard(cards, TestContentIds.C12, 5, 1, 0, 0, "취약 부여 후 피해 1");
 
-            if (cards.TryGetValue("C01", out CardData clampCard))
+            if (cards.TryGetValue(TestContentIds.C01, out CardData clampCard))
             {
                 valid &= ValidateClampedLevel(clampCard, 0, CardData.MinimumLevel);
                 valid &= ValidateClampedLevel(clampCard, 6, CardData.MaximumLevel);
@@ -361,7 +361,7 @@ namespace HaveABreak.Editor
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
             bool valid = true;
-            if (!cards.TryGetValue("C01", out CardData c01) || !cards.TryGetValue("C05", out CardData c05))
+            if (!cards.TryGetValue(TestContentIds.C01, out CardData c01) || !cards.TryGetValue(TestContentIds.C05, out CardData c05))
             {
                 Debug.LogError("Battle card validation requires C01 and C05.");
                 valid = false;
@@ -412,8 +412,8 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
-            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
+            bool hasC05 = cards.TryGetValue(TestContentIds.C05, out CardData c05);
             bool valid = hasC01 && hasC05;
             if (!valid)
             {
@@ -482,8 +482,8 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
-            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
+            bool hasC05 = cards.TryGetValue(TestContentIds.C05, out CardData c05);
             bool valid = hasC01 && hasC05;
             if (!valid)
             {
@@ -569,10 +569,10 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
-            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
-            bool hasC08 = cards.TryGetValue("C08", out CardData c08);
-            bool hasC11 = cards.TryGetValue("C11", out CardData c11);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
+            bool hasC05 = cards.TryGetValue(TestContentIds.C05, out CardData c05);
+            bool hasC08 = cards.TryGetValue(TestContentIds.C08, out CardData c08);
+            bool hasC11 = cards.TryGetValue(TestContentIds.C11, out CardData c11);
             bool valid = hasC01 && hasC05 && hasC08 && hasC11;
             if (!valid)
             {
@@ -690,8 +690,8 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
-            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
+            bool hasC05 = cards.TryGetValue(TestContentIds.C05, out CardData c05);
             bool valid = hasC01 && hasC05;
             if (!valid)
             {
@@ -791,8 +791,8 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
-            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
+            bool hasC05 = cards.TryGetValue(TestContentIds.C05, out CardData c05);
             bool valid = hasC01 && hasC05;
             if (!valid)
             {
@@ -914,14 +914,14 @@ namespace HaveABreak.Editor
             BattleEventRecord cardPlayed = eventLog.Record(
                 BattleEventType.CardPlayed,
                 "CardPlayConfirmed",
-                "C05",
+                TestContentIds.C05,
                 "BATTLE-QUEUE-001",
                 "ENEMY-001",
                 randomState: 123u);
             BattleEventRecord cardMoved = eventLog.Record(
                 BattleEventType.CardMoved,
                 "SkillResolved",
-                "C05",
+                TestContentIds.C05,
                 "BATTLE-QUEUE-001",
                 null,
                 parentEventId: cardPlayed.EventId,
@@ -1012,13 +1012,13 @@ namespace HaveABreak.Editor
             BattleEventRecord loopEvent = eventLog.Record(
                 BattleEventType.CardMoved,
                 "EffectCreatedSameEvent",
-                "C05",
+                TestContentIds.C05,
                 "BATTLE-QUEUE-001",
                 null,
                 sourceEffectId: "EFFECT-LOOP");
             BattleEffectCommand loop = new(
                 "EFFECT-LOOP",
-                "C05",
+                TestContentIds.C05,
                 loopEvent.EventId,
                 EffectProcessingStage.Aftermath,
                 true,
@@ -1028,13 +1028,13 @@ namespace HaveABreak.Editor
 
             BattleEffectQueue limitedRepeatQueue = new();
             BattleEffectCommand repeatOne = new(
-                "LIMITED-REPEAT", "C05", cardMoved.EventId, EffectProcessingStage.Aftermath,
+                "LIMITED-REPEAT", TestContentIds.C05, cardMoved.EventId, EffectProcessingStage.Aftermath,
                 true, BattleEventType.CardMoved, allowRepeatedTrigger: true, maximumRegistrationsPerEvent: 2);
             BattleEffectCommand repeatTwo = new(
-                "LIMITED-REPEAT", "C05", cardMoved.EventId, EffectProcessingStage.Aftermath,
+                "LIMITED-REPEAT", TestContentIds.C05, cardMoved.EventId, EffectProcessingStage.Aftermath,
                 true, BattleEventType.CardMoved, allowRepeatedTrigger: true, maximumRegistrationsPerEvent: 2);
             BattleEffectCommand repeatThree = new(
-                "LIMITED-REPEAT", "C05", cardMoved.EventId, EffectProcessingStage.Aftermath,
+                "LIMITED-REPEAT", TestContentIds.C05, cardMoved.EventId, EffectProcessingStage.Aftermath,
                 true, BattleEventType.CardMoved, allowRepeatedTrigger: true, maximumRegistrationsPerEvent: 2);
             valid &= limitedRepeatQueue.TryRegister(repeatOne, cardMoved, out _);
             valid &= limitedRepeatQueue.TryRegister(repeatTwo, cardMoved, out _);
@@ -1066,7 +1066,7 @@ namespace HaveABreak.Editor
         {
             return new BattleEffectCommand(
                 effectId,
-                "C05",
+                TestContentIds.C05,
                 sourceEvent.EventId,
                 stage,
                 required,
@@ -1080,8 +1080,8 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
-            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
+            bool hasC05 = cards.TryGetValue(TestContentIds.C05, out CardData c05);
             bool valid = hasC01 && hasC05;
             if (!valid)
             {
@@ -1095,7 +1095,7 @@ namespace HaveABreak.Editor
                     .First(card => card.SourceCard.CardType == CardType.Skill);
                 BattleEventLog normalLog = new();
                 BattleEventRecord normalRoot = normalLog.Record(
-                    BattleEventType.CardPlayed, "ValidationRoot", "C05",
+                    BattleEventType.CardPlayed, "ValidationRoot", TestContentIds.C05,
                     normalSkill.Ids.BattleCardId, null);
                 BattleEffectQueue normalQueue = new();
                 BattleEffectCommand normalMove = CreateMoveValidationCommand(
@@ -1124,7 +1124,7 @@ namespace HaveABreak.Editor
                 temporaryDeck.DrawStartingHand();
                 BattleEventLog temporaryLog = new();
                 BattleEventRecord temporaryRoot = temporaryLog.Record(
-                    BattleEventType.CardPlayed, "ValidationRoot", "C05",
+                    BattleEventType.CardPlayed, "ValidationRoot", TestContentIds.C05,
                     temporarySkill.Ids.BattleCardId, null);
                 BattleEffectQueue temporaryQueue = new();
                 BattleEffectCommand temporaryMove = CreateMoveValidationCommand(
@@ -1148,7 +1148,7 @@ namespace HaveABreak.Editor
                 BattleCardInstance blockedMonster = monsterCards[3];
                 BattleEventLog blockedLog = new();
                 BattleEventRecord blockedRoot = blockedLog.Record(
-                    BattleEventType.CardPlayed, "ValidationRoot", "C01",
+                    BattleEventType.CardPlayed, "ValidationRoot", TestContentIds.C01,
                     blockedMonster.Ids.BattleCardId, null);
                 BattleEffectQueue blockedQueue = new();
                 BattleEffectCommand blockedMove = CreateMoveValidationCommand(
@@ -1164,7 +1164,7 @@ namespace HaveABreak.Editor
                 BattleCardInstance drawPileCard = drawPileDeck.Zones.GetCards(CardZone.DrawPile)[0];
                 BattleEventLog drawPileLog = new();
                 BattleEventRecord drawPileRoot = drawPileLog.Record(
-                    BattleEventType.CardMoved, "ValidationRoot", "C01",
+                    BattleEventType.CardMoved, "ValidationRoot", TestContentIds.C01,
                     drawPileCard.Ids.BattleCardId, null);
                 BattleEffectQueue drawPileQueue = new();
                 BattleEffectCommand drawPileMove = CreateMoveValidationCommand(
@@ -1179,7 +1179,7 @@ namespace HaveABreak.Editor
                 BattleEffectQueue unsupportedQueue = new();
                 BattleEffectCommand unsupported = new(
                     "DAMAGE-NOT-YET",
-                    "C05",
+                    TestContentIds.C05,
                     normalRoot.EventId,
                     EffectProcessingStage.MainEffect,
                     true,
@@ -1233,8 +1233,8 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
-            bool hasC05 = cards.TryGetValue("C05", out CardData c05);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
+            bool hasC05 = cards.TryGetValue(TestContentIds.C05, out CardData c05);
             bool valid = hasC01 && hasC05;
             if (!valid)
             {
@@ -1263,7 +1263,7 @@ namespace HaveABreak.Editor
                 BattleEventRecord root = eventLog.Record(
                     BattleEventType.CardPlayed,
                     "DamageValidationRoot",
-                    "C05",
+                    TestContentIds.C05,
                     skillCard.Ids.BattleCardId,
                     monsterCard.Ids.BattleCardId);
                 BattleEffectQueue queue = new();
@@ -1364,7 +1364,7 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
             bool valid = hasC01;
             if (!valid)
             {
@@ -1480,7 +1480,7 @@ namespace HaveABreak.Editor
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
 
-            bool hasC01 = cards.TryGetValue("C01", out CardData c01);
+            bool hasC01 = cards.TryGetValue(TestContentIds.C01, out CardData c01);
             bool valid = hasC01;
             if (!valid)
             {
@@ -1852,8 +1852,8 @@ namespace HaveABreak.Editor
             Dictionary<string, CardData> cards = FindAllCards()
                 .Where(card => !string.IsNullOrWhiteSpace(card.CatalogCardId))
                 .ToDictionary(card => card.CatalogCardId, StringComparer.OrdinalIgnoreCase);
-            bool hasMonsterCard = cards.TryGetValue("C01", out CardData monsterCard);
-            bool hasSkillCard = cards.TryGetValue("C05", out CardData skillCard);
+            bool hasMonsterCard = cards.TryGetValue(TestContentIds.C01, out CardData monsterCard);
+            bool hasSkillCard = cards.TryGetValue(TestContentIds.C05, out CardData skillCard);
             bool valid = hasMonsterCard && hasSkillCard;
             EnchantData monsterEnchant = CreateInstance<EnchantData>();
             EnchantData duplicateMonsterEnchant = CreateInstance<EnchantData>();

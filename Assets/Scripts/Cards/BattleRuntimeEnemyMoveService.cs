@@ -62,7 +62,7 @@ namespace HaveABreak.Cards
                 if (installation?.SourceTrap?.SourceCard == null ||
                     !string.Equals(
                         installation.SourceTrap.SourceCard.CatalogCardId,
-                        "C08",
+                        TestContentIds.C08,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     continue;

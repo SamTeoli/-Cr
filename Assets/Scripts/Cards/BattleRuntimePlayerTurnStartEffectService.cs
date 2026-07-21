@@ -28,7 +28,7 @@ namespace HaveABreak.Cards
                     card.SourceCard.CardType != CardType.Barrier ||
                     !string.Equals(
                         card.SourceCard.CatalogCardId,
-                        "C11",
+                        TestContentIds.C11,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     continue;

@@ -2,6 +2,24 @@
 
 카드 수집형 덱빌딩 로그라이크 **Have a Break, and then..**
 
+## 현재 목표: 교체 가능한 기능 검증용 프로젝트
+
+이 저장소의 1차 목표는 완성 게임 제작이 아니라 카드·전투·런·저장 규칙이 실제로
+작동하는지 검증하고, 수정할 규칙을 찾는 것이다. C01~C12, E01~E08과 현재 적·보상 값은
+검증용 임시 콘텐츠이며 최종 콘텐츠로 간주하지 않는다.
+
+- 검증이 끝나면 카드, 소모아이템, 인첸트와 적 데이터는 새로 제작할 수 있다.
+- 시험 카드 효과는 `TestCardEffectResolvers.cs`, 시험 인첸트 효과는
+  `TestEnchantEffectResolvers.cs`에 모여 있어 각각 한 파일 단위로 교체할 수 있다.
+- C01~C12와 E01~E08 식별자는 `TestContentIds` 한곳에서 관리하며 새 카드와 새 효과는
+  빈 식별자로 시작하므로 시험 ID를 실수로 재사용하지 않는다.
+- 저장·이어하기의 작은 상태/실패 타입은 `RunPersistenceTypes.cs`에 통합되어 있다.
+- 실제 UI, 제품용 다중 슬롯과 임의 시점 전투 저장은 현재 검증 범위가 아니다.
+
+전체 확인은 Unity 상단 메뉴의
+`Have a Break > Tests > Run Complete Test Harness` 한 번으로 실행한다. 성공 문구는
+`Complete test harness passed: test content, runtime, saves, and settlement.`이다.
+
 ## 카드 데이터 시작하기
 
 1. Unity에서 프로젝트를 연다.

@@ -12,9 +12,9 @@ namespace HaveABreak.Editor
         [MenuItem("Have a Break/Validate Runtime C07 C11 Effects")]
         private static void ValidateFromMenu()
         {
-            CardData c01 = FindCard("C01");
-            CardData c07 = FindCard("C07");
-            CardData c11 = FindCard("C11");
+            CardData c01 = FindCard(TestContentIds.C01);
+            CardData c07 = FindCard(TestContentIds.C07);
+            CardData c11 = FindCard(TestContentIds.C11);
             bool cardsFound = c01 != null && c07 != null && c11 != null;
             bool c07Valid = cardsFound && ValidateC07(c01, c07);
             bool c11Valid = cardsFound && ValidateC11(c01, c11);

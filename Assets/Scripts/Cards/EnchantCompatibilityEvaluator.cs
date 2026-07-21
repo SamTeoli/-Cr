@@ -13,18 +13,18 @@ namespace HaveABreak.Cards
 
             return enchant.DefinitionId?.ToUpperInvariant() switch
             {
-                "E01" => card is MonsterCardData healthMonster && healthMonster.Health > 0,
-                "E02" => card is MonsterCardData attackMonster && attackMonster.Attack > 0,
-                "E03" => card.HasEnchantCompatibilityTag(
+                TestContentIds.E01 => card is MonsterCardData healthMonster && healthMonster.Health > 0,
+                TestContentIds.E02 => card is MonsterCardData attackMonster && attackMonster.Attack > 0,
+                TestContentIds.E03 => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.MainEffectCompletion),
-                "E04" => card.CardType == CardType.Skill && card.ManaCost >= 2,
-                "E05" => card.HasEnchantCompatibilityTag(
+                TestContentIds.E04 => card.CardType == CardType.Skill && card.ManaCost >= 2,
+                TestContentIds.E05 => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.EnemyAffectingEffect),
-                "E06" => card.HasEnchantCompatibilityTag(
+                TestContentIds.E06 => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.NumericRepeatingEffect),
-                "E07" => card.HasEnchantCompatibilityTag(
+                TestContentIds.E07 => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.NormalGraveyardAfterResolution),
-                "E08" => card.HasEnchantCompatibilityTag(
+                TestContentIds.E08 => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.FixedSingleEnemyTarget),
                 _ => string.IsNullOrWhiteSpace(enchant.AdditionalCompatibilityRule)
             };
