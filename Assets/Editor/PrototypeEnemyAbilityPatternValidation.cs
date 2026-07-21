@@ -57,6 +57,29 @@ namespace HaveABreak.Editor
                 "OK");
         }
 
+        [MenuItem("Have a Break/Validate Prototype Enemy Move Then Attack")]
+        private static void ValidateMoveThenAttackFromMenu()
+        {
+            bool valid = Validate();
+            if (valid)
+            {
+                Debug.Log(
+                    "Prototype enemy move-then-attack flow passed.");
+            }
+            else
+            {
+                Debug.LogError(
+                    "Prototype enemy move-then-attack flow failed.");
+            }
+
+            EditorUtility.DisplayDialog(
+                "Prototype Enemy Move Then Attack Validation",
+                valid
+                    ? "Prototype enemy move-then-attack flow passed."
+                    : "Prototype enemy move-then-attack flow failed. Check the Console.",
+                "OK");
+        }
+
         internal static bool Validate()
         {
             EncounterData encounter = FindEncounter();
@@ -130,10 +153,9 @@ namespace HaveABreak.Editor
                 movementTurn.Moves != expectedMovement ||
                 movementTurn.MoveSteps != 1 ||
                 movementTurn.Abilities.Count != 0 ||
+                movementTurn.AttackCount != 1 ||
                 (expectedMovement &&
-                 (movementTurn.MoveDirection != EnemyMoveDirection.Right ||
-                  movementTurn.AttackCount != 0)) ||
-                (!expectedMovement && movementTurn.AttackCount != 1))
+                 movementTurn.MoveDirection != EnemyMoveDirection.Right))
             {
                 return false;
             }
@@ -215,7 +237,7 @@ namespace HaveABreak.Editor
             string leftEnemyId = encounter.EnemySlots[0].EnemyInstanceId;
             string centerEnemyId = encounter.EnemySlots[1].EnemyInstanceId;
             string rightEnemyId = encounter.EnemySlots[2].EnemyInstanceId;
-            return movementActions.Count == 3 &&
+            return movementActions.Count == 4 &&
                    movementActions[0].Command.ActionType ==
                    BattleRuntimeEnemyTurnActionType.Move &&
                    movementActions[0].MoveResult != null &&
@@ -231,7 +253,7 @@ namespace HaveABreak.Editor
                    EnemyFieldPosition.Right &&
                    session.Runtime.EnemyPositions.FindPosition(rightEnemyId) ==
                    EnemyFieldPosition.Left &&
-                   session.Runtime.Player.CurrentHealth == 24 &&
+                   session.Runtime.Player.CurrentHealth == 23 &&
                    session.Runtime.Player.Status.Bind == 0 &&
                    session.Runtime.Player.Status.Injury == 0 &&
                    session.Runtime.Player.Status.Weaken == 0 &&

@@ -36,5 +36,5 @@ MonoBehaviour:
     - moves: 1
       moveDirection: 1
       moveSteps: 1
-      attackCount: 0
+      attackCount: 1
       abilities: []
