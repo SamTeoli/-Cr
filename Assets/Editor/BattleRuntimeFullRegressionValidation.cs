@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, unified save and resume routing, and settlement passed."
+                    ? "Full battle runtime regression C01-C12, save slot inspection, and settlement passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -237,11 +237,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Unified run save routing",
                 RunSaveServiceValidation.Validate);
+            valid &= Run(
+                "Run save slot inspection",
+                RunSaveSlotServiceValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, unified save and resume routing, and settlement passed.");
+                    "Full battle runtime regression C01-C12, save slot inspection, and settlement passed.");
             }
             else
             {
