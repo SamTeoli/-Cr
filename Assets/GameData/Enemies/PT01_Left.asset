@@ -37,4 +37,9 @@ MonoBehaviour:
       moveDirection: 1
       moveSteps: 1
       attackCount: 1
-      abilities: []
+      abilities:
+      - abilityId: TEST-ABILITY-BIND
+        affectsFriendlySide: 1
+        isAreaAbility: 0
+        statusKeyword: 2
+        statusAmount: 1
