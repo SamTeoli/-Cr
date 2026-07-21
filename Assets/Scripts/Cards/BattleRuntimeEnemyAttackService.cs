@@ -34,6 +34,21 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            BattleEnemyStatusState attackerStatus =
+                runtime.EnemyStatuses.Find(attackerEnemyId);
+            if (attackerStatus == null)
+            {
+                failure = BattleRuntimeEnemyAttackFailure.StatusStateNotFound;
+                return false;
+            }
+
+            if (!attackerStatus.CanAttack)
+            {
+                failure =
+                    BattleRuntimeEnemyAttackFailure.ActionBlockedByStatus;
+                return false;
+            }
+
             BattleMonsterState target =
                 runtime.Monsters.Find(targetBattleCardId);
             if (target == null ||

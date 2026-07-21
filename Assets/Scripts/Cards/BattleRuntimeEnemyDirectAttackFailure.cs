@@ -7,6 +7,7 @@ namespace HaveABreak.Cards
         InvalidTurnPhase,
         InvalidAttacker,
         StatusStateNotFound,
+        ActionBlockedByStatus,
         CompletionFailed
     }
 }

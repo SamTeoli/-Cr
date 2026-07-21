@@ -10,6 +10,7 @@ namespace HaveABreak.Cards
         InvalidDeclaration,
         AlreadyResolved,
         StatusStateNotFound,
+        ActionBlockedByStatus,
         StateCheckFailed,
         CompletionFailed
     }

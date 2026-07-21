@@ -6,6 +6,7 @@ namespace HaveABreak.Cards
         InvalidRuntime,
         InvalidTurnPhase,
         InvalidAbility,
-        InvalidSourceEnemy
+        InvalidSourceEnemy,
+        ActionBlockedByStatus
     }
 }

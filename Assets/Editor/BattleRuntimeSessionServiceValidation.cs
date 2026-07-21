@@ -773,9 +773,11 @@ namespace HaveABreak.Editor
                         $"{enemyId}\nHP {enemy.Vital.CurrentHealth}  " +
                         $"공격 {enemy.Attack}\n" +
                         $"현재 패턴 {PatternLabel(definition)}\n" +
+                        $"부상 {status?.Injury ?? 0}  " +
                         $"약화 {status?.Weaken ?? 0}  " +
                         $"취약 {status?.Vulnerable ?? 0}  " +
-                        $"속박 {status?.Bind ?? 0}",
+                        $"속박 {status?.Bind ?? 0}  " +
+                        $"기절 {status?.Stun ?? 0}",
                         EditorStyles.wordWrappedLabel);
                     if (GUILayout.Button(selected ? "선택됨" : "대상 선택"))
                     {

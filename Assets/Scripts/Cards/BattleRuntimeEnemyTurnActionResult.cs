@@ -8,7 +8,9 @@ namespace HaveABreak.Cards
             BattleRuntimeEnemyAttackDeclarationResult attackDeclaration,
             BattleRuntimeEnemyAttackResolutionResult attackResolution,
             BattleRuntimeEnemyRepeatedAttackResult automaticAttackResult,
-            BattleRuntimeEnemyAbilityResult abilityResult)
+            BattleRuntimeEnemyAbilityResult abilityResult,
+            StatusKeyword blockedByStatus = StatusKeyword.None,
+            BattleEventRecord statusBlockEvent = null)
         {
             Command = command;
             MoveResult = moveResult;
@@ -16,6 +18,8 @@ namespace HaveABreak.Cards
             AttackResolution = attackResolution;
             AutomaticAttackResult = automaticAttackResult;
             AbilityResult = abilityResult;
+            BlockedByStatus = blockedByStatus;
+            StatusBlockEvent = statusBlockEvent;
         }
 
         public BattleRuntimeEnemyTurnCommand Command { get; }
@@ -24,5 +28,9 @@ namespace HaveABreak.Cards
         public BattleRuntimeEnemyAttackResolutionResult AttackResolution { get; }
         public BattleRuntimeEnemyRepeatedAttackResult AutomaticAttackResult { get; }
         public BattleRuntimeEnemyAbilityResult AbilityResult { get; }
+        public StatusKeyword BlockedByStatus { get; }
+        public BattleEventRecord StatusBlockEvent { get; }
+        public bool WasBlockedByStatus =>
+            BlockedByStatus != StatusKeyword.None;
     }
 }

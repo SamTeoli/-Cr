@@ -51,6 +51,38 @@ namespace HaveABreak.Cards
                     return false;
                 }
 
+                if (TryGetBlockingStatus(
+                        runtime,
+                        command,
+                        out StatusKeyword blockedByStatus,
+                        out BattleEnemyStatusState blockingState))
+                {
+                    BattleEventRecord blockedEvent = runtime.EventLog.Record(
+                        BattleEventType.EnemyActionBlocked,
+                        blockedByStatus == StatusKeyword.Stun
+                            ? "EnemyActionBlockedByStun"
+                            : "EnemyAttackBlockedByBind",
+                        command.EnemyId,
+                        command.EnemyId,
+                        command.EnemyId,
+                        beforeValue: blockedByStatus == StatusKeyword.Stun
+                            ? blockingState.Stun
+                            : blockingState.Bind,
+                        afterValue: blockedByStatus == StatusKeyword.Stun
+                            ? blockingState.Stun
+                            : blockingState.Bind);
+                    actionResults.Add(new BattleRuntimeEnemyTurnActionResult(
+                        command,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        blockedByStatus,
+                        blockedEvent));
+                    continue;
+                }
+
                 BattleRuntimeEnemyTurnActionResult actionResult;
                 switch (command.ActionType)
                 {
@@ -157,6 +189,22 @@ namespace HaveABreak.Cards
                 outcome = EvaluateOutcome(runtime);
             }
 
+            BattleRuntimeEnemyStatusTurnResult statusTurnEnd = null;
+            if (outcome == BattleOutcome.Ongoing)
+            {
+                if (!BattleRuntimeEnemyStatusTurnService.TryResolveTurnEnd(
+                        runtime,
+                        out statusTurnEnd))
+                {
+                    failure =
+                        BattleRuntimeEnemyTurnFailure.StatusTurnEndFailed;
+                    return false;
+                }
+
+                PruneDefeatedEnemies(runtime);
+                outcome = EvaluateOutcome(runtime);
+            }
+
             bool playerTurnStarted = false;
             BattleRuntimePlayerTurnStartEffectResult playerTurnStartEffects = null;
             if (outcome == BattleOutcome.Ongoing)
@@ -178,9 +226,44 @@ namespace HaveABreak.Cards
                 actionResults,
                 outcome,
                 playerTurnStarted,
-                playerTurnStartEffects);
+                playerTurnStartEffects,
+                statusTurnEnd);
             failure = BattleRuntimeEnemyTurnFailure.None;
             return true;
+        }
+
+        private static bool TryGetBlockingStatus(
+            BattleRuntimeState runtime,
+            BattleRuntimeEnemyTurnCommand command,
+            out StatusKeyword blockedByStatus,
+            out BattleEnemyStatusState state)
+        {
+            blockedByStatus = StatusKeyword.None;
+            state = runtime.EnemyStatuses.Find(command.EnemyId);
+            if (state == null)
+            {
+                return false;
+            }
+
+            if ((command.ActionType ==
+                 BattleRuntimeEnemyTurnActionType.Attack ||
+                 command.ActionType ==
+                 BattleRuntimeEnemyTurnActionType.Ability) &&
+                state.Stun > 0)
+            {
+                blockedByStatus = StatusKeyword.Stun;
+                return true;
+            }
+
+            if (command.ActionType ==
+                BattleRuntimeEnemyTurnActionType.Attack &&
+                state.Bind > 0)
+            {
+                blockedByStatus = StatusKeyword.Bind;
+                return true;
+            }
+
+            return false;
         }
 
         private static BattleOutcome EvaluateOutcome(BattleRuntimeState runtime)
