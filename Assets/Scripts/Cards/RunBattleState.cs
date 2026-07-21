@@ -103,5 +103,79 @@ namespace HaveABreak.Cards
             consumableItemIds.Add(itemId.Trim());
             return true;
         }
+
+        public bool TrySpendGold(int amount)
+        {
+            if (amount < 0 || gold < amount || runEnded)
+            {
+                return false;
+            }
+
+            gold -= amount;
+            return true;
+        }
+
+        public int ApplyHealing(int amount)
+        {
+            if (runEnded || amount <= 0)
+            {
+                return 0;
+            }
+
+            int applied = Mathf.Min(amount, maximumHealth - currentHealth);
+            currentHealth += applied;
+            return applied;
+        }
+
+        public int ApplyDamage(int amount)
+        {
+            if (runEnded || amount <= 0)
+            {
+                return 0;
+            }
+
+            int applied = Mathf.Min(amount, currentHealth);
+            currentHealth -= applied;
+            if (currentHealth <= 0)
+            {
+                runEnded = true;
+            }
+
+            return applied;
+        }
+
+        public int IncreaseMaximumHealth(int amount, bool healIncrease = true)
+        {
+            if (runEnded || amount <= 0)
+            {
+                return 0;
+            }
+
+            maximumHealth += amount;
+            if (healIncrease)
+            {
+                currentHealth += amount;
+            }
+
+            return amount;
+        }
+
+        public bool RemoveConsumableItem(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || runEnded)
+            {
+                return false;
+            }
+
+            int index = consumableItemIds.FindIndex(value => string.Equals(
+                value, itemId.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                return false;
+            }
+
+            consumableItemIds.RemoveAt(index);
+            return true;
+        }
     }
 }

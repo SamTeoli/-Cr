@@ -55,5 +55,15 @@ namespace HaveABreak.Cards
         {
             currentMana = Mathf.Clamp(currentMana + Mathf.Max(0, amount), 0, maximumMana);
         }
+
+        public int Restore(int amount)
+        {
+            int before = currentMana;
+            currentMana = Mathf.Clamp(
+                currentMana + Mathf.Max(0, amount),
+                0,
+                maximumMana);
+            return currentMana - before;
+        }
     }
 }
