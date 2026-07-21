@@ -39,6 +39,13 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!status.CanAttack)
+            {
+                failure = BattleRuntimeEnemyDirectAttackFailure
+                    .ActionBlockedByStatus;
+                return false;
+            }
+
             BattleEnemyAttackSnapshot snapshot = attacker.SnapshotAttack();
             BattleEventRecord declaredAttack = runtime.EventLog.Record(
                 BattleEventType.AttackDeclared,

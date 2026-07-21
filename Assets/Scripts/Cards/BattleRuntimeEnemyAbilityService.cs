@@ -34,10 +34,19 @@ namespace HaveABreak.Cards
 
             BattleEnemyRuntimeState sourceEnemy =
                 runtime.FindEnemy(ability.SourceEnemyId);
+            BattleEnemyStatusState sourceStatus =
+                runtime.EnemyStatuses.Find(ability.SourceEnemyId);
             if (sourceEnemy == null || !sourceEnemy.IsAlive ||
-                runtime.EnemyStatuses.Find(ability.SourceEnemyId) == null)
+                sourceStatus == null)
             {
                 failure = BattleRuntimeEnemyAbilityFailure.InvalidSourceEnemy;
+                return false;
+            }
+
+            if (!sourceStatus.CanUseAbility)
+            {
+                failure =
+                    BattleRuntimeEnemyAbilityFailure.ActionBlockedByStatus;
                 return false;
             }
 

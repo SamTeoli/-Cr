@@ -113,11 +113,11 @@ namespace HaveABreak.Editor
                    result.PlayerTurnStartEffects.ResolvedC11Count == 0 &&
                    result.ActionResults[0].MoveResult != null &&
                    result.ActionResults[0].MoveResult.ReplacedByTrap &&
-                   result.ActionResults[1].AttackDeclaration != null &&
-                   result.ActionResults[1].AttackResolution != null &&
-                   result.ActionResults[1].AttackResolution.WeakenReduction == 1 &&
-                   result.ActionResults[1].AttackResolution.DefenseConsumed == 4 &&
-                   result.ActionResults[1].AttackResolution.MonsterDamage == 0 &&
+                   result.ActionResults[1].WasBlockedByStatus &&
+                   result.ActionResults[1].BlockedByStatus ==
+                   StatusKeyword.Bind &&
+                   result.ActionResults[1].AttackDeclaration == null &&
+                   result.ActionResults[1].AttackResolution == null &&
                    result.ActionResults[2].AbilityResult != null &&
                    result.ActionResults[2].AbilityResult.Cancelled &&
                    result.ActionResults[2].AbilityResult.ReturnedTrapToHand &&
@@ -127,9 +127,9 @@ namespace HaveABreak.Editor
                    BattlePlayerState.DefaultMaximumHealth &&
                    runtime.EnemyPositions.FindPosition("ENEMY-TURN-A") ==
                    EnemyFieldPosition.Left &&
-                   status != null && status.Bind == 2 && status.Weaken == 2 &&
+                   status != null && status.Bind == 1 && status.Weaken == 1 &&
                    allyState.CurrentHealth == allyState.MaximumHealth &&
-                   allyState.Defense == 1 &&
+                   allyState.Defense == 0 &&
                    c10Trap.Zone == CardZone.Hand &&
                    runtime.TrapInstallations.Count == 2;
         }

@@ -201,6 +201,9 @@ namespace HaveABreak.Editor
                 "Enemy turn orchestration",
                 BattleRuntimeEnemyTurnServiceValidation.Validate);
             valid &= Run(
+                "Common enemy status turn flow",
+                BattleRuntimeCommonEnemyStatusValidation.Validate);
+            valid &= Run(
                 "Enemy turn planning and intents",
                 BattleRuntimeEnemyTurnPlanValidation.Validate);
             valid &= Run(

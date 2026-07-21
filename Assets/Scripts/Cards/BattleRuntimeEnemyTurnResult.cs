@@ -8,12 +8,14 @@ namespace HaveABreak.Cards
             List<BattleRuntimeEnemyTurnActionResult> actionResults,
             BattleOutcome outcome,
             bool playerTurnStarted,
-            BattleRuntimePlayerTurnStartEffectResult playerTurnStartEffects)
+            BattleRuntimePlayerTurnStartEffectResult playerTurnStartEffects,
+            BattleRuntimeEnemyStatusTurnResult statusTurnEnd)
         {
             ActionResults = actionResults.AsReadOnly();
             Outcome = outcome;
             PlayerTurnStarted = playerTurnStarted;
             PlayerTurnStartEffects = playerTurnStartEffects;
+            StatusTurnEnd = statusTurnEnd;
         }
 
         public IReadOnlyList<BattleRuntimeEnemyTurnActionResult> ActionResults { get; }
@@ -21,5 +23,6 @@ namespace HaveABreak.Cards
         public BattleOutcome Outcome { get; }
         public bool PlayerTurnStarted { get; }
         public BattleRuntimePlayerTurnStartEffectResult PlayerTurnStartEffects { get; }
+        public BattleRuntimeEnemyStatusTurnResult StatusTurnEnd { get; }
     }
 }
