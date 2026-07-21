@@ -33,3 +33,8 @@ MonoBehaviour:
         isAreaAbility: 0
         statusKeyword: 2
         statusAmount: 1
+    - moves: 1
+      moveDirection: 1
+      moveSteps: 1
+      attackCount: 0
+      abilities: []
