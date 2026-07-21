@@ -42,6 +42,13 @@ namespace HaveABreak.Cards
             return applied;
         }
 
+        public int ConsumeVulnerable()
+        {
+            int consumed = vulnerable;
+            vulnerable = 0;
+            return consumed;
+        }
+
         public void SetBindImmune(bool immune)
         {
             bindImmune = immune;
@@ -60,5 +67,4 @@ namespace HaveABreak.Cards
         }
     }
 }
-
 

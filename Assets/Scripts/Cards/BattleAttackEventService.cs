@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace HaveABreak.Cards
 {
@@ -38,6 +39,212 @@ namespace HaveABreak.Cards
                 declaredAttack.ActorId,
                 declaredAttack.TargetId,
                 parentEventId: declaredAttack.EventId);
+            return true;
+        }
+    }
+
+    public enum BattleRuntimePlayerAttackFailure
+    {
+        None,
+        InvalidRuntime,
+        InvalidTurnPhase,
+        InvalidAttacker,
+        InvalidTarget,
+        AttackAlreadyUsed,
+        BeginActionFailed,
+        EnemyCleanupFailed,
+        CompletionFailed,
+        CompleteActionFailed
+    }
+
+    public sealed class BattleRuntimePlayerAttackResult
+    {
+        internal BattleRuntimePlayerAttackResult(
+            BattleMonsterState attacker,
+            BattleEnemyRuntimeState target,
+            int baseAttack,
+            int vulnerableBonus,
+            int damageApplied,
+            bool targetDefeated,
+            BattleEventRecord declaredAttack,
+            BattleEventRecord vulnerableConsumedEvent,
+            BattleEventRecord damageEvent,
+            BattleEventRecord completedAttack)
+        {
+            Attacker = attacker;
+            Target = target;
+            BaseAttack = baseAttack;
+            VulnerableBonus = vulnerableBonus;
+            DamageApplied = damageApplied;
+            TargetDefeated = targetDefeated;
+            DeclaredAttack = declaredAttack;
+            VulnerableConsumedEvent = vulnerableConsumedEvent;
+            DamageEvent = damageEvent;
+            CompletedAttack = completedAttack;
+        }
+
+        public BattleMonsterState Attacker { get; }
+        public BattleEnemyRuntimeState Target { get; }
+        public int BaseAttack { get; }
+        public int VulnerableBonus { get; }
+        public int FinalDamage => BaseAttack + VulnerableBonus;
+        public int DamageApplied { get; }
+        public bool TargetDefeated { get; }
+        public BattleEventRecord DeclaredAttack { get; }
+        public BattleEventRecord VulnerableConsumedEvent { get; }
+        public BattleEventRecord DamageEvent { get; }
+        public BattleEventRecord CompletedAttack { get; }
+    }
+
+    public static class BattleRuntimePlayerAttackService
+    {
+        private const string PlayerAttackUsageEffectId =
+            "SYSTEM-PLAYER-MONSTER-ATTACK";
+
+        public static bool TryResolve(
+            BattleRuntimeState runtime,
+            string attackerBattleCardId,
+            string targetEnemyId,
+            out BattleRuntimePlayerAttackResult result,
+            out BattleRuntimePlayerAttackFailure failure)
+        {
+            result = null;
+            if (runtime == null)
+            {
+                failure = BattleRuntimePlayerAttackFailure.InvalidRuntime;
+                return false;
+            }
+
+            if (!runtime.Turn.CanAcceptPlayerAction)
+            {
+                failure = BattleRuntimePlayerAttackFailure.InvalidTurnPhase;
+                return false;
+            }
+
+            BattleMonsterState attacker =
+                runtime.Monsters.Find(attackerBattleCardId);
+            if (attacker == null ||
+                attacker.Card.Zone != CardZone.MonsterField ||
+                attacker.IsDestructionCandidate ||
+                !runtime.PlayerMonsterPositions.FindPosition(
+                    attackerBattleCardId).HasValue)
+            {
+                failure = BattleRuntimePlayerAttackFailure.InvalidAttacker;
+                return false;
+            }
+
+            BattleEnemyRuntimeState target = runtime.FindEnemy(targetEnemyId);
+            BattleEnemyStatusState targetStatus =
+                runtime.EnemyStatuses.Find(targetEnemyId);
+            if (target == null || !target.IsAlive || targetStatus == null ||
+                !runtime.LivingEnemies.Contains(targetEnemyId) ||
+                !runtime.EnemyPositions.FindPosition(targetEnemyId).HasValue)
+            {
+                failure = BattleRuntimePlayerAttackFailure.InvalidTarget;
+                return false;
+            }
+
+            if (!runtime.Turn.TryBeginPlayerAction(out _))
+            {
+                failure = BattleRuntimePlayerAttackFailure.BeginActionFailed;
+                return false;
+            }
+
+            int playerTurn = runtime.Turn.PlayerTurnNumber;
+            if (!runtime.CardTurnTriggers.TryUse(
+                    PlayerAttackUsageEffectId,
+                    attacker.BattleCardId,
+                    playerTurn,
+                    $"PLAYER-ATTACK-{playerTurn}",
+                    1))
+            {
+                runtime.Turn.TryCompletePlayerAction(out _);
+                failure =
+                    BattleRuntimePlayerAttackFailure.AttackAlreadyUsed;
+                return false;
+            }
+
+            int vulnerableBonus = targetStatus.Vulnerable;
+            int finalDamage = Mathf.Max(
+                0, attacker.Attack + vulnerableBonus);
+            BattleEventRecord declaredAttack = runtime.EventLog.Record(
+                BattleEventType.AttackDeclared,
+                "PlayerMonsterAttackDeclared",
+                attacker.BattleCardId,
+                attacker.BattleCardId,
+                target.EnemyId,
+                beforeValue: 0,
+                afterValue: finalDamage);
+
+            BattleEventRecord vulnerableConsumedEvent = null;
+            if (vulnerableBonus > 0)
+            {
+                targetStatus.ConsumeVulnerable();
+                vulnerableConsumedEvent = runtime.EventLog.Record(
+                    BattleEventType.StatusApplied,
+                    "VulnerableConsumedByPlayerAttack",
+                    attacker.BattleCardId,
+                    attacker.BattleCardId,
+                    target.EnemyId,
+                    parentEventId: declaredAttack.EventId,
+                    beforeValue: vulnerableBonus,
+                    afterValue: targetStatus.Vulnerable);
+            }
+
+            int healthBefore = target.Vital.CurrentHealth;
+            int damageApplied = target.Vital.ApplyDamage(finalDamage);
+            BattleEventRecord damageEvent = damageApplied > 0
+                ? runtime.EventLog.Record(
+                    BattleEventType.DamageApplied,
+                    "PlayerMonsterAttackEnemyDamage",
+                    attacker.BattleCardId,
+                    attacker.BattleCardId,
+                    target.EnemyId,
+                    parentEventId: declaredAttack.EventId,
+                    beforeValue: healthBefore,
+                    afterValue: target.Vital.CurrentHealth)
+                : null;
+
+            bool targetDefeated = !target.IsAlive;
+            if (targetDefeated &&
+                (!runtime.LivingEnemies.TryRemove(target.EnemyId) ||
+                 !runtime.EnemyPositions.TryRemove(target.EnemyId)))
+            {
+                runtime.Turn.TryCompletePlayerAction(out _);
+                failure =
+                    BattleRuntimePlayerAttackFailure.EnemyCleanupFailed;
+                return false;
+            }
+
+            if (!BattleAttackEventService.TryRecordCompleted(
+                    runtime.EventLog,
+                    declaredAttack,
+                    out BattleEventRecord completedAttack))
+            {
+                runtime.Turn.TryCompletePlayerAction(out _);
+                failure = BattleRuntimePlayerAttackFailure.CompletionFailed;
+                return false;
+            }
+
+            if (!runtime.Turn.TryCompletePlayerAction(out _))
+            {
+                failure =
+                    BattleRuntimePlayerAttackFailure.CompleteActionFailed;
+                return false;
+            }
+
+            result = new BattleRuntimePlayerAttackResult(
+                attacker,
+                target,
+                attacker.Attack,
+                vulnerableBonus,
+                damageApplied,
+                targetDefeated,
+                declaredAttack,
+                vulnerableConsumedEvent,
+                damageEvent,
+                completedAttack);
+            failure = BattleRuntimePlayerAttackFailure.None;
             return true;
         }
     }
