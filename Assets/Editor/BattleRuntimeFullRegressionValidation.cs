@@ -19,7 +19,7 @@ namespace HaveABreak.Editor
             EditorUtility.DisplayDialog(
                 "Full Battle Runtime Regression Validation",
                 valid
-                    ? "Full battle runtime regression C01-C12, run saves, checkpoint resume routing, and settlement passed."
+                    ? "Full battle runtime regression C01-C12, unified resume routing, and settlement passed."
                     : "Full battle runtime regression failed. Check the Console.",
                 "OK");
         }
@@ -231,11 +231,14 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "Checkpoint encounter resolution",
                 ActiveBattleCheckpointEncounterResolutionValidation.Validate);
+            valid &= Run(
+                "Unified run resume routing",
+                RunResumeServiceValidation.Validate);
 
             if (valid)
             {
                 Debug.Log(
-                    "Full battle runtime regression C01-C12, run saves, checkpoint resume routing, and settlement passed.");
+                    "Full battle runtime regression C01-C12, unified resume routing, and settlement passed.");
             }
             else
             {
