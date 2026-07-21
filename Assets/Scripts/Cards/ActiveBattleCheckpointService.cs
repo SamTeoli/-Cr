@@ -58,6 +58,49 @@ namespace HaveABreak.Cards
             Application.persistentDataPath,
             DefaultFileName);
 
+        public static bool Exists(string path)
+        {
+            return TryNormalizePath(path, out string normalizedPath) &&
+                   File.Exists(normalizedPath);
+        }
+
+        public static bool DefaultExists => Exists(DefaultPath);
+
+        public static bool TryReadInfo(
+            string path,
+            out ActiveBattleCheckpointInfo info,
+            out ActiveBattleCheckpointFailure failure)
+        {
+            info = null;
+            if (!TryNormalizePath(path, out string normalizedPath))
+            {
+                failure = ActiveBattleCheckpointFailure.InvalidPath;
+                return false;
+            }
+
+            if (!TryReadData(normalizedPath, out CheckpointData data,
+                    out failure))
+            {
+                return false;
+            }
+
+            info = new ActiveBattleCheckpointInfo(
+                data.BattleInstanceId,
+                data.EncounterId,
+                data.ShuffleSeed,
+                data.MaximumMana,
+                data.RewardSeed);
+            failure = ActiveBattleCheckpointFailure.None;
+            return true;
+        }
+
+        public static bool TryReadDefaultInfo(
+            out ActiveBattleCheckpointInfo info,
+            out ActiveBattleCheckpointFailure failure)
+        {
+            return TryReadInfo(DefaultPath, out info, out failure);
+        }
+
         public static bool CanCreate(
             RunEncounterProgressState progress,
             out ActiveBattleCheckpointFailure failure)
@@ -400,6 +443,38 @@ namespace HaveABreak.Cards
                 out failure);
         }
 
+        public static bool TryClear(
+            string path,
+            out ActiveBattleCheckpointFailure failure)
+        {
+            if (!TryNormalizePath(path, out string normalizedPath))
+            {
+                failure = ActiveBattleCheckpointFailure.InvalidPath;
+                return false;
+            }
+
+            try
+            {
+                DeleteIfPresent(normalizedPath);
+                DeleteIfPresent(normalizedPath + ".tmp");
+                DeleteIfPresent(normalizedPath + ".bak");
+            }
+            catch (Exception)
+            {
+                failure = ActiveBattleCheckpointFailure.DeleteFailed;
+                return false;
+            }
+
+            failure = ActiveBattleCheckpointFailure.None;
+            return true;
+        }
+
+        public static bool TryClearDefault(
+            out ActiveBattleCheckpointFailure failure)
+        {
+            return TryClear(DefaultPath, out failure);
+        }
+
         private static bool IsInitialRuntimeState(
             BattleRuntimeEncounterContext context)
         {
@@ -462,6 +537,64 @@ namespace HaveABreak.Cards
             }
 
             return true;
+        }
+
+        private static bool TryReadData(
+            string normalizedPath,
+            out CheckpointData data,
+            out ActiveBattleCheckpointFailure failure)
+        {
+            data = null;
+            if (!File.Exists(normalizedPath))
+            {
+                failure = ActiveBattleCheckpointFailure.NotFound;
+                return false;
+            }
+
+            string json;
+            try
+            {
+                json = File.ReadAllText(normalizedPath);
+            }
+            catch (Exception)
+            {
+                failure = ActiveBattleCheckpointFailure.ReadFailed;
+                return false;
+            }
+
+            try
+            {
+                data = string.IsNullOrWhiteSpace(json)
+                    ? null
+                    : JsonUtility.FromJson<CheckpointData>(json);
+            }
+            catch (Exception)
+            {
+                data = null;
+            }
+
+            if (data == null || !ValidateData(data))
+            {
+                failure = ActiveBattleCheckpointFailure.InvalidData;
+                return false;
+            }
+
+            if (data.SchemaVersion != CurrentSchemaVersion)
+            {
+                failure = ActiveBattleCheckpointFailure.UnsupportedVersion;
+                return false;
+            }
+
+            failure = ActiveBattleCheckpointFailure.None;
+            return true;
+        }
+
+        private static void DeleteIfPresent(string path)
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
         }
 
         private static bool TryNormalizePath(
