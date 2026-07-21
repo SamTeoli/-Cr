@@ -26,7 +26,8 @@ namespace HaveABreak.EditorTools
             bool valid = ValidateCampaignProgression() &&
                          ValidateRunMutations() &&
                          ValidateConsumableDefinitions() &&
-                         ValidateEncounterGrades();
+                         ValidateEncounterGrades() &&
+                         ValidateRuntimePrototypeConfig();
             if (valid)
             {
                 Debug.Log(
@@ -145,6 +146,29 @@ namespace HaveABreak.EditorTools
             };
             return expected.All(pair =>
                 database.TryGetEncounter(pair.Key, out EncounterData encounter) &&
+                encounter.EncounterGrade == pair.Value);
+        }
+
+        private static bool ValidateRuntimePrototypeConfig()
+        {
+            RuntimePrototypeConfig config =
+                Resources.Load<RuntimePrototypeConfig>(
+                    "GameData/RuntimePrototypeConfig");
+            if (config == null || !config.IsReady)
+            {
+                return false;
+            }
+
+            Dictionary<string, BattleEncounterGrade> expected = new()
+            {
+                [config.NormalEncounterId] = BattleEncounterGrade.Normal,
+                [config.EliteEncounterId] = BattleEncounterGrade.Elite,
+                [config.MidBossEncounterId] = BattleEncounterGrade.MidBoss,
+                [config.FinalBossEncounterId] = BattleEncounterGrade.FinalBoss
+            };
+            return expected.Count == 4 && expected.All(pair =>
+                config.EncounterDatabase.TryGetEncounter(
+                    pair.Key, out EncounterData encounter) &&
                 encounter.EncounterGrade == pair.Value);
         }
     }
