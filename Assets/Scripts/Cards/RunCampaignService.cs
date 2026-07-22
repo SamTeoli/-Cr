@@ -565,17 +565,6 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            try
-            {
-                File.WriteAllText(DefaultPath,
-                    JsonUtility.ToJson(new CampaignSaveData(campaign), true));
-            }
-            catch (Exception)
-            {
-                failure = RunCampaignFailure.SaveFailed;
-                return false;
-            }
-
             if (!RunSaveService.TrySaveDefault(
                     progress,
                     out destination,
@@ -594,8 +583,70 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!TryWriteCampaignAtomically(campaign))
+            {
+                failure = RunCampaignFailure.SaveFailed;
+                return false;
+            }
+
             failure = RunCampaignFailure.None;
             return true;
+        }
+
+        private static bool TryWriteCampaignAtomically(
+            RunCampaignState campaign)
+        {
+            string temporaryPath = DefaultPath + ".tmp";
+            string backupPath = DefaultPath + ".bak";
+            try
+            {
+                string directory = Path.GetDirectoryName(DefaultPath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.WriteAllText(
+                    temporaryPath,
+                    JsonUtility.ToJson(new CampaignSaveData(campaign), true));
+                if (File.Exists(DefaultPath))
+                {
+                    TryDeleteFile(backupPath);
+                    File.Replace(temporaryPath, DefaultPath, backupPath);
+                    TryDeleteFile(backupPath);
+                }
+                else
+                {
+                    File.Move(temporaryPath, DefaultPath);
+                }
+
+                return true;
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+                }
+                catch (Exception)
+                {
+                    // The original save failure is the actionable result.
+                }
+
+                return false;
+            }
+        }
+
+        private static void TryDeleteFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch (Exception)
+            {
+                // Backup cleanup must not invalidate a completed save.
+            }
         }
 
         public static bool TryLoad(
