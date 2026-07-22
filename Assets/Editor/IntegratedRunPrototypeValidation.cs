@@ -229,15 +229,37 @@ namespace HaveABreak.EditorTools
                 RunCampaignService.GetSituationEventChoices(situation);
             string json = JsonUtility.ToJson(situation);
             RunCampaignState restored = JsonUtility.FromJson<RunCampaignState>(json);
-            return choices.Count == 3 &&
+            bool savedSelectionIsValid = choices.Count == 3 &&
                    situation.ActiveSituationEventId ==
                        events.Events[0].EventId &&
+                   events.Events[0].MinimumCompletedNodeCount == 0 &&
+                   events.Events[0].MaximumCompletedNodeCount == -1 &&
+                   events.Events[0].AllowRepeatInRun &&
                    choices.Select(choice => choice.ChoiceId)
                        .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 3 &&
                    restored.EventChoices.Count == 3 &&
                    restored.ActiveSituationEventId ==
                        situation.ActiveSituationEventId &&
+                   restored.ResolvedSituationEventIds.Count == 0 &&
                    restored.EventChoices[0].ChoiceId == choices[0].ChoiceId;
+            if (!savedSelectionIsValid) return false;
+
+            string resolvedEventId = situation.ActiveSituationEventId;
+            RunBattleState eventRun = new(30, 30, 0);
+            if (!RunCampaignService.TryResolveSituationEvent(
+                    situation, eventRun, choices[0].ChoiceId, out _, out _) ||
+                situation.ResolvedSituationEventIds.Count != 1 ||
+                situation.ResolvedSituationEventIds[0] != resolvedEventId)
+            {
+                return false;
+            }
+
+            RunCampaignState resolvedRestored =
+                JsonUtility.FromJson<RunCampaignState>(
+                    JsonUtility.ToJson(situation));
+            return resolvedRestored.ResolvedSituationEventIds.Count == 1 &&
+                   resolvedRestored.ResolvedSituationEventIds[0] ==
+                       resolvedEventId;
         }
 
         private static RunCampaignState CampaignAtNode(RunNodeType type)

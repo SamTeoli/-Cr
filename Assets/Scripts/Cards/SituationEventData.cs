@@ -24,16 +24,32 @@ namespace HaveABreak.Cards
     {
         [SerializeField] private string eventId;
         [SerializeField] private string displayName;
+        [SerializeField, Min(0)] private int minimumCompletedNodeCount;
+        [SerializeField] private int maximumCompletedNodeCount = -1;
+        [SerializeField] private bool allowRepeatInRun = true;
         [SerializeField] private List<SituationEventChoiceData> choices = new();
 
         public string EventId => eventId;
         public string DisplayName => displayName;
+        public int MinimumCompletedNodeCount => minimumCompletedNodeCount;
+        public int MaximumCompletedNodeCount => maximumCompletedNodeCount;
+        public bool AllowRepeatInRun => allowRepeatInRun;
         public IReadOnlyList<SituationEventChoiceData> Choices => choices;
+
+        public bool IsAvailableAt(int completedNodeCount)
+        {
+            return completedNodeCount >= minimumCompletedNodeCount &&
+                   (maximumCompletedNodeCount < 0 ||
+                    completedNodeCount <= maximumCompletedNodeCount);
+        }
 
         private void OnValidate()
         {
             eventId = eventId?.Trim();
             displayName = displayName?.Trim();
+            minimumCompletedNodeCount = Mathf.Max(0, minimumCompletedNodeCount);
+            if (maximumCompletedNodeCount < -1)
+                maximumCompletedNodeCount = -1;
         }
     }
 }

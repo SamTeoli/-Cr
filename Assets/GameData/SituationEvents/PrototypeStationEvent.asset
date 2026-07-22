@@ -14,6 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   eventId: TEST-EVENT-STATION-01
   displayName: 버려진 역의 갈림길
+  minimumCompletedNodeCount: 0
+  maximumCompletedNodeCount: -1
+  allowRepeatInRun: 1
   choices:
   - choiceId: EVENT-GOLD
     effect: 0
