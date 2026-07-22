@@ -356,7 +356,8 @@ namespace HaveABreak.EditorTools
             EditorGUILayout.LabelField("상점", EditorStyles.boldLabel);
             IReadOnlyList<RunShopProductSlot> offers =
                 RunCampaignService.GetShopSlots(campaign,
-                    PrototypeConsumableCatalog.All, enchantDatabase.Enchants);
+                    PrototypeConsumableCatalog.All, enchantDatabase.Enchants,
+                    prototypeConfig.ShopEconomyConfig);
             EditorGUILayout.LabelField("소모아이템", EditorStyles.miniBoldLabel);
             foreach (RunShopProductSlot offer in offers.Where(value =>
                          value.ProductType == RunShopProductType.Consumable))

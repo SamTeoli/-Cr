@@ -485,6 +485,15 @@ namespace HaveABreak.Cards
             IEnumerable<ConsumableData> consumables,
             IEnumerable<EnchantData> enchants)
         {
+            return GetShopSlots(campaign, consumables, enchants, null);
+        }
+
+        public static IReadOnlyList<RunShopProductSlot> GetShopSlots(
+            RunCampaignState campaign,
+            IEnumerable<ConsumableData> consumables,
+            IEnumerable<EnchantData> enchants,
+            ShopEconomyConfig config)
+        {
             if (campaign == null || campaign.ActiveNode?.NodeType != RunNodeType.Shop)
                 return Array.Empty<RunShopProductSlot>();
             if (campaign.ShopSlots.Count > 0) return campaign.ShopSlots;
@@ -493,16 +502,21 @@ namespace HaveABreak.Cards
                        campaign.ShopRerollCount * 101;
             List<RunShopProductSlot> slots = new();
             int index = 0;
-            foreach (ConsumableData item in Rotate(consumables, seed, 3))
+            int consumableCount = config?.ConsumableOfferCount ?? 3;
+            int enchantCount = config?.EnchantOfferCount ?? 4;
+            foreach (ConsumableData item in Rotate(
+                         consumables, seed, consumableCount))
                 slots.Add(new RunShopProductSlot(
                     $"SHOP-R{campaign.ShopRerollCount}-C-{index++ + 1}",
                     RunShopProductType.Consumable, item.ItemId, item.ShopPrice));
             index = 0;
-            foreach (EnchantData enchant in Rotate(enchants, seed + 7, 4))
+            foreach (EnchantData enchant in Rotate(
+                         enchants, seed + 7, enchantCount))
                 slots.Add(new RunShopProductSlot(
                     $"SHOP-R{campaign.ShopRerollCount}-E-{index++ + 1}",
                     RunShopProductType.Enchant, enchant.DefinitionId,
-                    EnchantShopPrice(enchant)));
+                    config?.GetEnchantPrice(enchant.Rarity) ??
+                    LegacyEnchantShopPrice(enchant)));
             campaign.SetShopSlots(slots);
             return campaign.ShopSlots;
         }
@@ -958,7 +972,7 @@ namespace HaveABreak.Cards
                 yield return values[(start + i) % values.Count];
         }
 
-        private static int EnchantShopPrice(EnchantData enchant)
+        private static int LegacyEnchantShopPrice(EnchantData enchant)
         {
             return enchant.Rarity switch
             {

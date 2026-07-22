@@ -14,3 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   baseRerollCost: 10
   rerollCostIncrease: 5
+  consumableOfferCount: 3
+  enchantOfferCount: 4
+  commonEnchantPrice: 45
+  rareEnchantPrice: 80
+  legendaryEnchantPrice: 120

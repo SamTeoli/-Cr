@@ -186,14 +186,25 @@ namespace HaveABreak.EditorTools
             RunCampaignState shop = CampaignAtNode(RunNodeType.Shop);
             RunBattleState run = new(30, 30, 500);
             IReadOnlyList<RunShopProductSlot> first = RunCampaignService.GetShopSlots(
-                shop, PrototypeConsumableCatalog.All, enchants.Enchants);
+                shop, PrototypeConsumableCatalog.All, enchants.Enchants, economy);
             RunShopProductSlot consumable = first.FirstOrDefault(slot =>
                 slot.ProductType == RunShopProductType.Consumable);
             string firstSlotId = first.Count > 0 ? first[0].SlotId : null;
             RunBattleState poorRun = new(30, 30, 0);
             int goldBeforePurchase = run.Gold;
             int expectedRerollCost = economy.GetRerollCost(0);
-            if (first.Count != 7 || consumable == null || consumable.Purchased ||
+            if (first.Count != economy.ConsumableOfferCount +
+                    economy.EnchantOfferCount ||
+                first.Count(slot => slot.ProductType ==
+                    RunShopProductType.Consumable) != economy.ConsumableOfferCount ||
+                first.Count(slot => slot.ProductType ==
+                    RunShopProductType.Enchant) != economy.EnchantOfferCount ||
+                first.Where(slot => slot.ProductType ==
+                        RunShopProductType.Enchant).Any(slot =>
+                        enchants.Find(slot.ContentId) == null ||
+                        slot.Price != economy.GetEnchantPrice(
+                            enchants.Find(slot.ContentId).Rarity)) ||
+                consumable == null || consumable.Purchased ||
                 RunCampaignService.TryBuyConsumableSlot(
                     shop, poorRun, consumable.SlotId, out _) ||
                 poorRun.Gold != 0 || poorRun.ConsumableItemIds.Count != 0 ||
@@ -217,8 +228,10 @@ namespace HaveABreak.EditorTools
 
             IReadOnlyList<RunShopProductSlot> rerolled =
                 RunCampaignService.GetShopSlots(shop,
-                    PrototypeConsumableCatalog.All, enchants.Enchants);
-            if (rerolled.Count != 7 || rerolled.Any(slot => slot.Purchased) ||
+                    PrototypeConsumableCatalog.All, enchants.Enchants, economy);
+            if (rerolled.Count != economy.ConsumableOfferCount +
+                    economy.EnchantOfferCount ||
+                rerolled.Any(slot => slot.Purchased) ||
                 rerolled[0].SlotId == firstSlotId)
             {
                 return false;
@@ -391,6 +404,14 @@ namespace HaveABreak.EditorTools
                 economy == null || economy.GetValidationErrors().Count != 0 ||
                 economy.BaseRerollCost != 10 ||
                 economy.RerollCostIncrease != 5 ||
+                economy.ConsumableOfferCount != 3 ||
+                economy.EnchantOfferCount != 4 ||
+                economy.CommonEnchantPrice != 45 ||
+                economy.RareEnchantPrice != 80 ||
+                economy.LegendaryEnchantPrice != 120 ||
+                economy.GetEnchantPrice(CardRarity.Common) != 45 ||
+                economy.GetEnchantPrice(CardRarity.Rare) != 80 ||
+                economy.GetEnchantPrice(CardRarity.Legendary) != 120 ||
                 economy.GetRerollCost(0) != 10 ||
                 economy.GetRerollCost(2) != 20 ||
                 rewards == null || rewards.GetValidationErrors().Count != 0 ||
