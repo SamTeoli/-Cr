@@ -17,7 +17,7 @@ MonoBehaviour:
   encounterGrade: 1
   enemySlots:
   - enemyInstanceId: TEST-ENEMY-ELITE-LEFT
-enemy: {fileID: 11400000, guid: 38e10000000000000000000000000001, type: 2}
+    enemy: {fileID: 11400000, guid: 38e10000000000000000000000000001, type: 2}
     position: 0
   - enemyInstanceId: TEST-ENEMY-ELITE-CENTER
     enemy: {fileID: 11400000, guid: 38e20000000000000000000000000002, type: 2}
