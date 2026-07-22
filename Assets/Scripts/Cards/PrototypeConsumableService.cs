@@ -1,43 +1,9 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace HaveABreak.Cards
 {
-    public enum PrototypeConsumableEffect
-    {
-        HealPlayer,
-        ClearPlayerStatuses,
-        RestoreMana,
-        IncreaseEnchantSlot
-    }
-
-    [Serializable]
-    public sealed class PrototypeConsumableDefinition
-    {
-        public PrototypeConsumableDefinition(
-            string itemId,
-            string displayName,
-            string rulesText,
-            PrototypeConsumableEffect effect,
-            int amount,
-            int shopPrice)
-        {
-            ItemId = itemId;
-            DisplayName = displayName;
-            RulesText = rulesText;
-            Effect = effect;
-            Amount = amount;
-            ShopPrice = shopPrice;
-        }
-
-        public string ItemId { get; }
-        public string DisplayName { get; }
-        public string RulesText { get; }
-        public PrototypeConsumableEffect Effect { get; }
-        public int Amount { get; }
-        public int ShopPrice { get; }
-    }
-
     public enum PrototypeConsumableFailure
     {
         None,
@@ -58,29 +24,16 @@ namespace HaveABreak.Cards
         public const string ManaBattery = "ITEM-MANA-2";
         public const string EnchantHammer = "ITEM-ENCHANT-HAMMER";
 
-        private static readonly PrototypeConsumableDefinition[] Items =
+        private static ConsumableDatabase Database =>
+            Resources.Load<RuntimePrototypeConfig>(
+                "GameData/RuntimePrototypeConfig")?.ConsumableDatabase;
+
+        public static IReadOnlyList<ConsumableData> All =>
+            Database?.Consumables ?? Array.Empty<ConsumableData>();
+
+        public static ConsumableData Find(string itemId)
         {
-            new(HealingPotion, "회복 포션", "플레이어 HP를 5 회복한다.",
-                PrototypeConsumableEffect.HealPlayer, 5, 30),
-            new(CleanseScroll, "해제 주문서", "플레이어의 상태이상을 모두 해제한다.",
-                PrototypeConsumableEffect.ClearPlayerStatuses, 0, 35),
-            new(ManaBattery, "비상 전지", "현재 마력을 2 회복한다.",
-                PrototypeConsumableEffect.RestoreMana, 2, 35),
-            new(EnchantHammer, "인첸트 망치", "전투 밖에서 카드의 인첸트 슬롯을 1칸 늘린다.",
-                PrototypeConsumableEffect.IncreaseEnchantSlot, 1, 60)
-        };
-
-        public static IReadOnlyList<PrototypeConsumableDefinition> All => Items;
-
-        public static PrototypeConsumableDefinition Find(string itemId)
-        {
-            if (string.IsNullOrWhiteSpace(itemId))
-            {
-                return null;
-            }
-
-            return Array.Find(Items, item => string.Equals(
-                item.ItemId, itemId.Trim(), StringComparison.OrdinalIgnoreCase));
+            return Database?.Find(itemId);
         }
     }
 
@@ -106,10 +59,10 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            PrototypeConsumableDefinition item =
+            ConsumableData item =
                 PrototypeConsumableCatalog.Find(itemId);
             if (item == null ||
-                item.Effect == PrototypeConsumableEffect.IncreaseEnchantSlot)
+                item.Effect == ConsumableEffect.IncreaseEnchantSlot)
             {
                 failure = PrototypeConsumableFailure.InvalidItem;
                 return false;
@@ -123,11 +76,11 @@ namespace HaveABreak.Cards
 
             appliedAmount = item.Effect switch
             {
-                PrototypeConsumableEffect.HealPlayer =>
+                ConsumableEffect.HealPlayer =>
                     context.Runtime.Player.ApplyHealing(item.Amount),
-                PrototypeConsumableEffect.ClearPlayerStatuses =>
+                ConsumableEffect.ClearPlayerStatuses =>
                     context.Runtime.Player.Status.ClearAll(),
-                PrototypeConsumableEffect.RestoreMana =>
+                ConsumableEffect.RestoreMana =>
                     context.Runtime.CardPlay.Mana.Restore(item.Amount),
                 _ => 0
             };

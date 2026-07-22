@@ -311,7 +311,7 @@ namespace HaveABreak.Cards
             int seed = campaign.Seed + campaign.CompletedNodeCount * 31 +
                        campaign.ShopRerollCount * 101;
             GUILayout.Label("소모아이템");
-            foreach (PrototypeConsumableDefinition item in
+            foreach (ConsumableData item in
                      Rotate(PrototypeConsumableCatalog.All, seed).Take(3))
             {
                 GUILayout.BeginHorizontal(GUI.skin.box);
@@ -444,10 +444,10 @@ namespace HaveABreak.Cards
             foreach (string itemId in progress.RunState.ConsumableItemIds
                          .Distinct().ToList())
             {
-                PrototypeConsumableDefinition item =
+                ConsumableData item =
                     PrototypeConsumableCatalog.Find(itemId);
                 if (item == null ||
-                    item.Effect == PrototypeConsumableEffect.IncreaseEnchantSlot)
+                    item.Effect == ConsumableEffect.IncreaseEnchantSlot)
                     continue;
                 int owned = progress.RunState.ConsumableItemIds.Count(value =>
                     string.Equals(value, itemId, StringComparison.OrdinalIgnoreCase));
@@ -817,7 +817,7 @@ namespace HaveABreak.Cards
                 if (context.VictoryConsumableRewards != null &&
                     !context.VictoryConsumableRewards.Claimed)
                 {
-                    foreach (PrototypeConsumableDefinition item in
+                    foreach (ConsumableData item in
                              PrototypeConsumableCatalog.All.Take(3))
                     {
                         if (!GUILayout.Button($"{item.DisplayName} · {item.RulesText}"))

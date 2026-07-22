@@ -338,7 +338,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            PrototypeConsumableDefinition item =
+            ConsumableData item =
                 PrototypeConsumableCatalog.Find(itemId);
             if (item == null)
             {
