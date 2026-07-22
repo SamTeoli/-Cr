@@ -527,9 +527,25 @@ namespace HaveABreak.Cards
             return 10 + (campaign?.ShopRerollCount ?? 0) * 5;
         }
 
+        public static int GetShopRerollCost(
+            RunCampaignState campaign,
+            ShopEconomyConfig config)
+        {
+            return config?.GetRerollCost(campaign?.ShopRerollCount ?? 0) ?? 0;
+        }
+
         public static bool TryRerollShop(
             RunCampaignState campaign,
             RunBattleState run,
+            out RunCampaignFailure failure)
+        {
+            return TryRerollShop(campaign, run, null, out failure);
+        }
+
+        public static bool TryRerollShop(
+            RunCampaignState campaign,
+            RunBattleState run,
+            ShopEconomyConfig config,
             out RunCampaignFailure failure)
         {
             if (!ValidateNode(campaign, run, RunNodeType.Shop, out failure))
@@ -537,7 +553,10 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (!run.TrySpendGold(GetShopRerollCost(campaign)))
+            int cost = config == null
+                ? GetShopRerollCost(campaign)
+                : GetShopRerollCost(campaign, config);
+            if (!run.TrySpendGold(cost))
             {
                 failure = RunCampaignFailure.InsufficientGold;
                 return false;

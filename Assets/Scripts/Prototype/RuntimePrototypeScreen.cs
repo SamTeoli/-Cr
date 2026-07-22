@@ -347,11 +347,12 @@ namespace HaveABreak.Cards
                 DrawShopEnchant(config.EnchantDatabase.Find(offer.ContentId), offer);
             }
             GUILayout.BeginHorizontal();
-            int cost = RunCampaignService.GetShopRerollCost(campaign);
+            ShopEconomyConfig economy = config.ShopEconomyConfig;
+            int cost = RunCampaignService.GetShopRerollCost(campaign, economy);
             if (GUILayout.Button($"전체 리롤 · {cost}G"))
             {
                 if (RunCampaignService.TryRerollShop(
-                        campaign, progress.RunState, out var failure))
+                        campaign, progress.RunState, economy, out var failure))
                 {
                     message = "상점 상품을 다시 생성했습니다.";
                     SaveRun(null);
