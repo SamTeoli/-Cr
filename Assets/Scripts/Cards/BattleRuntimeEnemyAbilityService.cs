@@ -69,11 +69,7 @@ namespace HaveABreak.Cards
             for (int i = installations.Count - 1; i >= 0; i--)
             {
                 BattleRuntimeTrapInstallation installation = installations[i];
-                if (installation?.SourceTrap?.SourceCard == null ||
-                    !string.Equals(
-                        installation.SourceTrap.SourceCard.CatalogCardId,
-                        TestContentIds.C10,
-                        StringComparison.OrdinalIgnoreCase))
+                if (installation?.SourceTrap?.SourceCard == null)
                 {
                     continue;
                 }

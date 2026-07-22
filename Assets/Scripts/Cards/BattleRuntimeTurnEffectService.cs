@@ -27,10 +27,9 @@ namespace HaveABreak.Cards
             {
                 if (monster == null ||
                     monster.Card.Zone != CardZone.MonsterField ||
-                    !string.Equals(
-                        monster.Card.SourceCard.CatalogCardId,
-                        TestContentIds.C03,
-                        StringComparison.OrdinalIgnoreCase))
+                    !CardEffectRegistrationCatalog.TryFind(
+                        monster.Card.SourceCard.CatalogCardId, out CardEffectRegistration registration) ||
+                    registration.Handler is not IPlayerTurnEndCardEffectHandler handler)
                 {
                     continue;
                 }
@@ -48,19 +47,14 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
-                if (!C03SeatRepairerTurnEndResolver.TryResolve(
-                        monster,
-                        runtime.Turn.PlayerTurnNumber,
-                        firstPlayerTurnEventIndex,
-                        runtime.EventLog,
-                        runtime.EffectResolutions,
-                        out C03SeatRepairerResult c03Result))
+                if (!handler.TryResolve(runtime, monster, firstPlayerTurnEventIndex,
+                        out int gained))
                 {
                     return false;
                 }
 
                 resolvedCount++;
-                defenseGained += c03Result.DefenseGained;
+                defenseGained += gained;
             }
 
             if (!BattleRuntimeFriendlyStatusTurnService.TryResolveTurnEnd(

@@ -39,16 +39,16 @@ namespace HaveABreak.Cards
         {
             RegisterBuiltIn(TestContentIds.C01, CardEffectRoute.Summon, new C01CardEffectHandler());
             RegisterBuiltIn(TestContentIds.C02, CardEffectRoute.Summon, new C02CardEffectHandler());
-            RegisterBuiltIn(TestContentIds.C03, CardEffectRoute.Passive);
-            RegisterBuiltIn(TestContentIds.C04, CardEffectRoute.Passive);
+            RegisterBuiltIn(TestContentIds.C03, CardEffectRoute.Passive, new C03CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C04, CardEffectRoute.Passive, new C04CardEffectHandler());
             RegisterBuiltIn(TestContentIds.C05, CardEffectRoute.TargetedSkill, new C05CardEffectHandler());
             RegisterBuiltIn(TestContentIds.C06, CardEffectRoute.TargetedSkill, new C06CardEffectHandler());
             RegisterBuiltIn(TestContentIds.C07, CardEffectRoute.BanishSkill, new C07CardEffectHandler());
-            RegisterBuiltIn(TestContentIds.C08, CardEffectRoute.TrapInstallation);
-            RegisterBuiltIn(TestContentIds.C09, CardEffectRoute.TrapInstallation);
-            RegisterBuiltIn(TestContentIds.C10, CardEffectRoute.TrapInstallation);
-            RegisterBuiltIn(TestContentIds.C11, CardEffectRoute.Passive);
-            RegisterBuiltIn(TestContentIds.C12, CardEffectRoute.Passive);
+            RegisterBuiltIn(TestContentIds.C08, CardEffectRoute.TrapInstallation, new C08CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C09, CardEffectRoute.TrapInstallation, new C09CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C10, CardEffectRoute.TrapInstallation, new C10CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C11, CardEffectRoute.Passive, new C11CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C12, CardEffectRoute.Passive, new C12CardEffectHandler());
         }
 
         public static bool TryRegister(CardEffectRegistration registration)
