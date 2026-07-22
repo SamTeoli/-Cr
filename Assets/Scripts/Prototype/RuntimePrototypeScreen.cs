@@ -165,7 +165,9 @@ namespace HaveABreak.Cards
         {
             RunBattleState run = progress.RunState;
             GUILayout.Label(
-                $"막 {campaign.Act} · 완료 {campaign.CompletedNodeCount}/12",
+                $"막 {campaign.GetAct(config.RunStartProgressionConfig)} · 완료 " +
+                $"{campaign.CompletedNodeCount}/" +
+                $"{config.RunStartProgressionConfig.TotalNodeCount}",
                 headingStyle);
             GUILayout.Label(
                 $"HP {run.CurrentHealth}/{run.MaximumHealth}   골드 {run.Gold}   " +
@@ -948,13 +950,8 @@ namespace HaveABreak.Cards
                 deck.TryAdd(new RunCardInstance(
                     card, $"OWNED-RUN-{++index:00}-{card.CatalogCardId}", 1), out _);
             }
-            RunBattleState run = new(30, 30, 60, new[]
-            {
-                PrototypeConsumableCatalog.HealingPotion,
-                PrototypeConsumableCatalog.CleanseScroll,
-                PrototypeConsumableCatalog.ManaBattery,
-                PrototypeConsumableCatalog.EnchantHammer
-            });
+            RunBattleState run =
+                config.RunStartProgressionConfig.CreateInitialRunState();
             LoadPermanentRewards();
             progress = new RunEncounterProgressState(run, deck, permanentRewards);
             campaign = new RunCampaignState(Environment.TickCount & int.MaxValue);
@@ -1010,7 +1007,9 @@ namespace HaveABreak.Cards
                 $"RUN-{campaign.Seed}-NODE-{campaign.CompletedNodeCount + 1:00}";
             int seed = campaign.Seed + campaign.CompletedNodeCount * 101;
             if (!RunEncounterProgressService.TryBegin(
-                    progress, battleId, encounter, seed, 5, Array.Empty<string>(),
+                    progress, battleId, encounter, seed,
+                    config.RunStartProgressionConfig.BattleMaximumMana,
+                    Array.Empty<string>(),
                     (uint)Mathf.Abs(seed), config.BattleRewardConfig,
                     out _, out var failure, out var flowFailure,
                     out var deckFailure, out var bootstrapFailure, out var sessionFailure,

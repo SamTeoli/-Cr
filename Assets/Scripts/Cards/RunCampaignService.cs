@@ -163,6 +163,8 @@ namespace HaveABreak.Cards
         public int Seed => seed;
         public int CompletedNodeCount => completedNodeCount;
         public int Act => Mathf.Clamp(completedNodeCount / 4 + 1, 1, 3);
+        public int GetAct(RunStartProgressionConfig config) =>
+            config == null ? Act : config.GetAct(completedNodeCount);
         public int ShopRerollCount => shopRerollCount;
         public RunCampaignPhase Phase => phase;
         public RunNodeChoice ActiveNode => activeNode;

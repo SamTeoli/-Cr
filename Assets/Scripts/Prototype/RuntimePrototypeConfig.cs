@@ -16,6 +16,7 @@ namespace HaveABreak.Cards
         [SerializeField] private RunNodeGenerationConfig runNodeGenerationConfig;
         [SerializeField] private ShopEconomyConfig shopEconomyConfig;
         [SerializeField] private RestUpgradeConfig restUpgradeConfig;
+        [SerializeField] private RunStartProgressionConfig runStartProgressionConfig;
         [SerializeField] private BattleRewardConfig battleRewardConfig;
         [SerializeField] private EncounterDatabase encounterDatabase;
         [SerializeField] private RunEncounterProgressionConfig encounterProgressionConfig;
@@ -28,6 +29,8 @@ namespace HaveABreak.Cards
             runNodeGenerationConfig;
         public ShopEconomyConfig ShopEconomyConfig => shopEconomyConfig;
         public RestUpgradeConfig RestUpgradeConfig => restUpgradeConfig;
+        public RunStartProgressionConfig RunStartProgressionConfig =>
+            runStartProgressionConfig;
         public BattleRewardConfig BattleRewardConfig => battleRewardConfig;
         public EncounterDatabase EncounterDatabase => encounterDatabase;
         public RunEncounterProgressionConfig EncounterProgressionConfig =>
@@ -56,6 +59,8 @@ namespace HaveABreak.Cards
                                shopEconomyConfig.GetValidationErrors().Count == 0 &&
                                restUpgradeConfig != null &&
                                restUpgradeConfig.GetValidationErrors().Count == 0 &&
+                               runStartProgressionConfig != null &&
+                               runStartProgressionConfig.GetValidationErrors().Count == 0 &&
                                battleRewardConfig != null &&
                                battleRewardConfig.GetValidationErrors().Count == 0 &&
                                encounterDatabase != null &&
