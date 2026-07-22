@@ -281,10 +281,14 @@ namespace HaveABreak.Cards
         private void DrawRestOrUpgrade()
         {
             GUILayout.Label("회복 · 강화", headingStyle);
-            if (GUILayout.Button("최대 HP의 30% 회복", GUILayout.Height(38f)))
+            RestUpgradeConfig rules = config.RestUpgradeConfig;
+            if (GUILayout.Button(
+                    $"최대 HP의 {rules.HealingRatio * 100f:0.#}% 회복",
+                    GUILayout.Height(38f)))
             {
                 if (RunCampaignService.TryRest(
-                        campaign, progress.RunState, out int healed, out var failure))
+                        campaign, progress.RunState, rules,
+                        out int healed, out var failure))
                 {
                     message = $"HP를 {healed} 회복했습니다.";
                     SaveRun(null);
@@ -297,12 +301,15 @@ namespace HaveABreak.Cards
                 ? "강화할 카드 없음"
                 : $"강화 대상: {selected.Card.DisplayName} Lv.{selected.CurrentLevel}");
             if (GUILayout.Button("다음 카드", GUILayout.Width(100f))) CycleUpgradeCard();
-            if (GUILayout.Button("1레벨 강화", GUILayout.Width(120f)))
+            if (GUILayout.Button(
+                    $"{rules.UpgradeLevelIncrease}레벨 강화",
+                    GUILayout.Width(120f)))
             {
                 if (RunCampaignService.TryUpgrade(
-                        campaign, progress, selectedUpgradeCardId, out var failure))
+                        campaign, progress, selectedUpgradeCardId, rules,
+                        out var failure))
                 {
-                    message = "카드를 1레벨 강화했습니다.";
+                    message = $"카드를 {rules.UpgradeLevelIncrease}레벨 강화했습니다.";
                     SaveRun(null);
                 }
                 else message = $"강화 실패: {failure}";

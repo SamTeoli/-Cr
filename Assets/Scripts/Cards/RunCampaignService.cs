@@ -527,6 +527,16 @@ namespace HaveABreak.Cards
             out int healed,
             out RunCampaignFailure failure)
         {
+            return TryRest(campaign, run, null, out healed, out failure);
+        }
+
+        public static bool TryRest(
+            RunCampaignState campaign,
+            RunBattleState run,
+            RestUpgradeConfig config,
+            out int healed,
+            out RunCampaignFailure failure)
+        {
             healed = 0;
             if (!ValidateNode(campaign, run, RunNodeType.RestOrUpgrade,
                     out failure))
@@ -534,8 +544,9 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            healed = run.ApplyHealing(
-                Mathf.CeilToInt(run.MaximumHealth * 0.3f));
+            healed = run.ApplyHealing(config == null
+                ? Mathf.CeilToInt(run.MaximumHealth * 0.3f)
+                : config.GetHealingAmount(run.MaximumHealth));
             FinishNonBattleNode(campaign, run);
             failure = RunCampaignFailure.None;
             return true;
@@ -545,6 +556,16 @@ namespace HaveABreak.Cards
             RunCampaignState campaign,
             RunEncounterProgressState progress,
             string ownedCardId,
+            out RunCampaignFailure failure)
+        {
+            return TryUpgrade(campaign, progress, ownedCardId, null, out failure);
+        }
+
+        public static bool TryUpgrade(
+            RunCampaignState campaign,
+            RunEncounterProgressState progress,
+            string ownedCardId,
+            RestUpgradeConfig config,
             out RunCampaignFailure failure)
         {
             if (progress?.RunState == null || progress.RunDeck == null)
@@ -566,7 +587,8 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            card.SetLevel(card.CurrentLevel + 1);
+            card.SetLevel(card.CurrentLevel +
+                          (config?.UpgradeLevelIncrease ?? 1));
             FinishNonBattleNode(campaign, progress.RunState);
             failure = RunCampaignFailure.None;
             return true;
