@@ -66,10 +66,10 @@ namespace HaveABreak.Cards
 
             foreach (RunEnchantSlot slot in entry.EnchantState.Slots)
             {
-                if (!slot.IsEmpty && slot.Active && string.Equals(
+                if (!slot.IsEmpty && slot.Active &&
+                    EnchantEffectRegistrationCatalog.HasCapability(
                         slot.Enchant.DefinitionId,
-                        TestContentIds.E07,
-                        StringComparison.OrdinalIgnoreCase))
+                        EnchantEffectCapability.TransferStamp))
                 {
                     return true;
                 }

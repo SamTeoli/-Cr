@@ -220,9 +220,8 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            string catalogCardId = card.SourceCard.CatalogCardId;
-
-            bool deferSkillResolution = Is(catalogCardId, TestContentIds.C07);
+            CardEffectRegistration registration = FindRegistration(card);
+            bool deferSkillResolution = registration.DefersSkillResolution;
             if (!BattleRuntimeCardPlayService.TryPlay(
                     runtime,
                     battleCardId,
@@ -242,8 +241,7 @@ namespace HaveABreak.Cards
             BattleRuntimeTrapInstallation trapInstallation = null;
             bool effectResolved = true;
 
-            if (Is(catalogCardId, TestContentIds.C01) ||
-                Is(catalogCardId, TestContentIds.C02))
+            if (registration.Route == CardEffectRoute.Summon)
             {
                 effectResolved = BattleRuntimeSummonEffectService.TryResolve(
                     runtime,
@@ -252,8 +250,7 @@ namespace HaveABreak.Cards
                     out summonEffect,
                     out _);
             }
-            else if (Is(catalogCardId, TestContentIds.C05) ||
-                     Is(catalogCardId, TestContentIds.C06))
+            else if (registration.Route == CardEffectRoute.TargetedSkill)
             {
                 effectResolved = BattleRuntimeSkillEffectService.TryResolve(
                     runtime,
@@ -262,7 +259,7 @@ namespace HaveABreak.Cards
                     out skillEffect,
                     out _);
             }
-            else if (Is(catalogCardId, TestContentIds.C07))
+            else if (registration.Route == CardEffectRoute.BanishSkill)
             {
                 effectResolved = BattleRuntimeC07EffectService.TryResolve(
                     runtime,
@@ -279,9 +276,7 @@ namespace HaveABreak.Cards
                         out _);
                 }
             }
-            else if (Is(catalogCardId, TestContentIds.C08) ||
-                     Is(catalogCardId, TestContentIds.C09) ||
-                     Is(catalogCardId, TestContentIds.C10))
+            else if (registration.Route == CardEffectRoute.TrapInstallation)
             {
                 effectResolved =
                     BattleRuntimeTrapEffectService.TryRegisterInstallation(
@@ -332,15 +327,18 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            string catalogCardId = card.SourceCard.CatalogCardId;
-            if (!IsSupportedTestCard(catalogCardId))
+            if (!CardEffectRegistrationCatalog.TryFind(
+                    card.SourceCard.CatalogCardId,
+                    out CardEffectRegistration registration))
             {
                 failure =
                     BattleRuntimePlayerCardActionFailure.UnsupportedTestCard;
                 return false;
             }
 
-            if (Is(catalogCardId, TestContentIds.C01))
+            if (registration.Route == CardEffectRoute.Summon &&
+                card.SourceCard.HasEnchantCompatibilityTag(
+                    EnchantCompatibilityTag.FixedSingleEnemyTarget))
             {
                 if (!EnchantFixedTargetResolver.TryDeclare(
                         battleCardId,
@@ -357,8 +355,7 @@ namespace HaveABreak.Cards
 
                 summonTarget = declaration;
             }
-            else if (Is(catalogCardId, TestContentIds.C05) ||
-                     Is(catalogCardId, TestContentIds.C06))
+            else if (registration.Route == CardEffectRoute.TargetedSkill)
             {
                 if (!IsActiveEnemy(runtime, targetEnemyId))
                 {
@@ -367,7 +364,7 @@ namespace HaveABreak.Cards
                     return false;
                 }
             }
-            else if (Is(catalogCardId, TestContentIds.C07))
+            else if (registration.Route == CardEffectRoute.BanishSkill)
             {
                 BattleCardInstance selected = runtime.Deck.Zones.Find(
                     selectedBanishBattleCardId);
@@ -395,28 +392,11 @@ namespace HaveABreak.Cards
                    runtime.EnemyStatuses.Find(enemyId) != null;
         }
 
-        private static bool IsSupportedTestCard(string catalogCardId)
+        private static CardEffectRegistration FindRegistration(BattleCardInstance card)
         {
-            return Is(catalogCardId, TestContentIds.C01) ||
-                   Is(catalogCardId, TestContentIds.C02) ||
-                   Is(catalogCardId, TestContentIds.C03) ||
-                   Is(catalogCardId, TestContentIds.C04) ||
-                   Is(catalogCardId, TestContentIds.C05) ||
-                   Is(catalogCardId, TestContentIds.C06) ||
-                   Is(catalogCardId, TestContentIds.C07) ||
-                   Is(catalogCardId, TestContentIds.C08) ||
-                   Is(catalogCardId, TestContentIds.C09) ||
-                   Is(catalogCardId, TestContentIds.C10) ||
-                   Is(catalogCardId, TestContentIds.C11) ||
-                   Is(catalogCardId, TestContentIds.C12);
-        }
-
-        private static bool Is(string actual, string expected)
-        {
-            return string.Equals(
-                actual,
-                expected,
-                StringComparison.OrdinalIgnoreCase);
+            CardEffectRegistrationCatalog.TryFind(
+                card.SourceCard.CatalogCardId, out CardEffectRegistration registration);
+            return registration;
         }
     }
 }

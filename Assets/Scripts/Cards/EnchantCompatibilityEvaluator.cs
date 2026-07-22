@@ -11,22 +11,31 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            return enchant.DefinitionId?.ToUpperInvariant() switch
+            if (!EnchantEffectRegistrationCatalog.TryFind(
+                    enchant.DefinitionId, out EnchantEffectRegistration registration))
             {
-                TestContentIds.E01 => card is MonsterCardData healthMonster && healthMonster.Health > 0,
-                TestContentIds.E02 => card is MonsterCardData attackMonster && attackMonster.Attack > 0,
-                TestContentIds.E03 => card.HasEnchantCompatibilityTag(
+                return string.IsNullOrWhiteSpace(enchant.AdditionalCompatibilityRule);
+            }
+
+            return registration.Compatibility switch
+            {
+                EnchantCompatibilityRequirement.PositiveHealthMonster =>
+                    card is MonsterCardData healthMonster && healthMonster.Health > 0,
+                EnchantCompatibilityRequirement.PositiveAttackMonster =>
+                    card is MonsterCardData attackMonster && attackMonster.Attack > 0,
+                EnchantCompatibilityRequirement.MainEffectCompletion => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.MainEffectCompletion),
-                TestContentIds.E04 => card.CardType == CardType.Skill && card.ManaCost >= 2,
-                TestContentIds.E05 => card.HasEnchantCompatibilityTag(
+                EnchantCompatibilityRequirement.SkillCostAtLeastTwo =>
+                    card.CardType == CardType.Skill && card.ManaCost >= 2,
+                EnchantCompatibilityRequirement.EnemyAffectingEffect => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.EnemyAffectingEffect),
-                TestContentIds.E06 => card.HasEnchantCompatibilityTag(
+                EnchantCompatibilityRequirement.NumericRepeatingEffect => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.NumericRepeatingEffect),
-                TestContentIds.E07 => card.HasEnchantCompatibilityTag(
+                EnchantCompatibilityRequirement.NormalGraveyardAfterResolution => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.NormalGraveyardAfterResolution),
-                TestContentIds.E08 => card.HasEnchantCompatibilityTag(
+                EnchantCompatibilityRequirement.FixedSingleEnemyTarget => card.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.FixedSingleEnemyTarget),
-                _ => string.IsNullOrWhiteSpace(enchant.AdditionalCompatibilityRule)
+                _ => true
             };
         }
     }
