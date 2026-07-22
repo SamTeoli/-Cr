@@ -24,6 +24,7 @@ namespace HaveABreak.EditorTools
         internal static bool Validate()
         {
             bool valid = ValidateCampaignProgression() &&
+                         ValidatePersistedNodePath() &&
                          ValidateRunMutations() &&
                          ValidateConsumableDefinitions() &&
                          ValidateEventAndShopSlotData() &&
@@ -40,6 +41,38 @@ namespace HaveABreak.EditorTools
             }
 
             return valid;
+        }
+
+        private static bool ValidatePersistedNodePath()
+        {
+            RunCampaignState campaign = new(20260722);
+            IReadOnlyList<RunNodeChoice> first =
+                RunCampaignService.GetChoices(campaign);
+            string json = JsonUtility.ToJson(campaign);
+            RunCampaignState restored =
+                JsonUtility.FromJson<RunCampaignState>(json);
+            IReadOnlyList<RunNodeChoice> restoredChoices =
+                RunCampaignService.GetChoices(restored);
+            RunNodeChoice selected =
+                restoredChoices.FirstOrDefault(value => value.IsBattle);
+            if (first.Count != restoredChoices.Count || first.Count == 0 ||
+                first.Select(value => value.NodeId).SequenceEqual(
+                    restoredChoices.Select(value => value.NodeId)) == false ||
+                selected == null ||
+                !RunCampaignService.TrySelectNode(
+                    restored, selected.NodeId, out _))
+            {
+                return false;
+            }
+
+            RunCampaignService.MarkBattleReward(restored, BattleOutcome.Victory);
+            RunCampaignService.CompleteBattleReward(restored);
+
+            IReadOnlyList<RunNodeChoice> next =
+                RunCampaignService.GetChoices(restored);
+            return restored.SelectedNodePath.Count == 1 && next.Count > 0 &&
+                   next.All(value => value.PreviousNodeId ==
+                       restored.SelectedNodePath[0]);
         }
 
         private static bool ValidateCampaignProgression()

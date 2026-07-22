@@ -110,21 +110,25 @@ namespace HaveABreak.Cards
         [SerializeField] private string nodeId;
         [SerializeField] private RunNodeType nodeType;
         [SerializeField] private string displayName;
+        [SerializeField] private string previousNodeId;
 
         private RunNodeChoice()
         {
         }
 
-        public RunNodeChoice(string id, RunNodeType type, string name)
+        public RunNodeChoice(string id, RunNodeType type, string name,
+            string connectedFromNodeId = null)
         {
             nodeId = id;
             nodeType = type;
             displayName = name;
+            previousNodeId = connectedFromNodeId;
         }
 
         public string NodeId => nodeId;
         public RunNodeType NodeType => nodeType;
         public string DisplayName => displayName;
+        public string PreviousNodeId => previousNodeId;
         public bool IsBattle => nodeType == RunNodeType.Battle ||
                                 nodeType == RunNodeType.EliteBattle ||
                                 nodeType == RunNodeType.MidBoss ||
@@ -145,6 +149,8 @@ namespace HaveABreak.Cards
         [SerializeField] private RunNodeChoice activeNode;
         [SerializeField] private List<RunShopProductSlot> shopSlots = new();
         [SerializeField] private List<RunSituationEventChoice> eventChoices = new();
+        [SerializeField] private List<RunNodeChoice> availableNodeChoices = new();
+        [SerializeField] private List<string> selectedNodePath = new();
 
         private RunCampaignState()
         {
@@ -166,12 +172,19 @@ namespace HaveABreak.Cards
             shopSlots ??= new List<RunShopProductSlot>();
         public IReadOnlyList<RunSituationEventChoice> EventChoices =>
             eventChoices ??= new List<RunSituationEventChoice>();
+        public IReadOnlyList<RunNodeChoice> AvailableNodeChoices =>
+            availableNodeChoices ??= new List<RunNodeChoice>();
+        public IReadOnlyList<string> SelectedNodePath =>
+            selectedNodePath ??= new List<string>();
         public bool IsFinished => phase == RunCampaignPhase.Completed ||
                                   phase == RunCampaignPhase.Defeated;
 
         internal void Select(RunNodeChoice choice)
         {
             activeNode = choice;
+            selectedNodePath ??= new List<string>();
+            selectedNodePath.Add(choice.NodeId);
+            availableNodeChoices?.Clear();
             shopRerollCount = 0;
             shopSlots ??= new List<RunShopProductSlot>();
             eventChoices ??= new List<RunSituationEventChoice>();
@@ -198,6 +211,13 @@ namespace HaveABreak.Cards
             phase = finalBoss
                 ? RunCampaignPhase.Completed
                 : RunCampaignPhase.NodeSelection;
+        }
+
+        internal void SetAvailableNodeChoices(IEnumerable<RunNodeChoice> values)
+        {
+            availableNodeChoices = values == null
+                ? new List<RunNodeChoice>()
+                : new List<RunNodeChoice>(values);
         }
 
         internal void MarkDefeated()
@@ -246,15 +266,24 @@ namespace HaveABreak.Cards
                 return Array.Empty<RunNodeChoice>();
             }
 
+            if (campaign.AvailableNodeChoices.Count > 0)
+            {
+                return campaign.AvailableNodeChoices;
+            }
+
             int index = campaign.CompletedNodeCount;
             if (index == RunCampaignState.MidBossIndex)
             {
-                return new[] { Choice(index, 0, RunNodeType.MidBoss) };
+                campaign.SetAvailableNodeChoices(new[]
+                    { Choice(campaign, index, 0, RunNodeType.MidBoss) });
+                return campaign.AvailableNodeChoices;
             }
 
             if (index == RunCampaignState.FinalBossIndex)
             {
-                return new[] { Choice(index, 0, RunNodeType.FinalBoss) };
+                campaign.SetAvailableNodeChoices(new[]
+                    { Choice(campaign, index, 0, RunNodeType.FinalBoss) });
+                return campaign.AvailableNodeChoices;
             }
 
             List<RunNodeChoice> choices = new();
@@ -271,10 +300,10 @@ namespace HaveABreak.Cards
                     type = RunNodeType.Battle;
                 }
 
-                choices.Add(Choice(index, i, type));
+                choices.Add(Choice(campaign, index, i, type));
             }
-
-            return choices;
+            campaign.SetAvailableNodeChoices(choices);
+            return campaign.AvailableNodeChoices;
         }
 
         public static bool TrySelectNode(
@@ -652,6 +681,7 @@ namespace HaveABreak.Cards
         }
 
         private static RunNodeChoice Choice(
+            RunCampaignState campaign,
             int nodeIndex,
             int branch,
             RunNodeType type)
@@ -668,7 +698,10 @@ namespace HaveABreak.Cards
                     RunNodeType.RestOrUpgrade => "회복 · 강화",
                     RunNodeType.MidBoss => "중간보스",
                     _ => "보스"
-                });
+                },
+                campaign.SelectedNodePath.Count > 0
+                    ? campaign.SelectedNodePath[campaign.SelectedNodePath.Count - 1]
+                    : null);
         }
 
         private static bool ValidateNode(
