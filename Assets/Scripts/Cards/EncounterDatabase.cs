@@ -44,6 +44,10 @@ namespace HaveABreak.Cards
             }
 
             HashSet<string> ids = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, EnemyDefinitionData> enemiesById =
+                new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<EnemyDefinitionData, BattleEncounterGrade>
+                enemyGrades = new();
             for (int i = 0; i < encounters.Count; i++)
             {
                 EncounterData encounter = encounters[i];
@@ -62,6 +66,45 @@ namespace HaveABreak.Cards
                 errors.AddRange(
                     EncounterDataValidationService.ValidateEncounter(
                         encounter));
+
+                if (encounter.EnemySlots == null)
+                {
+                    continue;
+                }
+
+                foreach (EncounterEnemySlot slot in encounter.EnemySlots)
+                {
+                    EnemyDefinitionData enemy = slot?.Enemy;
+                    if (enemy == null ||
+                        string.IsNullOrWhiteSpace(enemy.EnemyId))
+                    {
+                        continue;
+                    }
+
+                    if (enemiesById.TryGetValue(
+                            enemy.EnemyId, out EnemyDefinitionData existing) &&
+                        !ReferenceEquals(existing, enemy))
+                    {
+                        errors.Add(
+                            $"Enemy database references duplicate ID '{enemy.EnemyId}' from different assets.");
+                    }
+                    else
+                    {
+                        enemiesById[enemy.EnemyId] = enemy;
+                    }
+
+                    if (enemyGrades.TryGetValue(
+                            enemy, out BattleEncounterGrade existingGrade) &&
+                        existingGrade != encounter.EncounterGrade)
+                    {
+                        errors.Add(
+                            $"Enemy '{enemy.EnemyId}' is shared by encounter grades '{existingGrade}' and '{encounter.EncounterGrade}'.");
+                    }
+                    else
+                    {
+                        enemyGrades[enemy] = encounter.EncounterGrade;
+                    }
+                }
             }
 
             return errors;

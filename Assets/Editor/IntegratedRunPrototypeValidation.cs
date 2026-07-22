@@ -183,7 +183,36 @@ namespace HaveABreak.EditorTools
             };
             return expected.All(pair =>
                 database.TryGetEncounter(pair.Key, out EncounterData encounter) &&
-                encounter.EncounterGrade == pair.Value);
+                encounter.EncounterGrade == pair.Value) &&
+                   ValidateSeparatedEnemyGradeLists(database);
+        }
+
+        private static bool ValidateSeparatedEnemyGradeLists(
+            EncounterDatabase database)
+        {
+            Dictionary<EnemyDefinitionData, BattleEncounterGrade> grades = new();
+            HashSet<string> enemyIds = new(StringComparer.OrdinalIgnoreCase);
+            foreach (EncounterData encounter in database.Encounters)
+            {
+                foreach (EncounterEnemySlot slot in encounter.EnemySlots)
+                {
+                    if (slot?.Enemy == null ||
+                        (grades.TryGetValue(
+                             slot.Enemy, out BattleEncounterGrade grade) &&
+                         grade != encounter.EncounterGrade))
+                    {
+                        return false;
+                    }
+
+                    enemyIds.Add(slot.Enemy.EnemyId);
+                    grades[slot.Enemy] = encounter.EncounterGrade;
+                }
+            }
+
+            return grades.Count == 12 && enemyIds.Count == 12 &&
+                   Enum.GetValues(typeof(BattleEncounterGrade))
+                       .Cast<BattleEncounterGrade>()
+                       .All(grade => grades.Values.Count(value => value == grade) == 3);
         }
 
         private static bool ValidateRuntimePrototypeConfig()

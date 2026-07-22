@@ -16,12 +16,12 @@ MonoBehaviour:
   displayName: "시험 전투 · 엘리트 조우"
   encounterGrade: 1
   enemySlots:
-  - enemyInstanceId: TEST-ENEMY-LEFT
-    enemy: {fileID: 11400000, guid: 37e10000000000000000000000000001, type: 2}
+  - enemyInstanceId: TEST-ENEMY-ELITE-LEFT
+enemy: {fileID: 11400000, guid: 38e10000000000000000000000000001, type: 2}
     position: 0
-  - enemyInstanceId: TEST-ENEMY-CENTER
-    enemy: {fileID: 11400000, guid: 37e20000000000000000000000000002, type: 2}
+  - enemyInstanceId: TEST-ENEMY-ELITE-CENTER
+    enemy: {fileID: 11400000, guid: 38e20000000000000000000000000002, type: 2}
     position: 1
-  - enemyInstanceId: TEST-ENEMY-RIGHT
-    enemy: {fileID: 11400000, guid: 37e30000000000000000000000000003, type: 2}
+  - enemyInstanceId: TEST-ENEMY-ELITE-RIGHT
+    enemy: {fileID: 11400000, guid: 38e30000000000000000000000000003, type: 2}
     position: 2

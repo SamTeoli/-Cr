@@ -16,12 +16,12 @@ MonoBehaviour:
   displayName: "시험 전투 · 보스 조우"
   encounterGrade: 3
   enemySlots:
-  - enemyInstanceId: TEST-ENEMY-LEFT
-    enemy: {fileID: 11400000, guid: 37e10000000000000000000000000001, type: 2}
+  - enemyInstanceId: TEST-ENEMY-FINALBOSS-LEFT
+enemy: {fileID: 11400000, guid: 40e10000000000000000000000000001, type: 2}
     position: 0
-  - enemyInstanceId: TEST-ENEMY-CENTER
-    enemy: {fileID: 11400000, guid: 37e20000000000000000000000000002, type: 2}
+  - enemyInstanceId: TEST-ENEMY-FINALBOSS-CENTER
+    enemy: {fileID: 11400000, guid: 40e20000000000000000000000000002, type: 2}
     position: 1
-  - enemyInstanceId: TEST-ENEMY-RIGHT
-    enemy: {fileID: 11400000, guid: 37e30000000000000000000000000003, type: 2}
+  - enemyInstanceId: TEST-ENEMY-FINALBOSS-RIGHT
+    enemy: {fileID: 11400000, guid: 40e30000000000000000000000000003, type: 2}
     position: 2
