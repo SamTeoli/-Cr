@@ -86,6 +86,14 @@ namespace HaveABreak.Cards
 
         public bool TryConfirmPlay(CardPlayPreview preview, out CardPlayFailure failure)
         {
+            return TryConfirmPlay(preview, false, out failure);
+        }
+
+        internal bool TryConfirmPlay(
+            CardPlayPreview preview,
+            bool deferSkillResolution,
+            out CardPlayFailure failure)
+        {
             if (preview == null || string.IsNullOrWhiteSpace(preview.BattleCardId))
             {
                 failure = CardPlayFailure.InvalidPreview;
@@ -119,6 +127,7 @@ namespace HaveABreak.Cards
             }
 
             if (current.CardType == CardType.Skill &&
+                !deferSkillResolution &&
                 !deck.TryResolveGraveyardMove(current.BattleCardId, enchants, true, out _))
             {
                 deck.Zones.TryMove(current.BattleCardId, CardZone.Hand, out _);
@@ -184,4 +193,3 @@ namespace HaveABreak.Cards
         }
     }
 }
-

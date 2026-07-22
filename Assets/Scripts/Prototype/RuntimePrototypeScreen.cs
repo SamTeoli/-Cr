@@ -12,7 +12,7 @@ namespace HaveABreak.Cards
         private RunEncounterProgressState progress;
         private PlayerPermanentRewardState permanentRewards;
         private string selectedEnemyId;
-        private string selectedBanishCardId;
+        private readonly Dictionary<string, string> selectedBanishCardIds = new();
         private string selectedUpgradeCardId;
         private string message;
         private Vector2 scroll;
@@ -30,10 +30,11 @@ namespace HaveABreak.Cards
         {
             EnsureStyles();
             Rect safe = Screen.safeArea;
-            float width = Mathf.Min(1100f, safe.width - 24f);
+            float width = Mathf.Min(1100f, Mathf.Max(1f, safe.width - 24f));
+            float height = Mathf.Max(1f, safe.height - 24f);
             Rect panel = new(
                 safe.x + (safe.width - width) * 0.5f,
-                safe.y + 12f, width, safe.height - 24f);
+                safe.y + (safe.height - height) * 0.5f, width, height);
             GUI.Box(panel, GUIContent.none);
             GUILayout.BeginArea(new Rect(
                 panel.x + 12f, panel.y + 10f,
@@ -399,11 +400,14 @@ namespace HaveABreak.Cards
                 $"소멸 {runtime.Deck.Zones.Count(CardZone.Banished)} · " +
                 $"설치 {runtime.Deck.Zones.Count(CardZone.SkillField)}/" +
                 $"{BattleCardZoneState.MaximumSkillFieldSize}");
+            string playerStatus = DescribeCommonStatus(runtime.Player.Status);
+            if (!string.IsNullOrWhiteSpace(playerStatus))
+                GUILayout.Label($"플레이어 {playerStatus}", wrappedStyle);
             GUILayout.Label(
                 "전투 중 이어하기는 현재 전투의 시작 체크포인트에서 재개됩니다.",
                 wrappedStyle);
             DrawBattleConsumables(context);
-            DrawEnemies(runtime);
+            DrawEnemies(context);
             DrawMonsters(runtime);
             DrawInstalledCards(runtime);
             DrawHand(context);
@@ -477,30 +481,163 @@ namespace HaveABreak.Cards
             GUILayout.EndHorizontal();
         }
 
-        private void DrawEnemies(BattleRuntimeState runtime)
+        private void DrawEnemies(BattleRuntimeEncounterContext context)
         {
+            BattleRuntimeState runtime = context.Runtime;
+            Dictionary<string, string> intents = BuildEnemyIntentLabels(context);
             GUILayout.Label("적 필드");
             GUILayout.BeginHorizontal();
             foreach (EnemyFieldPosition position in Enum.GetValues(typeof(EnemyFieldPosition)))
             {
                 string id = runtime.EnemyPositions.GetOccupant(position);
-                GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(190f));
+                GUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true));
                 if (string.IsNullOrWhiteSpace(id)) GUILayout.Label("빈 칸");
                 else
                 {
                     BattleEnemyRuntimeState enemy = runtime.FindEnemy(id);
                     BattleEnemyStatusState status = runtime.EnemyStatuses.Find(id);
+                    EncounterEnemySlot slot = context.Encounter.EnemySlots
+                        .FirstOrDefault(value => value != null &&
+                            string.Equals(value.EnemyInstanceId, id,
+                                StringComparison.OrdinalIgnoreCase));
+                    string enemyName = slot?.Enemy?.DisplayName ?? id;
+                    int maximumHealth = slot?.Enemy?.MaximumHealth ??
+                                        enemy.Vital.CurrentHealth;
+                    string selection = string.Equals(selectedEnemyId, id,
+                        StringComparison.OrdinalIgnoreCase) ? "▶ " : string.Empty;
+                    string nextIntent = intents.TryGetValue(id, out string intent)
+                        ? intent
+                        : "없음";
                     GUILayout.Label(
-                        $"{id}\nHP {enemy.Vital.CurrentHealth} · 공격 {enemy.Attack}\n" +
-                        $"부상 {status?.Injury ?? 0} 약화 {status?.Weaken ?? 0} " +
-                        $"취약 {status?.Vulnerable ?? 0} 속박 {status?.Bind ?? 0} " +
-                        $"기절 {status?.Stun ?? 0}", wrappedStyle);
+                        $"{selection}{enemyName}\n" +
+                        $"HP {enemy.Vital.CurrentHealth}/{maximumHealth} · " +
+                        $"공격 {enemy.Attack}\n" +
+                        $"다음 행동: {nextIntent}",
+                        wrappedStyle);
+                    string statusText = DescribeEnemyStatus(status);
+                    if (!string.IsNullOrWhiteSpace(statusText))
+                        GUILayout.Label(statusText, wrappedStyle);
                     if (GUILayout.Button(selectedEnemyId == id ? "선택됨" : "대상 선택"))
                         selectedEnemyId = id;
                 }
                 GUILayout.EndVertical();
             }
             GUILayout.EndHorizontal();
+        }
+
+        private Dictionary<string, string> BuildEnemyIntentLabels(
+            BattleRuntimeEncounterContext context)
+        {
+            Dictionary<string, List<string>> actions = new(
+                StringComparer.OrdinalIgnoreCase);
+            int tieBreaker = campaign.Seed +
+                             context.Session.CompletedRoundCount * 10;
+            if (!BattleRuntimeEnemyPatternService.TryCreateCommands(
+                    context.Session,
+                    context.Encounter,
+                    tieBreaker,
+                    out List<BattleRuntimeEnemyTurnCommand> commands,
+                    out _))
+            {
+                return new Dictionary<string, string>(
+                    StringComparer.OrdinalIgnoreCase);
+            }
+
+            foreach (BattleRuntimeEnemyTurnCommand command in commands)
+            {
+                if (command == null ||
+                    string.IsNullOrWhiteSpace(command.EnemyId))
+                {
+                    continue;
+                }
+
+                if (!actions.TryGetValue(command.EnemyId, out List<string> labels))
+                {
+                    labels = new List<string>();
+                    actions.Add(command.EnemyId, labels);
+                }
+
+                labels.Add(DescribeEnemyCommand(command));
+            }
+
+            return actions.ToDictionary(
+                pair => pair.Key,
+                pair => string.Join(" → ", pair.Value),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string DescribeEnemyCommand(
+            BattleRuntimeEnemyTurnCommand command)
+        {
+            switch (command.ActionType)
+            {
+                case BattleRuntimeEnemyTurnActionType.Move:
+                    string direction = command.MoveDirection ==
+                        EnemyMoveDirection.Left ? "왼쪽" : "오른쪽";
+                    return $"{direction} 이동 {command.MoveSteps}";
+                case BattleRuntimeEnemyTurnActionType.Attack:
+                    int count = Mathf.Max(1, command.AutomaticAttackCount);
+                    return count == 1 ? "공격" : $"공격 ×{count}";
+                case BattleRuntimeEnemyTurnActionType.Ability:
+                    EnemyAbilityResolutionContext ability = command.Ability;
+                    string range = ability.IsAreaAbility ? "광역" : "단일";
+                    string effect = ability.HasStatusEffect
+                        ? $" · {DescribeStatusKeyword(ability.StatusKeyword)} " +
+                          $"{ability.StatusAmount}"
+                        : string.Empty;
+                    return $"능력 {ability.AbilityId} ({range}{effect})";
+                default:
+                    return command.ActionType.ToString();
+            }
+        }
+
+        private static string DescribeEnemyStatus(BattleEnemyStatusState status)
+        {
+            if (status == null) return string.Empty;
+            List<string> values = new();
+            AddStatus(values, "부상", status.Injury);
+            AddStatus(values, "약화", status.Weaken);
+            AddStatus(values, "취약", status.Vulnerable);
+            AddStatus(values, "속박", status.Bind);
+            AddStatus(values, "기절", status.Stun);
+            return values.Count == 0
+                ? string.Empty
+                : "상태: " + string.Join(" · ", values);
+        }
+
+        private static string DescribeCommonStatus(BattleCommonStatusState status)
+        {
+            if (status == null) return string.Empty;
+            List<string> values = new();
+            AddStatus(values, "부상", status.Injury);
+            AddStatus(values, "약화", status.Weaken);
+            AddStatus(values, "취약", status.Vulnerable);
+            AddStatus(values, "속박", status.Bind);
+            AddStatus(values, "기절", status.Stun);
+            return values.Count == 0
+                ? string.Empty
+                : "상태: " + string.Join(" · ", values);
+        }
+
+        private static void AddStatus(
+            ICollection<string> values,
+            string label,
+            int amount)
+        {
+            if (amount > 0) values.Add($"{label} {amount}");
+        }
+
+        private static string DescribeStatusKeyword(StatusKeyword keyword)
+        {
+            return keyword switch
+            {
+                StatusKeyword.Injury => "부상",
+                StatusKeyword.Bind => "속박",
+                StatusKeyword.Stun => "기절",
+                StatusKeyword.Weaken => "약화",
+                StatusKeyword.Vulnerable => "취약",
+                _ => keyword.ToString()
+            };
         }
 
         private void DrawMonsters(BattleRuntimeState runtime)
@@ -513,18 +650,24 @@ namespace HaveABreak.Cards
                 string id = runtime.PlayerMonsterPositions.GetOccupant(position);
                 BattleMonsterState monster = string.IsNullOrWhiteSpace(id)
                     ? null : runtime.Monsters.Find(id);
-                GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(190f));
+                GUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true));
                 if (monster == null) GUILayout.Label("빈 칸");
                 else
                 {
                     GUILayout.Label(
                         $"{monster.Card.SourceCard.DisplayName}\n공격 {monster.Attack} · " +
                         $"HP {monster.CurrentHealth}/{monster.MaximumHealth}");
+                    string statusText = DescribeCommonStatus(monster.Status);
+                    if (!string.IsNullOrWhiteSpace(statusText))
+                        GUILayout.Label(statusText, wrappedStyle);
                     bool previous = GUI.enabled;
-                    GUI.enabled = !string.IsNullOrWhiteSpace(selectedEnemyId);
+                    GUI.enabled = monster.Status.CanAttack &&
+                                  !string.IsNullOrWhiteSpace(selectedEnemyId);
                     if (GUILayout.Button("선택한 적 공격"))
                         ResolvePlayerAttack(monster.BattleCardId);
                     GUI.enabled = previous;
+                    if (!monster.Status.CanAttack)
+                        GUILayout.Label("속박·기절로 공격 불가", wrappedStyle);
                 }
                 GUILayout.EndVertical();
             }
@@ -542,16 +685,16 @@ namespace HaveABreak.Cards
                 GUILayout.Label(
                     $"{card.SourceCard.CatalogCardId} {card.SourceCard.DisplayName} · " +
                     $"비용 {card.Resolved.ManaCost}\n{card.Resolved.RulesText}", wrappedStyle);
-                if (card.SourceCard.CatalogCardId == TestContentIds.C07)
-                {
-                    DrawBanishSelection(hand, card);
-                }
+                string banishTargetId = card.SourceCard.CatalogCardId ==
+                    TestContentIds.C07
+                    ? DrawBanishSelection(hand, card)
+                    : null;
 
                 bool canPlay = BattleRuntimePlayerCardActionService.TryValidate(
                     context.Runtime,
                     card.Ids.BattleCardId,
                     selectedEnemyId,
-                    selectedBanishCardId,
+                    banishTargetId,
                     out var actionFailure,
                     out var playFailure,
                     out var cardFailure);
@@ -569,7 +712,7 @@ namespace HaveABreak.Cards
             }
         }
 
-        private void DrawBanishSelection(
+        private string DrawBanishSelection(
             IReadOnlyList<BattleCardInstance> hand,
             BattleCardInstance source)
         {
@@ -579,24 +722,29 @@ namespace HaveABreak.Cards
             BattleCardInstance selected = candidates.FirstOrDefault(card =>
                 string.Equals(
                     card.Ids.BattleCardId,
-                    selectedBanishCardId,
+                    SelectedBanishCardId(source.Ids.BattleCardId),
                     StringComparison.OrdinalIgnoreCase));
             selected ??= candidates.FirstOrDefault();
-            selectedBanishCardId = selected?.Ids.BattleCardId;
             if (selected == null)
             {
+                selectedBanishCardIds.Remove(source.Ids.BattleCardId);
                 GUILayout.Label("소멸 대상 없음", GUILayout.Width(150f));
-                return;
+                return null;
             }
+
+            selectedBanishCardIds[source.Ids.BattleCardId] =
+                selected.Ids.BattleCardId;
 
             if (GUILayout.Button(
                     $"소멸: {selected.SourceCard.DisplayName}",
                     GUILayout.Width(170f)))
             {
                 int index = candidates.IndexOf(selected);
-                selectedBanishCardId =
-                    candidates[(index + 1) % candidates.Count].Ids.BattleCardId;
+                selected = candidates[(index + 1) % candidates.Count];
+                selectedBanishCardIds[source.Ids.BattleCardId] =
+                    selected.Ids.BattleCardId;
             }
+            return selected.Ids.BattleCardId;
         }
 
         private void DrawRecentEvents(BattleRuntimeState runtime)
@@ -694,7 +842,7 @@ namespace HaveABreak.Cards
             campaign = new RunCampaignState(Environment.TickCount & int.MaxValue);
             selectedUpgradeCardId = deck.Cards.FirstOrDefault()?.OwnedCardId;
             selectedEnemyId = null;
-            selectedBanishCardId = null;
+            selectedBanishCardIds.Clear();
             scroll = Vector2.zero;
             message = "새 런을 시작했습니다.";
             SaveRun(null);
@@ -715,7 +863,7 @@ namespace HaveABreak.Cards
                 return;
             }
             selectedUpgradeCardId = progress.RunDeck.Cards.FirstOrDefault()?.OwnedCardId;
-            selectedBanishCardId = null;
+            selectedBanishCardIds.Clear();
             scroll = Vector2.zero;
             SelectFirstEnemy();
             message = $"이어하기 완료: {source}";
@@ -752,7 +900,7 @@ namespace HaveABreak.Cards
                               $"\n{string.Join("\n", validationErrors)}");
                 return;
             }
-            selectedBanishCardId = null;
+            selectedBanishCardIds.Clear();
             SelectFirstEnemy();
             message = $"{campaign.ActiveNode.DisplayName} 전투 시작.";
             SaveRun(null, true);
@@ -763,14 +911,15 @@ namespace HaveABreak.Cards
         {
             if (!BattleRuntimePlayerCardActionService.TryResolve(
                     context.Runtime, battleCardId, selectedEnemyId,
-                    selectedBanishCardId, out var result, out var failure,
+                    SelectedBanishCardId(battleCardId),
+                    out var result, out var failure,
                     out var playFailure, out var cardFailure))
             {
                 message = $"카드 사용 실패: {failure} / {playFailure} / {cardFailure}";
                 return;
             }
             message = $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
-            selectedBanishCardId = null;
+            selectedBanishCardIds.Remove(battleCardId);
             FinalizeOutcome();
             SelectFirstEnemy();
             SaveRun(null);
@@ -809,7 +958,7 @@ namespace HaveABreak.Cards
             message = result.Outcome == BattleOutcome.Ongoing
                 ? $"적 턴 완료 · 플레이어 턴 {context.Runtime.Turn.PlayerTurnNumber}"
                 : $"전투 종료 · {result.Outcome}";
-            selectedBanishCardId = null;
+            selectedBanishCardIds.Clear();
             SelectFirstEnemy();
             SaveRun(null);
         }
@@ -964,6 +1113,15 @@ namespace HaveABreak.Cards
                 runtime.LivingEnemies.Contains(selectedEnemyId)) return;
             selectedEnemyId = runtime.Enemies.FirstOrDefault(enemy =>
                 enemy != null && enemy.IsAlive)?.EnemyId;
+        }
+
+        private string SelectedBanishCardId(string battleCardId)
+        {
+            return !string.IsNullOrWhiteSpace(battleCardId) &&
+                   selectedBanishCardIds.TryGetValue(
+                       battleCardId, out string selected)
+                ? selected
+                : null;
         }
 
         private void SaveRun(string successMessage, bool forceActive = false)
