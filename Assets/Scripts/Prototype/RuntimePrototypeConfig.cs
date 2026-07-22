@@ -17,10 +17,7 @@ namespace HaveABreak.Cards
         [SerializeField] private ShopEconomyConfig shopEconomyConfig;
         [SerializeField] private BattleRewardConfig battleRewardConfig;
         [SerializeField] private EncounterDatabase encounterDatabase;
-        [SerializeField] private List<string> normalEncounterIds = new();
-        [SerializeField] private List<string> eliteEncounterIds = new();
-        [SerializeField] private List<string> midBossEncounterIds = new();
-        [SerializeField] private List<string> finalBossEncounterIds = new();
+        [SerializeField] private RunEncounterProgressionConfig encounterProgressionConfig;
 
         public CardDatabase CardDatabase => cardDatabase;
         public EnchantDatabase EnchantDatabase => enchantDatabase;
@@ -31,29 +28,21 @@ namespace HaveABreak.Cards
         public ShopEconomyConfig ShopEconomyConfig => shopEconomyConfig;
         public BattleRewardConfig BattleRewardConfig => battleRewardConfig;
         public EncounterDatabase EncounterDatabase => encounterDatabase;
-        public IReadOnlyList<string> GetEncounterPool(BattleEncounterGrade grade)
+        public RunEncounterProgressionConfig EncounterProgressionConfig =>
+            encounterProgressionConfig;
+        public IReadOnlyList<string> GetEncounterPool(BattleEncounterGrade grade,
+            int nodeIndex = 0)
         {
-            IReadOnlyList<string> pool = grade switch
-            {
-                BattleEncounterGrade.Elite => eliteEncounterIds,
-                BattleEncounterGrade.MidBoss => midBossEncounterIds,
-                BattleEncounterGrade.FinalBoss => finalBossEncounterIds,
-                _ => normalEncounterIds
-            };
-            return pool ?? Array.Empty<string>();
+            return encounterProgressionConfig != null &&
+                   encounterProgressionConfig.TryGetPool(grade, nodeIndex, out var pool)
+                ? pool : Array.Empty<string>();
         }
 
         public List<string> GetEncounterPoolValidationErrors()
         {
-            return RunEncounterPoolService.Validate(
-                encounterDatabase,
-                new Dictionary<BattleEncounterGrade, IReadOnlyList<string>>
-                {
-                    [BattleEncounterGrade.Normal] = normalEncounterIds,
-                    [BattleEncounterGrade.Elite] = eliteEncounterIds,
-                    [BattleEncounterGrade.MidBoss] = midBossEncounterIds,
-                    [BattleEncounterGrade.FinalBoss] = finalBossEncounterIds
-                });
+            return encounterProgressionConfig == null
+                ? new List<string> { "Encounter progression config is missing." }
+                : encounterProgressionConfig.GetValidationErrors(encounterDatabase);
         }
 
         public bool IsReady => cardDatabase != null && enchantDatabase != null &&

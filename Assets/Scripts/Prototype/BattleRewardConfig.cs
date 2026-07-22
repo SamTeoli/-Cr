@@ -18,7 +18,15 @@ namespace HaveABreak.Cards
             [SerializeField] private bool grantsPermanentReward;
 
             public BattleEncounterGrade Grade => grade;
-            public IReadOnlyList<int> GoldOptions => goldOptions ?? Array.Empty<int>();
+            public IReadOnlyList<int> GoldOptions
+            {
+                get
+                {
+                    if (goldOptions == null)
+                        return Array.Empty<int>();
+                    return goldOptions;
+                }
+            }
             public int EnchantChoiceCount => enchantChoiceCount;
             public CardRarity MinimumEnchantRarity => minimumEnchantRarity;
             public int ConsumableItemRewardCount => consumableItemRewardCount;
