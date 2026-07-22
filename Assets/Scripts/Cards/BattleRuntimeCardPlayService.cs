@@ -133,6 +133,48 @@ namespace HaveABreak.Cards
     // be replaced without changing the generic card-play state machine.
     public static class BattleRuntimePlayerCardActionService
     {
+        public static bool TryValidate(
+            BattleRuntimeState runtime,
+            string battleCardId,
+            string targetEnemyId,
+            string selectedBanishBattleCardId,
+            out BattleRuntimePlayerCardActionFailure failure,
+            out BattleRuntimeCardPlayFailure playFailure,
+            out CardPlayFailure cardPlayFailure)
+        {
+            playFailure = BattleRuntimeCardPlayFailure.None;
+            cardPlayFailure = CardPlayFailure.None;
+            if (!TryPrepare(
+                    runtime,
+                    battleCardId,
+                    targetEnemyId,
+                    selectedBanishBattleCardId,
+                    out _,
+                    out _,
+                    out failure))
+            {
+                return false;
+            }
+
+            if (!runtime.Turn.CanAcceptPlayerAction)
+            {
+                failure = BattleRuntimePlayerCardActionFailure.CardPlayFailed;
+                playFailure = BattleRuntimeCardPlayFailure.InvalidTurnPhase;
+                return false;
+            }
+
+            if (!runtime.CardPlay.TryPreviewPlay(
+                    battleCardId, out _, out cardPlayFailure))
+            {
+                failure = BattleRuntimePlayerCardActionFailure.CardPlayFailed;
+                playFailure = BattleRuntimeCardPlayFailure.PreviewFailed;
+                return false;
+            }
+
+            failure = BattleRuntimePlayerCardActionFailure.None;
+            return true;
+        }
+
         public static bool TryResolve(
             BattleRuntimeState runtime,
             string battleCardId,
@@ -146,68 +188,19 @@ namespace HaveABreak.Cards
             result = null;
             playFailure = BattleRuntimeCardPlayFailure.None;
             cardPlayFailure = CardPlayFailure.None;
-            if (runtime?.Deck?.Zones == null ||
-                string.IsNullOrWhiteSpace(battleCardId))
+            if (!TryPrepare(
+                    runtime,
+                    battleCardId,
+                    targetEnemyId,
+                    selectedBanishBattleCardId,
+                    out BattleCardInstance card,
+                    out EnchantFixedTargetDeclaration? summonTarget,
+                    out failure))
             {
-                failure = BattleRuntimePlayerCardActionFailure.InvalidRuntime;
-                return false;
-            }
-
-            BattleCardInstance card = runtime.Deck.Zones.Find(battleCardId);
-            if (card?.SourceCard == null)
-            {
-                failure = BattleRuntimePlayerCardActionFailure.CardNotFound;
                 return false;
             }
 
             string catalogCardId = card.SourceCard.CatalogCardId;
-            if (!IsSupportedTestCard(catalogCardId))
-            {
-                failure =
-                    BattleRuntimePlayerCardActionFailure.UnsupportedTestCard;
-                return false;
-            }
-
-            EnchantFixedTargetDeclaration? summonTarget = null;
-            if (Is(catalogCardId, TestContentIds.C01))
-            {
-                if (!EnchantFixedTargetResolver.TryDeclare(
-                        battleCardId,
-                        targetEnemyId,
-                        runtime.EnemyPositions,
-                        runtime.Enchants,
-                        out EnchantFixedTargetDeclaration declaration) ||
-                    !IsActiveEnemy(runtime, targetEnemyId))
-                {
-                    failure =
-                        BattleRuntimePlayerCardActionFailure.MissingTarget;
-                    return false;
-                }
-
-                summonTarget = declaration;
-            }
-            else if (Is(catalogCardId, TestContentIds.C05) ||
-                     Is(catalogCardId, TestContentIds.C06))
-            {
-                if (!IsActiveEnemy(runtime, targetEnemyId))
-                {
-                    failure =
-                        BattleRuntimePlayerCardActionFailure.MissingTarget;
-                    return false;
-                }
-            }
-            else if (Is(catalogCardId, TestContentIds.C07))
-            {
-                BattleCardInstance selected = runtime.Deck.Zones.Find(
-                    selectedBanishBattleCardId);
-                if (selected == null || selected == card ||
-                    selected.Zone != CardZone.Hand)
-                {
-                    failure = BattleRuntimePlayerCardActionFailure
-                        .InvalidBanishSelection;
-                    return false;
-                }
-            }
 
             if (!BattleRuntimeCardPlayService.TryPlay(
                     runtime,
@@ -279,6 +272,83 @@ namespace HaveABreak.Cards
                 skillEffect,
                 c07Effect,
                 trapInstallation);
+            failure = BattleRuntimePlayerCardActionFailure.None;
+            return true;
+        }
+
+        private static bool TryPrepare(
+            BattleRuntimeState runtime,
+            string battleCardId,
+            string targetEnemyId,
+            string selectedBanishBattleCardId,
+            out BattleCardInstance card,
+            out EnchantFixedTargetDeclaration? summonTarget,
+            out BattleRuntimePlayerCardActionFailure failure)
+        {
+            card = null;
+            summonTarget = null;
+            if (runtime?.Deck?.Zones == null ||
+                string.IsNullOrWhiteSpace(battleCardId))
+            {
+                failure = BattleRuntimePlayerCardActionFailure.InvalidRuntime;
+                return false;
+            }
+
+            card = runtime.Deck.Zones.Find(battleCardId);
+            if (card?.SourceCard == null)
+            {
+                failure = BattleRuntimePlayerCardActionFailure.CardNotFound;
+                return false;
+            }
+
+            string catalogCardId = card.SourceCard.CatalogCardId;
+            if (!IsSupportedTestCard(catalogCardId))
+            {
+                failure =
+                    BattleRuntimePlayerCardActionFailure.UnsupportedTestCard;
+                return false;
+            }
+
+            if (Is(catalogCardId, TestContentIds.C01))
+            {
+                if (!EnchantFixedTargetResolver.TryDeclare(
+                        battleCardId,
+                        targetEnemyId,
+                        runtime.EnemyPositions,
+                        runtime.Enchants,
+                        out EnchantFixedTargetDeclaration declaration) ||
+                    !IsActiveEnemy(runtime, targetEnemyId))
+                {
+                    failure =
+                        BattleRuntimePlayerCardActionFailure.MissingTarget;
+                    return false;
+                }
+
+                summonTarget = declaration;
+            }
+            else if (Is(catalogCardId, TestContentIds.C05) ||
+                     Is(catalogCardId, TestContentIds.C06))
+            {
+                if (!IsActiveEnemy(runtime, targetEnemyId))
+                {
+                    failure =
+                        BattleRuntimePlayerCardActionFailure.MissingTarget;
+                    return false;
+                }
+            }
+            else if (Is(catalogCardId, TestContentIds.C07))
+            {
+                BattleCardInstance selected = runtime.Deck.Zones.Find(
+                    selectedBanishBattleCardId);
+                if (selected == null || selected == card ||
+                    selected.Zone != CardZone.Hand)
+                {
+                    failure = BattleRuntimePlayerCardActionFailure
+                        .InvalidBanishSelection;
+                    return false;
+                }
+            }
+
             failure = BattleRuntimePlayerCardActionFailure.None;
             return true;
         }

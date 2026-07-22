@@ -497,6 +497,23 @@ namespace HaveABreak.Editor
                 targetRuntime.CardPlay.Mana.CurrentMana == targetMana &&
                 targetRuntime.EventLog.Events.Count == targetEvents;
 
+            bool insufficientManaRejected = targetRuntime != null &&
+                targetRuntime.CardPlay.Mana.TrySpend(targetMana) &&
+                !BattleRuntimePlayerCardActionService.TryValidate(
+                    targetRuntime,
+                    targetSource.Ids.BattleCardId,
+                    "ENEMY-A",
+                    null,
+                    out BattleRuntimePlayerCardActionFailure manaActionFailure,
+                    out BattleRuntimeCardPlayFailure manaPlayFailure,
+                    out CardPlayFailure manaCardFailure) &&
+                manaActionFailure ==
+                BattleRuntimePlayerCardActionFailure.CardPlayFailed &&
+                manaPlayFailure == BattleRuntimeCardPlayFailure.PreviewFailed &&
+                manaCardFailure == CardPlayFailure.NotEnoughMana &&
+                targetSource.Zone == CardZone.Hand &&
+                targetRuntime.EventLog.Events.Count == targetEvents;
+
             BattleRuntimeState banishRuntime = Start(
                 c07, 1, c03, 1,
                 out BattleCardInstance banishSource,
@@ -520,7 +537,61 @@ namespace HaveABreak.Editor
                 banishRuntime.CardPlay.Mana.CurrentMana == banishMana &&
                 banishRuntime.EventLog.Events.Count == banishEvents;
 
-            return targetRejected && banishRejected;
+            return targetRejected && insufficientManaRejected &&
+                   banishRejected && ValidateFieldSaturation(c03);
+        }
+
+        private static bool ValidateFieldSaturation(CardData monsterCard)
+        {
+            List<BattleCardInstance> cards = Enumerable.Range(1, 4)
+                .Select(index => new BattleCardInstance(
+                    monsterCard,
+                    new CardInstanceIds(
+                        monsterCard.CatalogCardId,
+                        $"OWNED-FULL-{index}",
+                        $"BATTLE-FULL-{index}"),
+                    1,
+                    CardZone.DrawPile))
+                .ToList();
+            BattleRuntimeState runtime = new(cards, 354, 20);
+            if (!runtime.Turn.TryBeginBattle(out _) ||
+                !runtime.Turn.TryConfirmStartingHand(
+                    Array.Empty<string>(), out _, out _, out _))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < 3; i++)
+            {
+                if (!BattleRuntimeCardPlayService.TryPlay(
+                        runtime,
+                        cards[i].Ids.BattleCardId,
+                        out _,
+                        out _,
+                        out _))
+                {
+                    return false;
+                }
+            }
+
+            BattleCardInstance blocked = cards[3];
+            int manaBefore = runtime.CardPlay.Mana.CurrentMana;
+            int eventsBefore = runtime.EventLog.Events.Count;
+            return !BattleRuntimePlayerCardActionService.TryValidate(
+                       runtime,
+                       blocked.Ids.BattleCardId,
+                       null,
+                       null,
+                       out BattleRuntimePlayerCardActionFailure actionFailure,
+                       out BattleRuntimeCardPlayFailure playFailure,
+                       out CardPlayFailure cardFailure) &&
+                   actionFailure ==
+                   BattleRuntimePlayerCardActionFailure.CardPlayFailed &&
+                   playFailure == BattleRuntimeCardPlayFailure.PreviewFailed &&
+                   cardFailure == CardPlayFailure.DestinationFull &&
+                   blocked.Zone == CardZone.Hand &&
+                   runtime.CardPlay.Mana.CurrentMana == manaBefore &&
+                   runtime.EventLog.Events.Count == eventsBefore;
         }
 
         private static bool ValidateMonsterRoutes(

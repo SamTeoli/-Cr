@@ -391,11 +391,23 @@ namespace HaveABreak.Cards
             GUILayout.Label(
                 $"HP {runtime.Player.CurrentHealth}/{runtime.Player.MaximumHealth}   " +
                 $"마력 {runtime.CardPlay.Mana.CurrentMana}/" +
-                $"{runtime.CardPlay.Mana.MaximumMana}   결과 {session.Outcome}");
+                $"{runtime.CardPlay.Mana.MaximumMana}   " +
+                $"단계 {runtime.Turn.Phase}   결과 {session.Outcome}");
+            GUILayout.Label(
+                $"드로우 {runtime.Deck.Zones.Count(CardZone.DrawPile)} · " +
+                $"묘지 {runtime.Deck.Zones.Count(CardZone.Graveyard)} · " +
+                $"소멸 {runtime.Deck.Zones.Count(CardZone.Banished)} · " +
+                $"설치 {runtime.Deck.Zones.Count(CardZone.SkillField)}/" +
+                $"{BattleCardZoneState.MaximumSkillFieldSize}");
+            GUILayout.Label(
+                "전투 중 이어하기는 현재 전투의 시작 체크포인트에서 재개됩니다.",
+                wrappedStyle);
             DrawBattleConsumables(context);
             DrawEnemies(runtime);
             DrawMonsters(runtime);
+            DrawInstalledCards(runtime);
             DrawHand(context);
+            DrawRecentEvents(runtime);
             bool previous = GUI.enabled;
             GUI.enabled = !session.IsFinished;
             if (GUILayout.Button("턴 종료", GUILayout.Height(42f))) EndPlayerTurn(context);
@@ -418,7 +430,16 @@ namespace HaveABreak.Cards
                 if (item == null ||
                     item.Effect == PrototypeConsumableEffect.IncreaseEnchantSlot)
                     continue;
-                if (!GUILayout.Button(item.DisplayName)) continue;
+                int owned = progress.RunState.ConsumableItemIds.Count(value =>
+                    string.Equals(value, itemId, StringComparison.OrdinalIgnoreCase));
+                int consumed = context.RunChanges.ConsumedItemIds.Count(value =>
+                    string.Equals(value, itemId, StringComparison.OrdinalIgnoreCase));
+                int remaining = Mathf.Max(0, owned - consumed);
+                bool previous = GUI.enabled;
+                GUI.enabled = !context.Session.IsFinished && remaining > 0;
+                bool clicked = GUILayout.Button($"{item.DisplayName} ×{remaining}");
+                GUI.enabled = previous;
+                if (!clicked) continue;
                 if (PrototypeConsumableService.TryUseInBattle(
                         context, item.ItemId, out int applied, out var failure))
                 {
@@ -426,6 +447,32 @@ namespace HaveABreak.Cards
                     SaveRun(null);
                 }
                 else message = $"아이템 사용 실패: {failure}";
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawInstalledCards(BattleRuntimeState runtime)
+        {
+            List<BattleCardInstance> installed =
+                runtime.Deck.Zones.GetCards(CardZone.SkillField);
+            GUILayout.Label($"설치 카드 ({installed.Count})", headingStyle);
+            if (installed.Count == 0)
+            {
+                GUILayout.Label("설치된 스킬·트랩·결계가 없습니다.");
+                return;
+            }
+
+            GUILayout.BeginHorizontal();
+            foreach (BattleCardInstance card in installed)
+            {
+                bool isRegisteredTrap = runtime.TrapInstallations.Find(
+                    card.Ids.BattleCardId) != null;
+                GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(160f));
+                GUILayout.Label(
+                    $"{card.SourceCard.DisplayName}\n{card.SourceCard.CardType}" +
+                    (isRegisteredTrap ? " · 대기 중" : string.Empty),
+                    wrappedStyle);
+                GUILayout.EndVertical();
             }
             GUILayout.EndHorizontal();
         }
@@ -497,15 +544,79 @@ namespace HaveABreak.Cards
                     $"비용 {card.Resolved.ManaCost}\n{card.Resolved.RulesText}", wrappedStyle);
                 if (card.SourceCard.CatalogCardId == TestContentIds.C07)
                 {
-                    BattleCardInstance candidate = hand.FirstOrDefault(other => other != card);
-                    selectedBanishCardId = candidate?.Ids.BattleCardId;
-                    GUILayout.Label(candidate == null
-                        ? "소멸 대상 없음" : $"소멸: {candidate.SourceCard.DisplayName}",
-                        GUILayout.Width(150f));
+                    DrawBanishSelection(hand, card);
                 }
-                if (GUILayout.Button("사용", GUILayout.Width(75f)))
+
+                bool canPlay = BattleRuntimePlayerCardActionService.TryValidate(
+                    context.Runtime,
+                    card.Ids.BattleCardId,
+                    selectedEnemyId,
+                    selectedBanishCardId,
+                    out var actionFailure,
+                    out var playFailure,
+                    out var cardFailure);
+                bool previous = GUI.enabled;
+                GUI.enabled = canPlay;
+                bool clicked = GUILayout.Button("사용", GUILayout.Width(75f));
+                GUI.enabled = previous;
+                if (clicked)
                     ResolveCardPlay(context, card.Ids.BattleCardId);
+                else if (!canPlay)
+                    GUILayout.Label(
+                        DescribeCardBlock(actionFailure, playFailure, cardFailure),
+                        GUILayout.Width(135f));
                 GUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawBanishSelection(
+            IReadOnlyList<BattleCardInstance> hand,
+            BattleCardInstance source)
+        {
+            List<BattleCardInstance> candidates = hand
+                .Where(card => card != source)
+                .ToList();
+            BattleCardInstance selected = candidates.FirstOrDefault(card =>
+                string.Equals(
+                    card.Ids.BattleCardId,
+                    selectedBanishCardId,
+                    StringComparison.OrdinalIgnoreCase));
+            selected ??= candidates.FirstOrDefault();
+            selectedBanishCardId = selected?.Ids.BattleCardId;
+            if (selected == null)
+            {
+                GUILayout.Label("소멸 대상 없음", GUILayout.Width(150f));
+                return;
+            }
+
+            if (GUILayout.Button(
+                    $"소멸: {selected.SourceCard.DisplayName}",
+                    GUILayout.Width(170f)))
+            {
+                int index = candidates.IndexOf(selected);
+                selectedBanishCardId =
+                    candidates[(index + 1) % candidates.Count].Ids.BattleCardId;
+            }
+        }
+
+        private void DrawRecentEvents(BattleRuntimeState runtime)
+        {
+            IReadOnlyList<BattleEventRecord> events = runtime.EventLog.Events;
+            GUILayout.Label("최근 전투 기록", headingStyle);
+            if (events.Count == 0)
+            {
+                GUILayout.Label("기록 없음");
+                return;
+            }
+
+            foreach (BattleEventRecord record in events
+                         .Skip(Mathf.Max(0, events.Count - 6)))
+            {
+                if (record == null) continue;
+                GUILayout.Label(
+                    $"{record.EventType} · {record.Cause} · " +
+                    $"{record.ActorId} → {record.TargetId}",
+                    wrappedStyle);
             }
         }
 
@@ -550,7 +661,10 @@ namespace HaveABreak.Cards
                             continue;
                         if (context.VictoryConsumableRewards.TryClaim(
                                 item.ItemId, out var failure))
+                        {
                             message = $"{item.DisplayName} 보상 수령 완료.";
+                            SaveRun(null);
+                        }
                         else message = $"소모아이템 보상 실패: {failure}";
                     }
                 }
@@ -580,6 +694,8 @@ namespace HaveABreak.Cards
             campaign = new RunCampaignState(Environment.TickCount & int.MaxValue);
             selectedUpgradeCardId = deck.Cards.FirstOrDefault()?.OwnedCardId;
             selectedEnemyId = null;
+            selectedBanishCardId = null;
+            scroll = Vector2.zero;
             message = "새 런을 시작했습니다.";
             SaveRun(null);
         }
@@ -599,6 +715,8 @@ namespace HaveABreak.Cards
                 return;
             }
             selectedUpgradeCardId = progress.RunDeck.Cards.FirstOrDefault()?.OwnedCardId;
+            selectedBanishCardId = null;
+            scroll = Vector2.zero;
             SelectFirstEnemy();
             message = $"이어하기 완료: {source}";
         }
@@ -637,7 +755,7 @@ namespace HaveABreak.Cards
             selectedBanishCardId = null;
             SelectFirstEnemy();
             message = $"{campaign.ActiveNode.DisplayName} 전투 시작.";
-            SaveRun(null);
+            SaveRun(null, true);
         }
 
         private void ResolveCardPlay(
@@ -773,7 +891,10 @@ namespace HaveABreak.Cards
             }
             if (rewards.TryClaim(enchant.DefinitionId, target.OwnedCardId, slot,
                     out var attachmentFailure, out var failure))
+            {
                 message = $"{target.Card.DisplayName}에 {enchant.DisplayName} 장착.";
+                SaveRun(null);
+            }
             else message = $"보상 선택 실패: {failure} / {attachmentFailure}";
         }
 
@@ -845,17 +966,56 @@ namespace HaveABreak.Cards
                 enemy != null && enemy.IsAlive)?.EnemyId;
         }
 
-        private void SaveRun(string successMessage)
+        private void SaveRun(string successMessage, bool forceActive = false)
         {
             if (campaign == null || progress == null) return;
+            if (progress.HasActiveEncounter && !forceActive)
+            {
+                if (!string.IsNullOrWhiteSpace(successMessage))
+                {
+                    message = "전투 시작 체크포인트가 이미 저장되어 있습니다. " +
+                              "이어하기 시 현재 전투를 처음부터 다시 시작합니다.";
+                }
+                return;
+            }
+
             if (IntegratedRunSaveService.TrySave(
                     campaign, progress, out var destination, out var failure))
             {
                 if (!string.IsNullOrWhiteSpace(successMessage))
                     message = $"{successMessage} · {destination}";
             }
-            else if (!string.IsNullOrWhiteSpace(successMessage))
-                message = $"저장 실패: {failure}";
+            else
+            {
+                string prefix = string.IsNullOrWhiteSpace(message)
+                    ? string.Empty
+                    : message + "\n";
+                string label = string.IsNullOrWhiteSpace(successMessage)
+                    ? "자동 저장 실패"
+                    : "저장 실패";
+                message = $"{prefix}{label}: {failure}";
+            }
+        }
+
+        private static string DescribeCardBlock(
+            BattleRuntimePlayerCardActionFailure actionFailure,
+            BattleRuntimeCardPlayFailure playFailure,
+            CardPlayFailure cardFailure)
+        {
+            if (actionFailure == BattleRuntimePlayerCardActionFailure.MissingTarget)
+                return "적 대상 필요";
+            if (actionFailure ==
+                BattleRuntimePlayerCardActionFailure.InvalidBanishSelection)
+                return "소멸 대상 필요";
+            return cardFailure switch
+            {
+                CardPlayFailure.NotEnoughMana => "마력 부족",
+                CardPlayFailure.DestinationFull => "필드 포화",
+                CardPlayFailure.DuplicateBarrier => "동일 결계 설치됨",
+                _ when playFailure ==
+                    BattleRuntimeCardPlayFailure.InvalidTurnPhase => "행동 불가 단계",
+                _ => actionFailure.ToString()
+            };
         }
 
         private void LoadPermanentRewards()
