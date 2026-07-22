@@ -505,12 +505,14 @@ namespace HaveABreak.Cards
                                         enemy.Vital.CurrentHealth;
                     string selection = string.Equals(selectedEnemyId, id,
                         StringComparison.OrdinalIgnoreCase) ? "▶ " : string.Empty;
+                    string nextIntent = intents.TryGetValue(id, out string intent)
+                        ? intent
+                        : "없음";
                     GUILayout.Label(
                         $"{selection}{enemyName}\n" +
                         $"HP {enemy.Vital.CurrentHealth}/{maximumHealth} · " +
                         $"공격 {enemy.Attack}\n" +
-                        $"다음 행동: {(intents.TryGetValue(id, out string intent)
-                            ? intent : "없음")}",
+                        $"다음 행동: {nextIntent}",
                         wrappedStyle);
                     string statusText = DescribeEnemyStatus(status);
                     if (!string.IsNullOrWhiteSpace(statusText))
