@@ -161,6 +161,56 @@ namespace HaveABreak.Cards
             return true;
         }
 
+        public bool TryReplace(
+            int slotIndex,
+            EnchantData replacement,
+            bool battleActive,
+            out EnchantAttachmentFailure failure)
+        {
+            if (battleActive)
+            {
+                failure = EnchantAttachmentFailure.BattleLocked;
+                return false;
+            }
+
+            if (replacement == null)
+            {
+                failure = EnchantAttachmentFailure.NullEnchant;
+                return false;
+            }
+
+            if (slotIndex < 0 || slotIndex >= slots.Count)
+            {
+                failure = EnchantAttachmentFailure.InvalidSlot;
+                return false;
+            }
+
+            RunEnchantSlot slot = slots[slotIndex];
+            if (slot.IsEmpty)
+            {
+                failure = EnchantAttachmentFailure.SlotEmpty;
+                return false;
+            }
+
+            if (!EnchantCompatibilityEvaluator.IsCompatible(replacement, card))
+            {
+                failure = EnchantAttachmentFailure.IncompatibleCardType;
+                return false;
+            }
+
+            if (!replacement.AllowDuplicateOnSameCard && slots.Exists(other =>
+                    other != slot && !other.IsEmpty &&
+                    other.Enchant.MatchesDefinition(replacement)))
+            {
+                failure = EnchantAttachmentFailure.DuplicateNotAllowed;
+                return false;
+            }
+
+            slot.Attach(replacement, slot.AttachmentOrder, true);
+            failure = EnchantAttachmentFailure.None;
+            return true;
+        }
+
         public void RefreshCompatibility(CardType currentCardType)
         {
             foreach (RunEnchantSlot slot in slots)
