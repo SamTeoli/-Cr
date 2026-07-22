@@ -133,7 +133,8 @@ namespace HaveABreak.EditorTools
             RunBattleState run = new(
                 30, 20, 100,
                 new[] { PrototypeConsumableCatalog.EnchantHammer });
-            return run.TrySpendGold(25) && run.Gold == 75 &&
+            return run.CanSpendGold(25) && !run.CanSpendGold(101) &&
+                   run.TrySpendGold(25) && run.Gold == 75 &&
                    run.ApplyHealing(5) == 5 && run.CurrentHealth == 25 &&
                    run.ApplyDamage(3) == 3 && run.CurrentHealth == 22 &&
                    run.IncreaseMaximumHealth(2) == 2 &&
@@ -176,8 +177,13 @@ namespace HaveABreak.EditorTools
             RunShopProductSlot consumable = first.FirstOrDefault(slot =>
                 slot.ProductType == RunShopProductType.Consumable);
             string firstSlotId = first.Count > 0 ? first[0].SlotId : null;
+            RunBattleState poorRun = new(30, 30, 0);
             int goldBeforePurchase = run.Gold;
             if (first.Count != 7 || consumable == null || consumable.Purchased ||
+                RunCampaignService.TryBuyConsumableSlot(
+                    shop, poorRun, consumable.SlotId, out _) ||
+                poorRun.Gold != 0 || poorRun.ConsumableItemIds.Count != 0 ||
+                consumable.Purchased ||
                 RunCampaignService.TryBuyConsumableSlot(
                     shop, run, "MISSING-SLOT", out _) ||
                 !RunCampaignService.TryBuyConsumableSlot(
