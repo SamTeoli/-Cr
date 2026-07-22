@@ -17,7 +17,7 @@ namespace HaveABreak.Cards
             return Mathf.CeilToInt(Mathf.Max(0, maximumHealth) * healingRatio);
         }
 
-        internal void EditorInitialize(float ratio, int levelIncrease)
+        public void EditorInitialize(float ratio, int levelIncrease)
         {
             healingRatio = ratio;
             upgradeLevelIncrease = levelIncrease;
