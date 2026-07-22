@@ -196,17 +196,71 @@ namespace HaveABreak.EditorTools
                 return false;
             }
 
-            Dictionary<string, BattleEncounterGrade> expected = new()
+            if (config.GetEncounterPoolValidationErrors().Count != 0)
             {
-                [config.NormalEncounterId] = BattleEncounterGrade.Normal,
-                [config.EliteEncounterId] = BattleEncounterGrade.Elite,
-                [config.MidBossEncounterId] = BattleEncounterGrade.MidBoss,
-                [config.FinalBossEncounterId] = BattleEncounterGrade.FinalBoss
-            };
-            return expected.Count == 4 && expected.All(pair =>
-                config.EncounterDatabase.TryGetEncounter(
-                    pair.Key, out EncounterData encounter) &&
-                encounter.EncounterGrade == pair.Value);
+                return false;
+            }
+
+            return Enum.GetValues(typeof(BattleEncounterGrade))
+                .Cast<BattleEncounterGrade>()
+                .All(grade => RunEncounterPoolService.TryResolve(
+                    config.EncounterDatabase, config.GetEncounterPool(grade),
+                    grade, 20260722, out _, out _)) &&
+                   ValidateDeterministicEncounterSelection(config) &&
+                   ValidateEncounterPoolSelectionRules();
+        }
+
+        private static bool ValidateDeterministicEncounterSelection(
+            RuntimePrototypeConfig config)
+        {
+            IReadOnlyList<string> pool = config.GetEncounterPool(
+                BattleEncounterGrade.Normal);
+            return RunEncounterPoolService.TryResolve(
+                       config.EncounterDatabase, pool,
+                       BattleEncounterGrade.Normal, 41,
+                       out EncounterData first, out _) &&
+                   RunEncounterPoolService.TryResolve(
+                       config.EncounterDatabase, pool,
+                       BattleEncounterGrade.Normal, 41,
+                       out EncounterData repeated, out _) &&
+                   ReferenceEquals(first, repeated);
+        }
+
+        private static bool ValidateEncounterPoolSelectionRules()
+        {
+            EncounterData first = ScriptableObject.CreateInstance<EncounterData>();
+            EncounterData second = ScriptableObject.CreateInstance<EncounterData>();
+            EncounterDatabase database =
+                ScriptableObject.CreateInstance<EncounterDatabase>();
+            try
+            {
+                first.EditorInitialize(
+                    "POOL-NORMAL-A", "Pool A", BattleEncounterGrade.Normal,
+                    Array.Empty<EncounterEnemySlot>());
+                second.EditorInitialize(
+                    "POOL-NORMAL-B", "Pool B", BattleEncounterGrade.Normal,
+                    Array.Empty<EncounterEnemySlot>());
+                database.EditorSetEncounters(new[] { first, second });
+                string[] pool = { first.EncounterId, second.EncounterId };
+
+                return RunEncounterPoolService.TryResolve(
+                           database, pool, BattleEncounterGrade.Normal, 0,
+                           out EncounterData seedZero, out _) &&
+                       RunEncounterPoolService.TryResolve(
+                           database, pool, BattleEncounterGrade.Normal, 1,
+                           out EncounterData seedOne, out _) &&
+                       ReferenceEquals(seedZero, first) &&
+                       ReferenceEquals(seedOne, second) &&
+                       !RunEncounterPoolService.TryResolve(
+                           database, pool, BattleEncounterGrade.Elite, 0,
+                           out _, out _);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(database);
+                UnityEngine.Object.DestroyImmediate(second);
+                UnityEngine.Object.DestroyImmediate(first);
+            }
         }
     }
 }

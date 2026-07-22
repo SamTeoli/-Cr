@@ -972,16 +972,20 @@ namespace HaveABreak.Cards
 
         private void BeginSelectedBattle()
         {
-            string encounterId = campaign.ActiveNode.NodeType switch
+            BattleEncounterGrade grade = campaign.ActiveNode.NodeType switch
             {
-                RunNodeType.EliteBattle => config.EliteEncounterId,
-                RunNodeType.MidBoss => config.MidBossEncounterId,
-                RunNodeType.FinalBoss => config.FinalBossEncounterId,
-                _ => config.NormalEncounterId
+                RunNodeType.EliteBattle => BattleEncounterGrade.Elite,
+                RunNodeType.MidBoss => BattleEncounterGrade.MidBoss,
+                RunNodeType.FinalBoss => BattleEncounterGrade.FinalBoss,
+                _ => BattleEncounterGrade.Normal
             };
-            if (!config.EncounterDatabase.TryGetEncounter(encounterId, out var encounter))
+            int selectionSeed = campaign.Seed +
+                                campaign.CompletedNodeCount * 1009;
+            if (!RunEncounterPoolService.TryResolve(
+                    config.EncounterDatabase, config.GetEncounterPool(grade),
+                    grade, selectionSeed, out var encounter, out string poolError))
             {
-                message = $"조우 데이터 없음: {encounterId}";
+                message = $"조우 선택 실패: {poolError}";
                 return;
             }
             string battleId =
