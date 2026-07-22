@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace HaveABreak.Cards
@@ -30,6 +31,9 @@ namespace HaveABreak.Cards
 
         public CardData Card => card;
         public IReadOnlyList<RunEnchantSlot> Slots => slots;
+        public IEnumerable<RunEnchantSlot> SlotsInAttachmentOrder => slots
+            .Where(slot => !slot.IsEmpty)
+            .OrderBy(slot => slot.AttachmentOrder);
         public int SlotCount => slots.Count;
 
         public bool TryIncreaseSlotCount()

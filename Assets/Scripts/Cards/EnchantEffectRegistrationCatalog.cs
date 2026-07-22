@@ -244,7 +244,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            foreach (RunEnchantSlot slot in enchants.Slots)
+            foreach (RunEnchantSlot slot in enchants.SlotsInAttachmentOrder)
             {
                 if (TryGetActiveHandler(slot, out handler))
                 {
