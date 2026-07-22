@@ -26,6 +26,7 @@ namespace HaveABreak.EditorTools
             bool valid = ValidateCampaignProgression() &&
                          ValidateRunMutations() &&
                          ValidateConsumableDefinitions() &&
+                         ValidateEventAndShopSlotData() &&
                          ValidateEncounterGrades() &&
                          ValidateRuntimePrototypeConfig();
             if (valid)
@@ -127,6 +128,64 @@ namespace HaveABreak.EditorTools
                    ReferenceEquals(PrototypeConsumableCatalog.Find(
                        PrototypeConsumableCatalog.HealingPotion), items[0]) &&
                    ValidateInvalidConsumableDefinitions();
+        }
+
+        private static bool ValidateEventAndShopSlotData()
+        {
+            EnchantDatabase enchants = AssetDatabase.LoadAssetAtPath<EnchantDatabase>(
+                "Assets/GameData/EnchantDatabase.asset");
+            if (enchants == null) return false;
+
+            RunCampaignState shop = CampaignAtNode(RunNodeType.Shop);
+            RunBattleState run = new(30, 30, 500);
+            IReadOnlyList<RunShopProductSlot> first = RunCampaignService.GetShopSlots(
+                shop, PrototypeConsumableCatalog.All, enchants.Enchants);
+            RunShopProductSlot consumable = first.FirstOrDefault(slot =>
+                slot.ProductType == RunShopProductType.Consumable);
+            string firstSlotId = first.Count > 0 ? first[0].SlotId : null;
+            if (first.Count != 7 || consumable == null || consumable.Purchased ||
+                !RunCampaignService.TryBuyConsumable(
+                    shop, run, consumable.ContentId, out _) ||
+                !consumable.Purchased ||
+                RunCampaignService.TryBuyConsumable(
+                    shop, run, consumable.ContentId, out _) ||
+                !RunCampaignService.TryRerollShop(shop, run, out _))
+            {
+                return false;
+            }
+
+            IReadOnlyList<RunShopProductSlot> rerolled =
+                RunCampaignService.GetShopSlots(shop,
+                    PrototypeConsumableCatalog.All, enchants.Enchants);
+            if (rerolled.Count != 7 || rerolled.Any(slot => slot.Purchased) ||
+                rerolled[0].SlotId == firstSlotId)
+            {
+                return false;
+            }
+
+            RunCampaignState situation = CampaignAtNode(RunNodeType.SituationEvent);
+            IReadOnlyList<RunSituationEventChoice> choices =
+                RunCampaignService.GetSituationEventChoices(situation);
+            string json = JsonUtility.ToJson(situation);
+            RunCampaignState restored = JsonUtility.FromJson<RunCampaignState>(json);
+            return choices.Count == 3 &&
+                   choices.Select(choice => choice.ChoiceId)
+                       .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 3 &&
+                   restored.EventChoices.Count == 3 &&
+                   restored.EventChoices[0].ChoiceId == choices[0].ChoiceId;
+        }
+
+        private static RunCampaignState CampaignAtNode(RunNodeType type)
+        {
+            for (int seed = 0; seed < 100; seed++)
+            {
+                RunCampaignState campaign = new(seed);
+                RunNodeChoice choice = RunCampaignService.GetChoices(campaign)
+                    .FirstOrDefault(value => value.NodeType == type);
+                if (choice != null && RunCampaignService.TrySelectNode(
+                        campaign, choice.NodeId, out _)) return campaign;
+            }
+            return null;
         }
 
         private static bool ValidateInvalidConsumableDefinitions()
