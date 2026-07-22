@@ -372,8 +372,8 @@ namespace HaveABreak.EditorTools
                     if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
                             GUILayout.Width(70f)))
                     {
-                        if (RunCampaignService.TryBuyConsumable(
-                                campaign, progress.RunState, item.ItemId,
+                        if (RunCampaignService.TryBuyConsumableSlot(
+                                campaign, progress.RunState, offer.SlotId,
                                 out RunCampaignFailure failure))
                         {
                             message = $"{item.DisplayName} 구매 완료.";
@@ -447,9 +447,9 @@ namespace HaveABreak.EditorTools
                 if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
                         GUILayout.Width(70f)))
                 {
-                    if (RunCampaignService.TryBuyEnchant(
+                    if (RunCampaignService.TryBuyEnchantSlot(
                             campaign, progress, enchant,
-                            target.OwnedCardId, slot, offer.Price,
+                            offer.SlotId, target.OwnedCardId, slot,
                             out EnchantAttachmentFailure attachmentFailure,
                             out RunCampaignFailure failure))
                     {

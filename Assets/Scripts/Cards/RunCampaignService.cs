@@ -556,14 +556,16 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (!IsAvailableShopProduct(campaign,
-                    RunShopProductType.Consumable, itemId))
+            RunShopProductSlot slot = FindAvailableShopProduct(
+                campaign, RunShopProductType.Consumable, itemId);
+            if (campaign.ShopSlots.Count > 0 && slot == null)
             {
                 failure = RunCampaignFailure.InvalidChoice;
                 return false;
             }
 
-            if (!run.TrySpendGold(item.ShopPrice))
+            int price = slot?.Price ?? item.ShopPrice;
+            if (!run.TrySpendGold(price))
             {
                 failure = RunCampaignFailure.InsufficientGold;
                 return false;
@@ -571,6 +573,38 @@ namespace HaveABreak.Cards
 
             run.TryAddRewardConsumableItem(item.ItemId);
             MarkPurchasedSlot(campaign, RunShopProductType.Consumable, itemId);
+            failure = RunCampaignFailure.None;
+            return true;
+        }
+
+        public static bool TryBuyConsumableSlot(
+            RunCampaignState campaign,
+            RunBattleState run,
+            string slotId,
+            out RunCampaignFailure failure)
+        {
+            if (!ValidateNode(campaign, run, RunNodeType.Shop, out failure))
+                return false;
+
+            RunShopProductSlot slot = FindAvailableShopSlot(
+                campaign, slotId, RunShopProductType.Consumable);
+            ConsumableData item = slot == null
+                ? null
+                : PrototypeConsumableCatalog.Find(slot.ContentId);
+            if (slot == null || item == null)
+            {
+                failure = RunCampaignFailure.InvalidChoice;
+                return false;
+            }
+
+            if (!run.TrySpendGold(slot.Price))
+            {
+                failure = RunCampaignFailure.InsufficientGold;
+                return false;
+            }
+
+            run.TryAddRewardConsumableItem(item.ItemId);
+            slot.MarkPurchased();
             failure = RunCampaignFailure.None;
             return true;
         }
@@ -634,6 +668,68 @@ namespace HaveABreak.Cards
 
             MarkPurchasedSlot(campaign, RunShopProductType.Enchant,
                 enchant.DefinitionId);
+            failure = RunCampaignFailure.None;
+            return true;
+        }
+
+        public static bool TryBuyEnchantSlot(
+            RunCampaignState campaign,
+            RunEncounterProgressState progress,
+            EnchantData enchant,
+            string shopSlotId,
+            string ownedCardId,
+            int enchantSlotIndex,
+            out EnchantAttachmentFailure attachmentFailure,
+            out RunCampaignFailure failure)
+        {
+            attachmentFailure = EnchantAttachmentFailure.None;
+            if (progress?.RunState == null || progress.RunDeck == null)
+            {
+                failure = RunCampaignFailure.InvalidState;
+                return false;
+            }
+
+            if (!ValidateNode(campaign, progress.RunState,
+                    RunNodeType.Shop, out failure)) return false;
+
+            RunShopProductSlot shopSlot = FindAvailableShopSlot(
+                campaign, shopSlotId, RunShopProductType.Enchant);
+            if (shopSlot == null || enchant == null ||
+                !string.Equals(shopSlot.ContentId, enchant.DefinitionId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                failure = RunCampaignFailure.InvalidChoice;
+                return false;
+            }
+
+            RunCardInstance card = progress.RunDeck.Find(ownedCardId);
+            if (card == null)
+            {
+                failure = RunCampaignFailure.InvalidCard;
+                return false;
+            }
+
+            if (!card.Enchants.CanAttach(enchant, enchantSlotIndex,
+                    out attachmentFailure))
+            {
+                failure = RunCampaignFailure.InvalidEnchant;
+                return false;
+            }
+
+            if (!progress.RunState.TrySpendGold(shopSlot.Price))
+            {
+                failure = RunCampaignFailure.InsufficientGold;
+                return false;
+            }
+
+            if (!card.Enchants.TryAttach(enchant, enchantSlotIndex, false,
+                    out attachmentFailure))
+            {
+                failure = RunCampaignFailure.AttachmentFailed;
+                return false;
+            }
+
+            shopSlot.MarkPurchased();
             failure = RunCampaignFailure.None;
             return true;
         }
@@ -805,6 +901,32 @@ namespace HaveABreak.Cards
                         StringComparison.OrdinalIgnoreCase)) return true;
             }
             return false;
+        }
+
+        private static RunShopProductSlot FindAvailableShopProduct(
+            RunCampaignState campaign, RunShopProductType type, string contentId)
+        {
+            if (campaign == null) return null;
+            foreach (RunShopProductSlot slot in campaign.ShopSlots)
+            {
+                if (!slot.Purchased && slot.ProductType == type &&
+                    string.Equals(slot.ContentId, contentId,
+                        StringComparison.OrdinalIgnoreCase)) return slot;
+            }
+            return null;
+        }
+
+        private static RunShopProductSlot FindAvailableShopSlot(
+            RunCampaignState campaign, string slotId, RunShopProductType type)
+        {
+            if (campaign == null || string.IsNullOrWhiteSpace(slotId)) return null;
+            foreach (RunShopProductSlot slot in campaign.ShopSlots)
+            {
+                if (!slot.Purchased && slot.ProductType == type &&
+                    string.Equals(slot.SlotId, slotId,
+                        StringComparison.OrdinalIgnoreCase)) return slot;
+            }
+            return null;
         }
     }
 

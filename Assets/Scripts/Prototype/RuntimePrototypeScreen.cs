@@ -329,8 +329,8 @@ namespace HaveABreak.Cards
                 if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
                         GUILayout.Width(80f)))
                 {
-                    if (RunCampaignService.TryBuyConsumable(
-                            campaign, progress.RunState, item.ItemId, out var failure))
+                    if (RunCampaignService.TryBuyConsumableSlot(
+                            campaign, progress.RunState, offer.SlotId, out var failure))
                     {
                         message = $"{item.DisplayName} 구매 완료.";
                         SaveRun(null);
@@ -384,8 +384,9 @@ namespace HaveABreak.Cards
             if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
                     GUILayout.Width(80f)))
             {
-                if (RunCampaignService.TryBuyEnchant(
-                        campaign, progress, enchant, target.OwnedCardId, slot, offer.Price,
+                if (RunCampaignService.TryBuyEnchantSlot(
+                        campaign, progress, enchant, offer.SlotId,
+                        target.OwnedCardId, slot,
                         out var attachFailure, out var failure))
                 {
                     message = $"{target.Card.DisplayName}에 {enchant.DisplayName} 장착.";
