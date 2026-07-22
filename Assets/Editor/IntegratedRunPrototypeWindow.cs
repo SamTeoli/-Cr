@@ -855,7 +855,8 @@ namespace HaveABreak.EditorTools
             int selectionSeed = campaign.Seed +
                                 campaign.CompletedNodeCount * 1009;
             if (!RunEncounterPoolService.TryResolve(
-                    encounterDatabase, prototypeConfig.GetEncounterPool(grade),
+                    encounterDatabase, prototypeConfig.GetEncounterPool(
+                        grade, campaign.CompletedNodeCount),
                     grade, selectionSeed, out EncounterData encounter,
                     out string poolError))
             {

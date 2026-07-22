@@ -991,7 +991,8 @@ namespace HaveABreak.Cards
             int selectionSeed = campaign.Seed +
                                 campaign.CompletedNodeCount * 1009;
             if (!RunEncounterPoolService.TryResolve(
-                    config.EncounterDatabase, config.GetEncounterPool(grade),
+                    config.EncounterDatabase, config.GetEncounterPool(
+                        grade, campaign.CompletedNodeCount),
                     grade, selectionSeed, out var encounter, out string poolError))
             {
                 message = $"조우 선택 실패: {poolError}";

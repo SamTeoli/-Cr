@@ -372,6 +372,9 @@ namespace HaveABreak.EditorTools
                 economy.GetRerollCost(0) != 10 ||
                 economy.GetRerollCost(2) != 20 ||
                 rewards == null || rewards.GetValidationErrors().Count != 0 ||
+                config.EncounterProgressionConfig == null ||
+                config.EncounterProgressionConfig.GetValidationErrors(
+                    config.EncounterDatabase).Count != 0 ||
                 !ValidateBattleRewardRules(rewards))
             {
                 return false;
@@ -380,8 +383,12 @@ namespace HaveABreak.EditorTools
             return Enum.GetValues(typeof(BattleEncounterGrade))
                 .Cast<BattleEncounterGrade>()
                 .All(grade => RunEncounterPoolService.TryResolve(
-                    config.EncounterDatabase, config.GetEncounterPool(grade),
+                    config.EncounterDatabase, config.GetEncounterPool(grade, 0),
                     grade, 20260722, out _, out _)) &&
+                   Enum.GetValues(typeof(BattleEncounterGrade))
+                       .Cast<BattleEncounterGrade>()
+                       .All(grade => config.GetEncounterPool(grade, 11).Count > 0 &&
+                                     config.GetEncounterPool(grade, 12).Count == 0) &&
                    ValidateDeterministicEncounterSelection(config) &&
                    ValidateEncounterPoolSelectionRules();
         }
@@ -409,7 +416,7 @@ namespace HaveABreak.EditorTools
             RuntimePrototypeConfig config)
         {
             IReadOnlyList<string> pool = config.GetEncounterPool(
-                BattleEncounterGrade.Normal);
+                BattleEncounterGrade.Normal, 0);
             return RunEncounterPoolService.TryResolve(
                        config.EncounterDatabase, pool,
                        BattleEncounterGrade.Normal, 41,

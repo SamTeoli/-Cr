@@ -79,6 +79,31 @@ namespace HaveABreak.Cards
             return errors;
         }
 
+        public static List<string> ValidatePool(EncounterDatabase database,
+            IReadOnlyList<string> ids, BattleEncounterGrade grade, string label)
+        {
+            List<string> errors = new();
+            if (ids == null || ids.Count == 0)
+            {
+                errors.Add($"{label} encounter pool requires at least one entry.");
+                return errors;
+            }
+            HashSet<string> unique = new(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < ids.Count; i++)
+            {
+                string id = ids[i];
+                if (string.IsNullOrWhiteSpace(id))
+                    errors.Add($"{label} encounter pool entry {i} has an empty ID.");
+                else if (!unique.Add(id))
+                    errors.Add($"{label} encounter pool has duplicate ID '{id}'.");
+                else if (database == null || !database.TryGetEncounter(id, out var encounter))
+                    errors.Add($"{label} encounter pool references missing encounter '{id}'.");
+                else if (encounter.EncounterGrade != grade)
+                    errors.Add($"Encounter '{id}' is {encounter.EncounterGrade}, not {grade}.");
+            }
+            return errors;
+        }
+
         private static int PositiveMod(int value, int modulus)
         {
             int remainder = value % modulus;
