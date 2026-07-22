@@ -15,14 +15,6 @@ namespace HaveABreak.EditorTools
             "Assets/GameData/EnchantDatabase.asset";
         private const string EncounterDatabasePath =
             "Assets/GameData/EncounterDatabase.asset";
-        private const string PrototypeEncounterId =
-            "TEST-ENCOUNTER-PROTOTYPE-01";
-        private const string EliteEncounterId =
-            "TEST-ENCOUNTER-PROTOTYPE-ELITE";
-        private const string MidBossEncounterId =
-            "TEST-ENCOUNTER-PROTOTYPE-MIDBOSS";
-        private const string FinalBossEncounterId =
-            "TEST-ENCOUNTER-PROTOTYPE-FINALBOSS";
 
         private RunCampaignState campaign;
         private RunEncounterProgressState progress;
@@ -30,6 +22,7 @@ namespace HaveABreak.EditorTools
         private CardDatabase cardDatabase;
         private EnchantDatabase enchantDatabase;
         private EncounterDatabase encounterDatabase;
+        private RuntimePrototypeConfig prototypeConfig;
         private string selectedEnemyId;
         private string selectedBanishCardId;
         private string selectedUpgradeCardId;
@@ -854,17 +847,21 @@ namespace HaveABreak.EditorTools
 
         private void BeginSelectedBattle()
         {
-            string encounterId = campaign.ActiveNode.NodeType switch
+            BattleEncounterGrade grade = campaign.ActiveNode.NodeType switch
             {
-                RunNodeType.EliteBattle => EliteEncounterId,
-                RunNodeType.MidBoss => MidBossEncounterId,
-                RunNodeType.FinalBoss => FinalBossEncounterId,
-                _ => PrototypeEncounterId
+                RunNodeType.EliteBattle => BattleEncounterGrade.Elite,
+                RunNodeType.MidBoss => BattleEncounterGrade.MidBoss,
+                RunNodeType.FinalBoss => BattleEncounterGrade.FinalBoss,
+                _ => BattleEncounterGrade.Normal
             };
-            if (!encounterDatabase.TryGetEncounter(
-                    encounterId, out EncounterData encounter))
+            int selectionSeed = campaign.Seed +
+                                campaign.CompletedNodeCount * 1009;
+            if (!RunEncounterPoolService.TryResolve(
+                    encounterDatabase, prototypeConfig.GetEncounterPool(grade),
+                    grade, selectionSeed, out EncounterData encounter,
+                    out string poolError))
             {
-                message = $"조우 데이터 없음: {encounterId}";
+                message = $"조우 선택 실패: {poolError}";
                 return;
             }
 
@@ -1194,6 +1191,8 @@ namespace HaveABreak.EditorTools
                 AssetDatabase.LoadAssetAtPath<EnchantDatabase>(EnchantDatabasePath);
             encounterDatabase =
                 AssetDatabase.LoadAssetAtPath<EncounterDatabase>(EncounterDatabasePath);
+            prototypeConfig = Resources.Load<RuntimePrototypeConfig>(
+                "GameData/RuntimePrototypeConfig");
             if (!DatabasesReady())
             {
                 message = "Card/Enchant/Encounter 데이터베이스를 확인하세요.";
@@ -1217,7 +1216,8 @@ namespace HaveABreak.EditorTools
         private bool DatabasesReady()
         {
             return cardDatabase != null && enchantDatabase != null &&
-                   encounterDatabase != null;
+                   encounterDatabase != null && prototypeConfig != null &&
+                   prototypeConfig.IsReady;
         }
 
         private void DrawMessage()
