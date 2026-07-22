@@ -704,7 +704,9 @@ namespace HaveABreak.Editor
 
                 if (Is(id, TestContentIds.C07) &&
                     (result.C07Effect == null || selected == null ||
-                     selected.Zone != CardZone.Banished))
+                     selected.Zone != CardZone.Banished ||
+                     source.Zone != CardZone.Graveyard ||
+                     result.C07Effect.DrawnCount != 0))
                 {
                     return false;
                 }

@@ -11,6 +11,23 @@ namespace HaveABreak.Cards
             out BattleRuntimeCardPlayFailure failure,
             out CardPlayFailure cardPlayFailure)
         {
+            return TryPlay(
+                runtime,
+                battleCardId,
+                false,
+                out result,
+                out failure,
+                out cardPlayFailure);
+        }
+
+        internal static bool TryPlay(
+            BattleRuntimeState runtime,
+            string battleCardId,
+            bool deferSkillResolution,
+            out BattleRuntimeCardPlayResult result,
+            out BattleRuntimeCardPlayFailure failure,
+            out CardPlayFailure cardPlayFailure)
+        {
             result = null;
             cardPlayFailure = CardPlayFailure.None;
             if (runtime == null || string.IsNullOrWhiteSpace(battleCardId))
@@ -40,7 +57,10 @@ namespace HaveABreak.Cards
             }
 
             int manaBefore = runtime.CardPlay.Mana.CurrentMana;
-            if (!runtime.CardPlay.TryConfirmPlay(preview, out cardPlayFailure))
+            if (!runtime.CardPlay.TryConfirmPlay(
+                    preview,
+                    deferSkillResolution,
+                    out cardPlayFailure))
             {
                 runtime.Turn.TryCompletePlayerAction(out _);
                 failure = BattleRuntimeCardPlayFailure.ConfirmFailed;
@@ -202,9 +222,11 @@ namespace HaveABreak.Cards
 
             string catalogCardId = card.SourceCard.CatalogCardId;
 
+            bool deferSkillResolution = Is(catalogCardId, TestContentIds.C07);
             if (!BattleRuntimeCardPlayService.TryPlay(
                     runtime,
                     battleCardId,
+                    deferSkillResolution,
                     out BattleRuntimeCardPlayResult play,
                     out playFailure,
                     out cardPlayFailure))
@@ -247,6 +269,15 @@ namespace HaveABreak.Cards
                     play,
                     selectedBanishBattleCardId,
                     out c07Effect);
+
+                if (effectResolved)
+                {
+                    effectResolved = runtime.Deck.TryResolveGraveyardMove(
+                        play.Card.Ids.BattleCardId,
+                        runtime.Enchants,
+                        true,
+                        out _);
+                }
             }
             else if (Is(catalogCardId, TestContentIds.C08) ||
                      Is(catalogCardId, TestContentIds.C09) ||
