@@ -341,6 +341,20 @@ namespace HaveABreak.EditorTools
                 return false;
             }
 
+            RunNodeGenerationConfig generation = config.RunNodeGenerationConfig;
+            if (generation == null ||
+                generation.GetValidationErrors().Count != 0 ||
+                generation.GeneralNodePool.Count != 5 ||
+                generation.OpeningChoiceCount != 3 ||
+                generation.MinimumChoiceCount != 2 ||
+                generation.MaximumChoiceCount != 4 ||
+                generation.EliteUnlockIndex != 2 ||
+                generation.MidBossIndex != 4 ||
+                generation.FinalBossIndex != 11)
+            {
+                return false;
+            }
+
             return Enum.GetValues(typeof(BattleEncounterGrade))
                 .Cast<BattleEncounterGrade>()
                 .All(grade => RunEncounterPoolService.TryResolve(
