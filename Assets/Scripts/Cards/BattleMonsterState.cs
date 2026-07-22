@@ -6,8 +6,6 @@ namespace HaveABreak.Cards
     [Serializable]
     public sealed class BattleMonsterState
     {
-        private const int WarmSeatHealthBonus = 2;
-
         [SerializeField] private BattleCardInstance card;
         [SerializeField] private int attack;
         [SerializeField] private int baseMaximumHealth;
@@ -61,21 +59,21 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            int activeWarmSeats = 0;
+            int resolvedMaximumHealth = baseMaximumHealth;
             if (enchants != null)
             {
                 foreach (RunEnchantSlot slot in enchants.Slots)
                 {
-                    if (!slot.IsEmpty && slot.Active &&
-                        string.Equals(slot.Enchant.DefinitionId, TestContentIds.E01, StringComparison.OrdinalIgnoreCase))
+                    if (EnchantEffectRegistrationCatalog.TryGetActiveHandler(
+                            slot, out IMaximumHealthEnchantEffectHandler handler))
                     {
-                        activeWarmSeats++;
+                        resolvedMaximumHealth = handler.ModifyMaximumHealth(resolvedMaximumHealth);
                     }
                 }
             }
 
             int previousMaximum = maximumHealth;
-            maximumHealth = Mathf.Max(1, baseMaximumHealth + activeWarmSeats * WarmSeatHealthBonus);
+            maximumHealth = Mathf.Max(1, resolvedMaximumHealth);
             int maximumDelta = maximumHealth - previousMaximum;
             currentHealth = maximumDelta > 0
                 ? Mathf.Min(maximumHealth, currentHealth + maximumDelta)

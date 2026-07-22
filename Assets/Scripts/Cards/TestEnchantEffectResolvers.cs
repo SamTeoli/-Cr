@@ -49,8 +49,8 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            bool targetsPosition = HasActiveRoutePin(
-                enchants?.Find(sourceBattleCardId));
+            bool targetsPosition = EnchantEffectRegistrationCatalog.TryFindActiveHandler(
+                enchants?.Find(sourceBattleCardId), out IFixedTargetEnchantEffectHandler _);
             declaration = new EnchantFixedTargetDeclaration(
                 sourceBattleCardId.Trim(),
                 targetEnemyId.Trim(),
@@ -78,26 +78,6 @@ namespace HaveABreak.Cards
                 : null;
         }
 
-        private static bool HasActiveRoutePin(RunCardEnchantState enchants)
-        {
-            if (enchants == null)
-            {
-                return false;
-            }
-
-            foreach (RunEnchantSlot slot in enchants.Slots)
-            {
-                if (!slot.IsEmpty && slot.Active && string.Equals(
-                        slot.Enchant.DefinitionId,
-                        TestContentIds.E08,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 
     public static class EnchantManaCostResolver
@@ -117,10 +97,10 @@ namespace HaveABreak.Cards
 
             foreach (RunEnchantSlot slot in enchants.Slots)
             {
-                if (!slot.IsEmpty && slot.Active &&
-                    string.Equals(slot.Enchant.DefinitionId, TestContentIds.E04, StringComparison.OrdinalIgnoreCase))
+                if (EnchantEffectRegistrationCatalog.TryGetActiveHandler(
+                        slot, out IManaCostEnchantEffectHandler handler))
                 {
-                    cost = Mathf.Max(1, cost - 1);
+                    cost = handler.ModifyManaCost(cost);
                 }
             }
 
@@ -144,37 +124,13 @@ namespace HaveABreak.Cards
             if (sourceCard.SourceCard.CardType != CardType.Barrier ||
                 !sourceCard.SourceCard.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.NumericRepeatingEffect) ||
-                !HasActiveStarlightEngraving(cardEnchants))
+                !EnchantEffectRegistrationCatalog.TryFindActiveHandler(
+                    cardEnchants, out IRepeatedEffectEnchantEffectHandler handler))
             {
                 return original;
             }
 
-            return new RepeatedEffectParameters(
-                original.FirstValue + 1,
-                original.TargetCount,
-                original.ActivationCount,
-                original.ConditionThreshold);
-        }
-
-        private static bool HasActiveStarlightEngraving(RunCardEnchantState enchants)
-        {
-            if (enchants == null)
-            {
-                return false;
-            }
-
-            foreach (RunEnchantSlot slot in enchants.Slots)
-            {
-                if (!slot.IsEmpty && slot.Active && string.Equals(
-                        slot.Enchant.DefinitionId,
-                        TestContentIds.E06,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return handler.Modify(original);
         }
     }
 
@@ -205,9 +161,10 @@ namespace HaveABreak.Cards
             }
 
             string sourceCardId = completedMainEffect.ActorId;
-            if (!HasActiveRoundTripTicket(enchants.Find(sourceCardId)) ||
+            if (!EnchantEffectRegistrationCatalog.TryFindActiveHandler(
+                    enchants.Find(sourceCardId), out IMainEffectCompletedEnchantEffectHandler handler) ||
                 !usage.TryUseOncePerPlayerTurn(
-                    TestContentIds.E03, sourceCardId, completedMainEffect.EventId, playerTurn))
+                    handler.DefinitionId, sourceCardId, completedMainEffect.EventId, playerTurn))
             {
                 return false;
             }
@@ -224,7 +181,7 @@ namespace HaveABreak.Cards
                 sourceCardId,
                 drawnCard.Ids.BattleCardId,
                 parentEventId: completedMainEffect.EventId,
-                sourceEffectId: TestContentIds.E03,
+                sourceEffectId: handler.DefinitionId,
                 hasZoneChange: true,
                 fromZone: CardZone.DrawPile,
                 toZone: CardZone.Hand);
@@ -232,26 +189,6 @@ namespace HaveABreak.Cards
             return true;
         }
 
-        private static bool HasActiveRoundTripTicket(RunCardEnchantState enchants)
-        {
-            if (enchants == null)
-            {
-                return false;
-            }
-
-            foreach (RunEnchantSlot slot in enchants.Slots)
-            {
-                if (!slot.IsEmpty && slot.Active && string.Equals(
-                        slot.Enchant.DefinitionId,
-                        TestContentIds.E03,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 
     public static class EnchantRustyAnnouncementResolver
@@ -278,8 +215,10 @@ namespace HaveABreak.Cards
                     completedMainEffect.ActorId,
                     StringComparison.OrdinalIgnoreCase) ||
                 impact.AffectedEnemyIds.Count == 0 ||
-                !HasActiveRustyAnnouncement(enchants.Find(impact.SourceBattleCardId)) ||
-                WasAlreadyResolved(completedMainEffect.EventId, eventLog))
+                !EnchantEffectRegistrationCatalog.TryFindActiveHandler(
+                    enchants.Find(impact.SourceBattleCardId),
+                    out IEnemyImpactEnchantEffectHandler handler) ||
+                WasAlreadyResolved(handler.DefinitionId, completedMainEffect.EventId, eventLog))
             {
                 return false;
             }
@@ -301,7 +240,7 @@ namespace HaveABreak.Cards
                     impact.SourceBattleCardId,
                     enemy.EnemyId,
                     parentEventId: completedMainEffect.EventId,
-                    sourceEffectId: TestContentIds.E05,
+                    sourceEffectId: handler.DefinitionId,
                     beforeValue: beforeWeaken,
                     afterValue: enemy.Weaken));
             }
@@ -309,11 +248,15 @@ namespace HaveABreak.Cards
             return weakenEvents.Count > 0;
         }
 
-        private static bool WasAlreadyResolved(string completedEventId, BattleEventLog eventLog)
+        private static bool WasAlreadyResolved(
+            string effectId,
+            string completedEventId,
+            BattleEventLog eventLog)
         {
             foreach (BattleEventRecord record in eventLog.Events)
             {
-                if (record != null && record.SourceEffectId == TestContentIds.E05 && string.Equals(
+                if (record != null && string.Equals(
+                        record.SourceEffectId, effectId, StringComparison.OrdinalIgnoreCase) && string.Equals(
                         record.ParentEventId,
                         completedEventId,
                         StringComparison.OrdinalIgnoreCase))
@@ -325,26 +268,6 @@ namespace HaveABreak.Cards
             return false;
         }
 
-        private static bool HasActiveRustyAnnouncement(RunCardEnchantState enchants)
-        {
-            if (enchants == null)
-            {
-                return false;
-            }
-
-            foreach (RunEnchantSlot slot in enchants.Slots)
-            {
-                if (!slot.IsEmpty && slot.Active && string.Equals(
-                        slot.Enchant.DefinitionId,
-                        TestContentIds.E05,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 
     [Serializable]
@@ -437,9 +360,10 @@ namespace HaveABreak.Cards
             string attackerId = completedAttack.ActorId;
             BattleMonsterState monster = monsters.Find(attackerId);
             RunCardEnchantState cardEnchants = enchants.Find(attackerId);
-            if (monster == null || !HasActiveWornHandle(cardEnchants) ||
+            if (monster == null || !EnchantEffectRegistrationCatalog.TryFindActiveHandler(
+                    cardEnchants, out IAttackCompletedEnchantEffectHandler handler) ||
                 !usage.TryUseOncePerPlayerTurn(
-                    TestContentIds.E02, attackerId, completedAttack.EventId, playerTurn))
+                    handler.DefinitionId, attackerId, completedAttack.EventId, playerTurn))
             {
                 return false;
             }
@@ -453,32 +377,12 @@ namespace HaveABreak.Cards
                 attackerId,
                 attackerId,
                 parentEventId: completedAttack.EventId,
-                sourceEffectId: TestContentIds.E02,
+                sourceEffectId: handler.DefinitionId,
                 beforeValue: beforeCounter,
                 afterValue: monster.Counter);
             return true;
         }
 
-        private static bool HasActiveWornHandle(RunCardEnchantState enchants)
-        {
-            if (enchants == null)
-            {
-                return false;
-            }
-
-            foreach (RunEnchantSlot slot in enchants.Slots)
-            {
-                if (!slot.IsEmpty && slot.Active && string.Equals(
-                        slot.Enchant.DefinitionId,
-                        TestContentIds.E02,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 
     public readonly struct RepeatedEffectParameters

@@ -101,7 +101,9 @@ namespace HaveABreak.Editor
 
             foreach (string id in ids)
             {
-                if (!EnchantEffectRegistrationCatalog.TryFind(id, out _))
+                if (!EnchantEffectRegistrationCatalog.TryFind(
+                        id, out EnchantEffectRegistration registration) ||
+                    !HasExpectedEnchantHandler(registration))
                 {
                     return false;
                 }
@@ -113,6 +115,29 @@ namespace HaveABreak.Editor
                    !EnchantEffectRegistrationCatalog.HasCapability(
                        TestContentIds.E08,
                        EnchantEffectCapability.TransferStamp);
+        }
+
+        private static bool HasExpectedEnchantHandler(EnchantEffectRegistration registration)
+        {
+            if (registration.DefinitionId == TestContentIds.E01)
+                return registration.Handler is IMaximumHealthEnchantEffectHandler;
+            if (registration.DefinitionId == TestContentIds.E02)
+                return registration.Handler is IAttackCompletedEnchantEffectHandler;
+            if (registration.DefinitionId == TestContentIds.E03)
+                return registration.Handler is IMainEffectCompletedEnchantEffectHandler;
+            if (registration.DefinitionId == TestContentIds.E04)
+                return registration.Handler is IManaCostEnchantEffectHandler;
+            if (registration.DefinitionId == TestContentIds.E05)
+                return registration.Handler is IEnemyImpactEnchantEffectHandler;
+            if (registration.DefinitionId == TestContentIds.E06)
+                return registration.Handler is IRepeatedEffectEnchantEffectHandler;
+            if (registration.DefinitionId == TestContentIds.E08)
+                return registration.Handler is IFixedTargetEnchantEffectHandler;
+
+            return registration.DefinitionId == TestContentIds.E07 &&
+                   registration.Handler is IGraveyardReplacementEnchantEffectHandler &&
+                   EnchantEffectRegistrationCatalog.HasCapability(
+                       registration.DefinitionId, EnchantEffectCapability.TransferStamp);
         }
 
         private static bool ValidateExtensionBoundary()
