@@ -155,7 +155,9 @@ namespace HaveABreak.EditorTools
         {
             RunBattleState run = progress.RunState;
             EditorGUILayout.LabelField(
-                $"막 {campaign.Act} · 완료 노드 {campaign.CompletedNodeCount}/12",
+                $"막 {campaign.GetAct(prototypeConfig.RunStartProgressionConfig)} · " +
+                $"완료 노드 {campaign.CompletedNodeCount}/" +
+                $"{prototypeConfig.RunStartProgressionConfig.TotalNodeCount}",
                 EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
                 $"HP {run.CurrentHealth}/{run.MaximumHealth}    " +
@@ -808,15 +810,8 @@ namespace HaveABreak.EditorTools
                     out _);
             }
 
-            RunBattleState run = new(
-                30, 30, 60,
-                new[]
-                {
-                    PrototypeConsumableCatalog.HealingPotion,
-                    PrototypeConsumableCatalog.CleanseScroll,
-                    PrototypeConsumableCatalog.ManaBattery,
-                    PrototypeConsumableCatalog.EnchantHammer
-                });
+            RunBattleState run =
+                prototypeConfig.RunStartProgressionConfig.CreateInitialRunState();
             LoadPermanentRewards();
             progress = new RunEncounterProgressState(
                 run, deck, permanentRewards);
@@ -874,7 +869,8 @@ namespace HaveABreak.EditorTools
                 $"RUN-{campaign.Seed}-NODE-{campaign.CompletedNodeCount + 1:00}";
             int seed = campaign.Seed + campaign.CompletedNodeCount * 101;
             if (!RunEncounterProgressService.TryBegin(
-                    progress, battleId, encounter, seed, 5,
+                    progress, battleId, encounter, seed,
+                    prototypeConfig.RunStartProgressionConfig.BattleMaximumMana,
                     Array.Empty<string>(), (uint)Mathf.Abs(seed),
                     prototypeConfig.BattleRewardConfig,
                     out _,

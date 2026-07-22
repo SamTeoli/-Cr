@@ -29,6 +29,7 @@ namespace HaveABreak.EditorTools
                          ValidateConsumableDefinitions() &&
                          ValidateEventAndShopSlotData() &&
                          ValidateRestUpgradeRules() &&
+                         ValidateRunStartProgressionRules() &&
                          ValidateEncounterGrades() &&
                          ValidateRuntimePrototypeConfig();
             if (valid)
@@ -336,6 +337,42 @@ namespace HaveABreak.EditorTools
             }
         }
 
+        private static bool ValidateRunStartProgressionRules()
+        {
+            RunStartProgressionConfig rules =
+                ScriptableObject.CreateInstance<RunStartProgressionConfig>();
+            try
+            {
+                rules.EditorInitialize(42, 75, 7, 5, 4,
+                    new[] { "ITEM-A", "ITEM-B" });
+                RunBattleState run = rules.CreateInitialRunState();
+                RunCampaignState campaign = new(20260722);
+                if (rules.GetValidationErrors().Count != 0 ||
+                    run.MaximumHealth != 42 || run.CurrentHealth != 42 ||
+                    run.Gold != 75 ||
+                    !run.ConsumableItemIds.SequenceEqual(
+                        new[] { "ITEM-A", "ITEM-B" }) ||
+                    rules.BattleMaximumMana != 7 || rules.TotalNodeCount != 20 ||
+                    campaign.GetAct(rules) != 1)
+                {
+                    return false;
+                }
+
+                if (rules.GetAct(5) != 2 || rules.GetAct(19) != 4)
+                {
+                    return false;
+                }
+
+                rules.EditorInitialize(0, -1, 99, 0, 0,
+                    new[] { "", "ITEM-A", "item-a" });
+                return rules.GetValidationErrors().Count == 7;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(rules);
+            }
+        }
+
         private static bool ValidateInvalidConsumableDefinitions()
         {
             ConsumableData blank = ScriptableObject.CreateInstance<ConsumableData>();
@@ -440,6 +477,8 @@ namespace HaveABreak.EditorTools
             RunNodeGenerationConfig generation = config.RunNodeGenerationConfig;
             ShopEconomyConfig economy = config.ShopEconomyConfig;
             RestUpgradeConfig restUpgrade = config.RestUpgradeConfig;
+            RunStartProgressionConfig runStart =
+                config.RunStartProgressionConfig;
             BattleRewardConfig rewards = config.BattleRewardConfig;
             if (generation == null ||
                 generation.GetValidationErrors().Count != 0 ||
@@ -469,6 +508,22 @@ namespace HaveABreak.EditorTools
                 restUpgrade.UpgradeLevelIncrease != 1 ||
                 restUpgrade.GetHealingAmount(30) != 9 ||
                 restUpgrade.GetHealingAmount(31) != 10 ||
+                runStart == null || runStart.GetValidationErrors().Count != 0 ||
+                runStart.StartingMaximumHealth != 30 ||
+                runStart.StartingGold != 60 ||
+                runStart.BattleMaximumMana != 5 ||
+                runStart.NodesPerAct != 4 || runStart.MaximumActCount != 3 ||
+                runStart.TotalNodeCount != 12 ||
+                runStart.StartingConsumableItemIds.Count != 4 ||
+                !runStart.StartingConsumableItemIds.SequenceEqual(new[]
+                {
+                    PrototypeConsumableCatalog.HealingPotion,
+                    PrototypeConsumableCatalog.CleanseScroll,
+                    PrototypeConsumableCatalog.ManaBattery,
+                    PrototypeConsumableCatalog.EnchantHammer
+                }) ||
+                runStart.GetAct(0) != 1 || runStart.GetAct(4) != 2 ||
+                runStart.GetAct(11) != 3 ||
                 rewards == null || rewards.GetValidationErrors().Count != 0 ||
                 config.EncounterProgressionConfig == null ||
                 config.EncounterProgressionConfig.GetValidationErrors(
