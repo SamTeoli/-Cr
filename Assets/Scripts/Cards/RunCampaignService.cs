@@ -138,10 +138,6 @@ namespace HaveABreak.Cards
     [Serializable]
     public sealed class RunCampaignState
     {
-        public const int GeneralNodeCount = 10;
-        public const int MidBossIndex = 4;
-        public const int FinalBossIndex = 11;
-
         [SerializeField] private int seed;
         [SerializeField] private int completedNodeCount;
         [SerializeField] private int shopRerollCount;
@@ -262,14 +258,9 @@ namespace HaveABreak.Cards
         private static SituationEventDatabase SituationEvents =>
             Resources.Load<RuntimePrototypeConfig>(
                 "GameData/RuntimePrototypeConfig")?.SituationEventDatabase;
-        private static readonly RunNodeType[] Rotation =
-        {
-            RunNodeType.Battle,
-            RunNodeType.Shop,
-            RunNodeType.SituationEvent,
-            RunNodeType.RestOrUpgrade,
-            RunNodeType.EliteBattle
-        };
+        private static RunNodeGenerationConfig NodeGeneration =>
+            Resources.Load<RuntimePrototypeConfig>(
+                "GameData/RuntimePrototypeConfig")?.RunNodeGenerationConfig;
 
         public static IReadOnlyList<RunNodeChoice> GetChoices(
             RunCampaignState campaign)
@@ -286,14 +277,17 @@ namespace HaveABreak.Cards
             }
 
             int index = campaign.CompletedNodeCount;
-            if (index == RunCampaignState.MidBossIndex)
+            RunNodeGenerationConfig generation = NodeGeneration;
+            if (generation == null || generation.GetValidationErrors().Count > 0)
+                return Array.Empty<RunNodeChoice>();
+            if (index == generation.MidBossIndex)
             {
                 campaign.SetAvailableNodeChoices(new[]
                     { Choice(campaign, index, 0, RunNodeType.MidBoss) });
                 return campaign.AvailableNodeChoices;
             }
 
-            if (index == RunCampaignState.FinalBossIndex)
+            if (index == generation.FinalBossIndex)
             {
                 campaign.SetAvailableNodeChoices(new[]
                     { Choice(campaign, index, 0, RunNodeType.FinalBoss) });
@@ -301,15 +295,22 @@ namespace HaveABreak.Cards
             }
 
             List<RunNodeChoice> choices = new();
-            int count = index == 0 ? 3 : 2 + PositiveMod(campaign.Seed + index, 3);
-            count = Mathf.Clamp(count, 2, 4);
+            int count = index == 0
+                ? generation.OpeningChoiceCount
+                : generation.MinimumChoiceCount + PositiveMod(
+                    campaign.Seed + index,
+                    generation.MaximumChoiceCount -
+                    generation.MinimumChoiceCount + 1);
+            count = Mathf.Clamp(count, generation.MinimumChoiceCount,
+                generation.MaximumChoiceCount);
             for (int i = 0; i < count; i++)
             {
                 int rotationIndex = PositiveMod(
                     campaign.Seed + index * 3 + i * 2,
-                    Rotation.Length);
-                RunNodeType type = Rotation[rotationIndex];
-                if (index < 2 && type == RunNodeType.EliteBattle)
+                    generation.GeneralNodePool.Count);
+                RunNodeType type = generation.GeneralNodePool[rotationIndex];
+                if (index < generation.EliteUnlockIndex &&
+                    type == RunNodeType.EliteBattle)
                 {
                     type = RunNodeType.Battle;
                 }

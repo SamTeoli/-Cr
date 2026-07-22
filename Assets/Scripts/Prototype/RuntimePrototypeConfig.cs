@@ -13,6 +13,7 @@ namespace HaveABreak.Cards
         [SerializeField] private EnchantDatabase enchantDatabase;
         [SerializeField] private ConsumableDatabase consumableDatabase;
         [SerializeField] private SituationEventDatabase situationEventDatabase;
+        [SerializeField] private RunNodeGenerationConfig runNodeGenerationConfig;
         [SerializeField] private EncounterDatabase encounterDatabase;
         [SerializeField] private List<string> normalEncounterIds = new();
         [SerializeField] private List<string> eliteEncounterIds = new();
@@ -23,6 +24,8 @@ namespace HaveABreak.Cards
         public EnchantDatabase EnchantDatabase => enchantDatabase;
         public ConsumableDatabase ConsumableDatabase => consumableDatabase;
         public SituationEventDatabase SituationEventDatabase => situationEventDatabase;
+        public RunNodeGenerationConfig RunNodeGenerationConfig =>
+            runNodeGenerationConfig;
         public EncounterDatabase EncounterDatabase => encounterDatabase;
         public IReadOnlyList<string> GetEncounterPool(BattleEncounterGrade grade)
         {
@@ -52,6 +55,8 @@ namespace HaveABreak.Cards
         public bool IsReady => cardDatabase != null && enchantDatabase != null &&
                                consumableDatabase != null &&
                                situationEventDatabase != null &&
+                               runNodeGenerationConfig != null &&
+                               runNodeGenerationConfig.GetValidationErrors().Count == 0 &&
                                encounterDatabase != null &&
                                GetEncounterPoolValidationErrors().Count == 0;
     }

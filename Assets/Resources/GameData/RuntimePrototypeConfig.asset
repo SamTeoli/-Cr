@@ -16,6 +16,7 @@ MonoBehaviour:
   enchantDatabase: {fileID: 11400000, guid: f9a4ae70fee9a7649b619170e431f1b6, type: 2}
   consumableDatabase: {fileID: 11400000, guid: a4100000000000000000000000000008, type: 2}
   situationEventDatabase: {fileID: 11400000, guid: b4100000000000000000000000000005, type: 2}
+  runNodeGenerationConfig: {fileID: 11400000, guid: c5100000000000000000000000000002, type: 2}
   encounterDatabase: {fileID: 11400000, guid: 37db0000000000000000000000000001, type: 2}
   normalEncounterIds:
   - TEST-ENCOUNTER-PROTOTYPE-01
