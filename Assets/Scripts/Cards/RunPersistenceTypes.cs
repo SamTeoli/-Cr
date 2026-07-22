@@ -127,6 +127,7 @@ namespace HaveABreak.Cards
     public sealed class RunEncounterProgressState
     {
         [SerializeField] private RunBattleState runState;
+        [SerializeField] private RunOwnedCardState ownedCards;
         [SerializeField] private RunDeckState runDeck;
         [SerializeField] private PlayerPermanentRewardState permanentRewards;
         [SerializeField] private List<string> usedBattleInstanceIds = new();
@@ -159,6 +160,20 @@ namespace HaveABreak.Cards
 
         public RunEncounterProgressState(
             RunBattleState runState,
+            RunOwnedCardState ownedCards,
+            RunDeckState runDeck,
+            PlayerPermanentRewardState permanentRewards,
+            IEnumerable<string> completedBattleInstanceIds,
+            int completedEncounterCount)
+            : this(runState, runDeck, permanentRewards,
+                completedBattleInstanceIds, completedEncounterCount)
+        {
+            this.ownedCards = ownedCards ??
+                throw new ArgumentNullException(nameof(ownedCards));
+        }
+
+        public RunEncounterProgressState(
+            RunBattleState runState,
             RunDeckState runDeck,
             PlayerPermanentRewardState permanentRewards,
             IEnumerable<string> completedBattleInstanceIds,
@@ -168,6 +183,7 @@ namespace HaveABreak.Cards
                 throw new ArgumentNullException(nameof(runState));
             this.runDeck = runDeck ??
                 throw new ArgumentNullException(nameof(runDeck));
+            ownedCards = CreateOwnedCardsFromDeck(runDeck);
             this.permanentRewards = permanentRewards ??
                 throw new ArgumentNullException(nameof(permanentRewards));
             if (completedEncounterCount < 0)
@@ -206,6 +222,8 @@ namespace HaveABreak.Cards
         }
 
         public RunBattleState RunState => runState;
+        public RunOwnedCardState OwnedCards =>
+            ownedCards ??= CreateOwnedCardsFromDeck(runDeck);
         public RunDeckState RunDeck => runDeck;
         public PlayerPermanentRewardState PermanentRewards =>
             permanentRewards ??= new PlayerPermanentRewardState();
@@ -215,6 +233,18 @@ namespace HaveABreak.Cards
         public int CompletedEncounterCount => completedEncounterCount;
         public IReadOnlyList<string> UsedBattleInstanceIds =>
             usedBattleInstanceIds ??= new List<string>();
+
+        private static RunOwnedCardState CreateOwnedCardsFromDeck(
+            RunDeckState deck)
+        {
+            RunOwnedCardState result = new();
+            if (deck == null) return result;
+            foreach (RunCardInstance card in deck.Cards)
+            {
+                result.TryAdd(card, out _);
+            }
+            return result;
+        }
 
         internal bool HasUsedBattleInstanceId(string battleInstanceId)
         {

@@ -70,8 +70,50 @@ namespace HaveABreak.Editor
             }
 
             return ValidateSnapshot(runDeck, first, second) &&
+                   ValidateOwnedCardSelection(first, second) &&
                    ValidateDeterminism(runDeck) &&
                    ValidateRejectedSnapshots();
+        }
+
+        private static bool ValidateOwnedCardSelection(
+            RunCardInstance first,
+            RunCardInstance second)
+        {
+            RunOwnedCardState ownedCards = new();
+            if (!ownedCards.TryAdd(first, out _) ||
+                !ownedCards.TryAdd(second, out _) ||
+                !RunDeckSelectionService.TryCreateDeck(
+                    ownedCards,
+                    new[] { second.OwnedCardId },
+                    out RunDeckState selectedDeck,
+                    out RunDeckFailure selectionFailure) ||
+                selectionFailure != RunDeckFailure.None ||
+                selectedDeck.Count != 1 ||
+                selectedDeck.Cards[0] != second ||
+                !RunDeckBattleSnapshotService.TryCreate(
+                    selectedDeck,
+                    "TEST-BATTLE-45-SELECTED",
+                    out RunDeckBattleSnapshot snapshot,
+                    out RunDeckFailure snapshotFailure) ||
+                snapshotFailure != RunDeckFailure.None ||
+                snapshot.Cards.Count != 1 ||
+                snapshot.Cards[0].Ids.OwnedCardId != second.OwnedCardId)
+            {
+                return false;
+            }
+
+            return !RunDeckSelectionService.TryCreateDeck(
+                       ownedCards,
+                       new[] { "OWNED-NOT-FOUND" },
+                       out _,
+                       out RunDeckFailure missingFailure) &&
+                   missingFailure == RunDeckFailure.CardNotFound &&
+                   !RunDeckSelectionService.TryCreateDeck(
+                       ownedCards,
+                       new[] { first.OwnedCardId, first.OwnedCardId },
+                       out _,
+                       out RunDeckFailure duplicateFailure) &&
+                   duplicateFailure == RunDeckFailure.DuplicateOwnedCardId;
         }
 
         private static bool ValidateSnapshot(

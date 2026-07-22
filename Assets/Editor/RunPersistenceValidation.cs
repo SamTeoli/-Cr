@@ -1578,6 +1578,8 @@ namespace HaveABreak.Editor
                 out RunProgressSaveFailure serializeFailure);
             if (!serialized || string.IsNullOrWhiteSpace(json) ||
                 serializeFailure != RunProgressSaveFailure.None ||
+                !ValidateLegacyMigration(
+                    json, cardDatabase, enchantDatabase, permanentRewards) ||
                 !ValidateRejectedData(
                     json,
                     cardDatabase,
@@ -1606,6 +1608,26 @@ namespace HaveABreak.Editor
             }
         }
 
+        private static bool ValidateLegacyMigration(
+            string json,
+            CardDatabase cardDatabase,
+            EnchantDatabase enchantDatabase,
+            PlayerPermanentRewardState permanentRewards)
+        {
+            string legacyJson = json.Replace(
+                "\"schemaVersion\": 2",
+                "\"schemaVersion\": 1");
+            return legacyJson != json &&
+                   RunProgressSaveService.TryDeserialize(
+                       legacyJson, cardDatabase, enchantDatabase,
+                       permanentRewards,
+                       out RunEncounterProgressState migrated,
+                       out RunProgressSaveFailure failure) &&
+                   failure == RunProgressSaveFailure.None &&
+                   migrated.OwnedCards.Count == 12 &&
+                   migrated.RunDeck.Count == 12;
+        }
+
         private static RunEncounterProgressState CreateSource(
             CardDatabase cardDatabase,
             EnchantDatabase enchantDatabase,
@@ -1617,12 +1639,12 @@ namespace HaveABreak.Editor
                 return null;
             }
 
-            RunDeckState runDeck = new();
+            RunOwnedCardState ownedCards = new();
             for (int number = 1; number <= 12; number++)
             {
                 string cardId = $"C{number:00}";
                 if (!cardDatabase.TryGetCard(cardId, out CardData card) ||
-                    !runDeck.TryAdd(
+                    !ownedCards.TryAdd(
                         new RunCardInstance(
                             card,
                             $"OWNED-52-{cardId}",
@@ -1634,8 +1656,21 @@ namespace HaveABreak.Editor
                 }
             }
 
+            if (!RunDeckSelectionService.TryCreateDeck(
+                    ownedCards,
+                    new[] {
+                        "OWNED-52-C01", "OWNED-52-C03", "OWNED-52-C05",
+                        "OWNED-52-C07", "OWNED-52-C09", "OWNED-52-C11"
+                    },
+                    out RunDeckState runDeck,
+                    out RunDeckFailure selectionFailure) ||
+                selectionFailure != RunDeckFailure.None)
+            {
+                return null;
+            }
+
             EnchantData e01 = enchantDatabase.Find(TestContentIds.E01);
-            RunCardInstance target = runDeck.Find("OWNED-52-C01");
+            RunCardInstance target = ownedCards.Find("OWNED-52-C01");
             if (e01 == null || target == null ||
                 !target.Enchants.HasImmediateAttachmentTarget(e01) ||
                 !target.Enchants.TryIncreaseSlotCount() ||
@@ -1656,6 +1691,7 @@ namespace HaveABreak.Editor
                     27,
                     123,
                     new[] { "ITEM-52-A", "ITEM-52-B" }),
+                ownedCards,
                 runDeck,
                 permanentRewards,
                 new[] { "BATTLE-52-A", "BATTLE-52-B" },
@@ -1676,8 +1712,8 @@ namespace HaveABreak.Editor
                 out RunEncounterProgressState nullDatabaseProgress,
                 out RunProgressSaveFailure nullDatabaseFailure);
             string unsupportedJson = json.Replace(
-                "\"schemaVersion\": 1",
-                "\"schemaVersion\": 2");
+                "\"schemaVersion\": 2",
+                "\"schemaVersion\": 3");
             bool unsupportedLoaded = RunProgressSaveService.TryDeserialize(
                 unsupportedJson,
                 cardDatabase,
@@ -1776,7 +1812,9 @@ namespace HaveABreak.Editor
                 restored.UsedBattleInstanceIds.Count != 2 ||
                 restored.UsedBattleInstanceIds[0] != "BATTLE-52-A" ||
                 restored.UsedBattleInstanceIds[1] != "BATTLE-52-B" ||
-                restored.RunDeck.Count != 12)
+                restored.OwnedCards == null ||
+                restored.OwnedCards.Count != 12 ||
+                restored.RunDeck.Count != 6)
             {
                 return false;
             }
@@ -1784,7 +1822,7 @@ namespace HaveABreak.Editor
             for (int number = 1; number <= 12; number++)
             {
                 string cardId = $"C{number:00}";
-                RunCardInstance card = restored.RunDeck.Find(
+                RunCardInstance card = restored.OwnedCards.Find(
                     $"OWNED-52-{cardId}");
                 if (card == null || card.CatalogCardId != cardId ||
                     card.CurrentLevel !=
@@ -1795,9 +1833,11 @@ namespace HaveABreak.Editor
             }
 
             RunCardInstance enchanted =
-                restored.RunDeck.Find("OWNED-52-C01");
+                restored.OwnedCards.Find("OWNED-52-C01");
             if (enchanted?.Enchants == null ||
-                enchanted.Enchants.SlotCount != 3)
+                enchanted.Enchants.SlotCount != 3 ||
+                restored.RunDeck.Find("OWNED-52-C02") != null ||
+                restored.RunDeck.Find("OWNED-52-C11") == null)
             {
                 return false;
             }
