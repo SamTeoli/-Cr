@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   cardDatabase: {fileID: 11400000, guid: 98f60209926350148a5dd6dfb586373e, type: 2}
   enchantDatabase: {fileID: 11400000, guid: f9a4ae70fee9a7649b619170e431f1b6, type: 2}
+  consumableDatabase: {fileID: 11400000, guid: a4100000000000000000000000000008, type: 2}
   encounterDatabase: {fileID: 11400000, guid: 37db0000000000000000000000000001, type: 2}
   normalEncounterId: TEST-ENCOUNTER-PROTOTYPE-01
   eliteEncounterId: TEST-ENCOUNTER-PROTOTYPE-ELITE

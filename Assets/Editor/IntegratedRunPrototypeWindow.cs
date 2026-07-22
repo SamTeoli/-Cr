@@ -366,7 +366,7 @@ namespace HaveABreak.EditorTools
             int offerSeed = campaign.Seed + campaign.CompletedNodeCount * 31 +
                             campaign.ShopRerollCount * 101;
             EditorGUILayout.LabelField("소모아이템", EditorStyles.miniBoldLabel);
-            foreach (PrototypeConsumableDefinition item in
+            foreach (ConsumableData item in
                      Rotate(PrototypeConsumableCatalog.All, offerSeed).Take(3))
             {
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
@@ -534,10 +534,10 @@ namespace HaveABreak.EditorTools
             EditorGUILayout.BeginHorizontal();
             foreach (string itemId in progress.RunState.ConsumableItemIds.Distinct())
             {
-                PrototypeConsumableDefinition item =
+                ConsumableData item =
                     PrototypeConsumableCatalog.Find(itemId);
                 if (item == null ||
-                    item.Effect == PrototypeConsumableEffect.IncreaseEnchantSlot)
+                    item.Effect == ConsumableEffect.IncreaseEnchantSlot)
                 {
                     continue;
                 }
@@ -720,7 +720,7 @@ namespace HaveABreak.EditorTools
                 if (context.VictoryConsumableRewards != null &&
                     !context.VictoryConsumableRewards.Claimed)
                 {
-                    foreach (PrototypeConsumableDefinition item in
+                    foreach (ConsumableData item in
                              PrototypeConsumableCatalog.All.Take(3))
                     {
                         if (GUILayout.Button($"{item.DisplayName} · {item.RulesText}"))

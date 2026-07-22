@@ -111,16 +111,53 @@ namespace HaveABreak.EditorTools
 
         private static bool ValidateConsumableDefinitions()
         {
-            IReadOnlyList<PrototypeConsumableDefinition> items =
-                PrototypeConsumableCatalog.All;
-            return items.Count == 4 &&
+            ConsumableDatabase database =
+                AssetDatabase.LoadAssetAtPath<ConsumableDatabase>(
+                    "Assets/GameData/ConsumableDatabase.asset");
+            IReadOnlyList<ConsumableData> items = database?.Consumables;
+            return database != null && items != null && items.Count == 4 &&
+                   database.GetValidationErrors().Count == 0 &&
                    items.All(item => item != null &&
                        !string.IsNullOrWhiteSpace(item.ItemId) &&
                        !string.IsNullOrWhiteSpace(item.DisplayName) &&
                        item.ShopPrice > 0) &&
                    items.Select(item => item.ItemId)
                        .Distinct(StringComparer.OrdinalIgnoreCase).Count() ==
-                   items.Count;
+                   items.Count &&
+                   ReferenceEquals(PrototypeConsumableCatalog.Find(
+                       PrototypeConsumableCatalog.HealingPotion), items[0]) &&
+                   ValidateInvalidConsumableDefinitions();
+        }
+
+        private static bool ValidateInvalidConsumableDefinitions()
+        {
+            ConsumableData blank = ScriptableObject.CreateInstance<ConsumableData>();
+            ConsumableData first = ScriptableObject.CreateInstance<ConsumableData>();
+            ConsumableData duplicate = ScriptableObject.CreateInstance<ConsumableData>();
+            ConsumableDatabase database =
+                ScriptableObject.CreateInstance<ConsumableDatabase>();
+            try
+            {
+                blank.EditorInitialize(" ", "Blank", "Test",
+                    ConsumableEffect.HealPlayer, 1, 1);
+                first.EditorInitialize("DUPLICATE", "First", "Test",
+                    ConsumableEffect.HealPlayer, 1, 1);
+                duplicate.EditorInitialize("duplicate", "Second", "Test",
+                    ConsumableEffect.RestoreMana, 1, 1);
+                database.EditorSetConsumables(new[] { blank, first, duplicate });
+
+                IReadOnlyList<string> errors = database.GetValidationErrors();
+                return errors.Count == 2 &&
+                       errors.Any(error => error.Contains("empty ID")) &&
+                       errors.Any(error => error.Contains("Duplicate consumable ID"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(database);
+                Object.DestroyImmediate(duplicate);
+                Object.DestroyImmediate(first);
+                Object.DestroyImmediate(blank);
+            }
         }
 
         private static bool ValidateEncounterGrades()

@@ -9,6 +9,7 @@ namespace HaveABreak.Cards
     {
         [SerializeField] private CardDatabase cardDatabase;
         [SerializeField] private EnchantDatabase enchantDatabase;
+        [SerializeField] private ConsumableDatabase consumableDatabase;
         [SerializeField] private EncounterDatabase encounterDatabase;
         [SerializeField] private string normalEncounterId =
             "TEST-ENCOUNTER-PROTOTYPE-01";
@@ -21,12 +22,14 @@ namespace HaveABreak.Cards
 
         public CardDatabase CardDatabase => cardDatabase;
         public EnchantDatabase EnchantDatabase => enchantDatabase;
+        public ConsumableDatabase ConsumableDatabase => consumableDatabase;
         public EncounterDatabase EncounterDatabase => encounterDatabase;
         public string NormalEncounterId => normalEncounterId;
         public string EliteEncounterId => eliteEncounterId;
         public string MidBossEncounterId => midBossEncounterId;
         public string FinalBossEncounterId => finalBossEncounterId;
         public bool IsReady => cardDatabase != null && enchantDatabase != null &&
+                               consumableDatabase != null &&
                                encounterDatabase != null;
     }
 }
