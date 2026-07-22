@@ -153,10 +153,10 @@ namespace HaveABreak.EditorTools
             }
             finally
             {
-                Object.DestroyImmediate(database);
-                Object.DestroyImmediate(duplicate);
-                Object.DestroyImmediate(first);
-                Object.DestroyImmediate(blank);
+                UnityEngine.Object.DestroyImmediate(database);
+                UnityEngine.Object.DestroyImmediate(duplicate);
+                UnityEngine.Object.DestroyImmediate(first);
+                UnityEngine.Object.DestroyImmediate(blank);
             }
         }
 
