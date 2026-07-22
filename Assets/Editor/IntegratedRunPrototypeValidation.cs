@@ -356,6 +356,7 @@ namespace HaveABreak.EditorTools
 
             RunNodeGenerationConfig generation = config.RunNodeGenerationConfig;
             ShopEconomyConfig economy = config.ShopEconomyConfig;
+            BattleRewardConfig rewards = config.BattleRewardConfig;
             if (generation == null ||
                 generation.GetValidationErrors().Count != 0 ||
                 generation.GeneralNodePool.Count != 5 ||
@@ -369,7 +370,9 @@ namespace HaveABreak.EditorTools
                 economy.BaseRerollCost != 10 ||
                 economy.RerollCostIncrease != 5 ||
                 economy.GetRerollCost(0) != 10 ||
-                economy.GetRerollCost(2) != 20)
+                economy.GetRerollCost(2) != 20 ||
+                rewards == null || rewards.GetValidationErrors().Count != 0 ||
+                !ValidateBattleRewardRules(rewards))
             {
                 return false;
             }
@@ -381,6 +384,25 @@ namespace HaveABreak.EditorTools
                     grade, 20260722, out _, out _)) &&
                    ValidateDeterministicEncounterSelection(config) &&
                    ValidateEncounterPoolSelectionRules();
+        }
+
+        private static bool ValidateBattleRewardRules(BattleRewardConfig config)
+        {
+            return config.TryGetRule(BattleEncounterGrade.Normal, out var normal) &&
+                   normal.GoldOptions.SequenceEqual(new[] { 20, 25, 30 }) &&
+                   normal.EnchantChoiceCount == 3 &&
+                   normal.MinimumEnchantRarity == CardRarity.Common &&
+                   config.TryGetRule(BattleEncounterGrade.Elite, out var elite) &&
+                   elite.GoldOptions.SequenceEqual(new[] { 40, 45, 50, 55 }) &&
+                   elite.MinimumEnchantRarity == CardRarity.Rare &&
+                   elite.ConsumableItemRewardCount == 1 &&
+                   config.TryGetRule(BattleEncounterGrade.MidBoss, out var midBoss) &&
+                   midBoss.GoldOptions.SequenceEqual(new[] { 60 }) &&
+                   midBoss.MinimumEnchantRarity == CardRarity.Rare &&
+                   config.TryGetRule(BattleEncounterGrade.FinalBoss, out var finalBoss) &&
+                   finalBoss.GoldOptions.SequenceEqual(new[] { 0 }) &&
+                   finalBoss.EnchantChoiceCount == 0 &&
+                   finalBoss.GrantsPermanentReward;
         }
 
         private static bool ValidateDeterministicEncounterSelection(
