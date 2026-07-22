@@ -64,7 +64,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            foreach (RunEnchantSlot slot in entry.EnchantState.Slots)
+            foreach (RunEnchantSlot slot in entry.EnchantState.SlotsInAttachmentOrder)
             {
                 if (!slot.IsEmpty && slot.Active &&
                     EnchantEffectRegistrationCatalog.HasCapability(

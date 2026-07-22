@@ -95,7 +95,7 @@ namespace HaveABreak.Cards
                 return cost;
             }
 
-            foreach (RunEnchantSlot slot in enchants.Slots)
+            foreach (RunEnchantSlot slot in enchants.SlotsInAttachmentOrder)
             {
                 if (EnchantEffectRegistrationCatalog.TryGetActiveHandler(
                         slot, out IManaCostEnchantEffectHandler handler))

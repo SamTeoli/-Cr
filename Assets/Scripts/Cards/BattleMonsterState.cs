@@ -62,7 +62,7 @@ namespace HaveABreak.Cards
             int resolvedMaximumHealth = baseMaximumHealth;
             if (enchants != null)
             {
-                foreach (RunEnchantSlot slot in enchants.Slots)
+                foreach (RunEnchantSlot slot in enchants.SlotsInAttachmentOrder)
                 {
                     if (EnchantEffectRegistrationCatalog.TryGetActiveHandler(
                             slot, out IMaximumHealthEnchantEffectHandler handler))

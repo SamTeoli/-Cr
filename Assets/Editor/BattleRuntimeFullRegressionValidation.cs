@@ -80,6 +80,9 @@ namespace HaveABreak.Editor
                 "Card and enchant effect registration boundary",
                 EffectRegistrationBoundaryValidation.Validate);
             valid &= Run(
+                "Enchant attachment processing order",
+                EnchantAttachmentOrderValidation.Validate);
+            valid &= Run(
                 "Runtime state composition",
                 BattleRuntimeStateValidation.Validate);
             valid &= Run(
