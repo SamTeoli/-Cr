@@ -176,12 +176,16 @@ namespace HaveABreak.EditorTools
             RunShopProductSlot consumable = first.FirstOrDefault(slot =>
                 slot.ProductType == RunShopProductType.Consumable);
             string firstSlotId = first.Count > 0 ? first[0].SlotId : null;
+            int goldBeforePurchase = run.Gold;
             if (first.Count != 7 || consumable == null || consumable.Purchased ||
-                !RunCampaignService.TryBuyConsumable(
-                    shop, run, consumable.ContentId, out _) ||
+                RunCampaignService.TryBuyConsumableSlot(
+                    shop, run, "MISSING-SLOT", out _) ||
+                !RunCampaignService.TryBuyConsumableSlot(
+                    shop, run, consumable.SlotId, out _) ||
                 !consumable.Purchased ||
-                RunCampaignService.TryBuyConsumable(
-                    shop, run, consumable.ContentId, out _) ||
+                run.Gold != goldBeforePurchase - consumable.Price ||
+                RunCampaignService.TryBuyConsumableSlot(
+                    shop, run, consumable.SlotId, out _) ||
                 !RunCampaignService.TryRerollShop(shop, run, out _))
             {
                 return false;
