@@ -19,7 +19,15 @@ namespace HaveABreak.Cards
             public BattleEncounterGrade Grade => grade;
             public int FirstNodeIndex => firstNodeIndex;
             public int LastNodeIndex => lastNodeIndex;
-            public IReadOnlyList<string> EncounterIds => encounterIds ?? Array.Empty<string>();
+            public IReadOnlyList<string> EncounterIds
+            {
+                get
+                {
+                    if (encounterIds == null)
+                        return Array.Empty<string>();
+                    return encounterIds;
+                }
+            }
             public bool Contains(int nodeIndex) =>
                 nodeIndex >= firstNodeIndex && nodeIndex <= lastNodeIndex;
         }
