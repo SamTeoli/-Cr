@@ -32,6 +32,13 @@ namespace HaveABreak.Cards
                 }
                 if (!eventIds.Add(value.EventId.Trim()))
                     errors.Add($"Duplicate situation event ID: {value.EventId}");
+                if (value.MinimumCompletedNodeCount < 0 ||
+                    (value.MaximumCompletedNodeCount >= 0 &&
+                     value.MaximumCompletedNodeCount <
+                     value.MinimumCompletedNodeCount))
+                {
+                    errors.Add($"Situation event {value.EventId} has an invalid node range.");
+                }
 
                 HashSet<string> choiceIds = new(StringComparer.OrdinalIgnoreCase);
                 foreach (SituationEventChoiceData choice in value.Choices)

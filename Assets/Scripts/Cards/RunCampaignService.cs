@@ -146,6 +146,7 @@ namespace HaveABreak.Cards
         [SerializeField] private List<RunShopProductSlot> shopSlots = new();
         [SerializeField] private List<RunSituationEventChoice> eventChoices = new();
         [SerializeField] private string activeSituationEventId;
+        [SerializeField] private List<string> resolvedSituationEventIds = new();
         [SerializeField] private List<RunNodeChoice> availableNodeChoices = new();
         [SerializeField] private List<string> selectedNodePath = new();
 
@@ -170,6 +171,8 @@ namespace HaveABreak.Cards
         public IReadOnlyList<RunSituationEventChoice> EventChoices =>
             eventChoices ??= new List<RunSituationEventChoice>();
         public string ActiveSituationEventId => activeSituationEventId;
+        public IReadOnlyList<string> ResolvedSituationEventIds =>
+            resolvedSituationEventIds ??= new List<string>();
         public IReadOnlyList<RunNodeChoice> AvailableNodeChoices =>
             availableNodeChoices ??= new List<RunNodeChoice>();
         public IReadOnlyList<string> SelectedNodePath =>
@@ -250,6 +253,21 @@ namespace HaveABreak.Cards
         {
             activeSituationEventId = eventId?.Trim();
             SetEventChoices(values);
+        }
+
+        internal bool HasResolvedSituationEvent(string eventId)
+        {
+            if (string.IsNullOrWhiteSpace(eventId)) return false;
+            resolvedSituationEventIds ??= new List<string>();
+            return resolvedSituationEventIds.Exists(value => string.Equals(
+                value, eventId.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        internal void RecordResolvedSituationEvent(string eventId)
+        {
+            if (string.IsNullOrWhiteSpace(eventId) ||
+                HasResolvedSituationEvent(eventId)) return;
+            resolvedSituationEventIds.Add(eventId.Trim());
         }
     }
 
@@ -381,9 +399,25 @@ namespace HaveABreak.Cards
                 IReadOnlyList<SituationEventData> events = SituationEvents?.Events;
                 if (events == null || events.Count == 0)
                     return Array.Empty<RunSituationEventChoice>();
-                SituationEventData selected = events[PositiveMod(
+
+                List<SituationEventData> eligible = new();
+                foreach (SituationEventData candidate in events)
+                {
+                    if (candidate == null ||
+                        !candidate.IsAvailableAt(campaign.CompletedNodeCount) ||
+                        (!candidate.AllowRepeatInRun &&
+                         campaign.HasResolvedSituationEvent(candidate.EventId)))
+                    {
+                        continue;
+                    }
+                    eligible.Add(candidate);
+                }
+                if (eligible.Count == 0)
+                    return Array.Empty<RunSituationEventChoice>();
+
+                SituationEventData selected = eligible[PositiveMod(
                     campaign.Seed + campaign.CompletedNodeCount * 17,
-                    events.Count)];
+                    eligible.Count)];
                 List<RunSituationEventChoice> choices = new();
                 foreach (SituationEventChoiceData choice in selected.Choices)
                     choices.Add(new RunSituationEventChoice(choice.ChoiceId,
@@ -439,6 +473,8 @@ namespace HaveABreak.Cards
                     break;
             }
 
+            campaign.RecordResolvedSituationEvent(
+                campaign.ActiveSituationEventId);
             FinishNonBattleNode(campaign, run);
             failure = RunCampaignFailure.None;
             return true;
