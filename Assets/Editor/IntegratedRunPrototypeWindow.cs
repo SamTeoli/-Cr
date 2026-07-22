@@ -307,10 +307,13 @@ namespace HaveABreak.EditorTools
         private void DrawRestOrUpgrade()
         {
             EditorGUILayout.LabelField("회복 · 강화", EditorStyles.boldLabel);
-            if (GUILayout.Button("최대 HP의 30% 회복", GUILayout.Height(34f)))
+            RestUpgradeConfig rules = prototypeConfig.RestUpgradeConfig;
+            if (GUILayout.Button(
+                    $"최대 HP의 {rules.HealingRatio * 100f:0.#}% 회복",
+                    GUILayout.Height(34f)))
             {
                 if (RunCampaignService.TryRest(
-                        campaign, progress.RunState,
+                        campaign, progress.RunState, rules,
                         out int healed, out RunCampaignFailure failure))
                 {
                     message = $"HP를 {healed} 회복했습니다.";
@@ -335,13 +338,15 @@ namespace HaveABreak.EditorTools
                     progress.RunDeck.Cards[selected].OwnedCardId;
             }
 
-            if (GUILayout.Button("선택 카드 1레벨 강화", GUILayout.Height(34f)))
+            if (GUILayout.Button(
+                    $"선택 카드 {rules.UpgradeLevelIncrease}레벨 강화",
+                    GUILayout.Height(34f)))
             {
                 if (RunCampaignService.TryUpgrade(
-                        campaign, progress, selectedUpgradeCardId,
+                        campaign, progress, selectedUpgradeCardId, rules,
                         out RunCampaignFailure failure))
                 {
-                    message = "카드를 1레벨 강화했습니다.";
+                    message = $"카드를 {rules.UpgradeLevelIncrease}레벨 강화했습니다.";
                     SaveRun(null);
                 }
                 else

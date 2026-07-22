@@ -28,6 +28,7 @@ namespace HaveABreak.EditorTools
                          ValidateRunMutations() &&
                          ValidateConsumableDefinitions() &&
                          ValidateEventAndShopSlotData() &&
+                         ValidateRestUpgradeRules() &&
                          ValidateEncounterGrades() &&
                          ValidateRuntimePrototypeConfig();
             if (valid)
@@ -288,6 +289,53 @@ namespace HaveABreak.EditorTools
             return null;
         }
 
+        private static bool ValidateRestUpgradeRules()
+        {
+            RestUpgradeConfig rules =
+                ScriptableObject.CreateInstance<RestUpgradeConfig>();
+            try
+            {
+                rules.EditorInitialize(0.4f, 2);
+                RunCampaignState restCampaign =
+                    CampaignAtNode(RunNodeType.RestOrUpgrade);
+                RunBattleState restRun = new(31, 18, 0);
+                if (restCampaign == null ||
+                    !RunCampaignService.TryRest(
+                        restCampaign, restRun, rules, out int healed, out _) ||
+                    healed != 13 || restRun.CurrentHealth != 31)
+                {
+                    return false;
+                }
+
+                CardDatabase cards = AssetDatabase.LoadAssetAtPath<CardDatabase>(
+                    "Assets/GameData/CardDatabase.asset");
+                CardData cardData = cards?.Cards.FirstOrDefault(card => card != null);
+                RunCampaignState upgradeCampaign =
+                    CampaignAtNode(RunNodeType.RestOrUpgrade);
+                RunDeckState deck = new();
+                RunCardInstance card = cardData == null ? null :
+                    new RunCardInstance(cardData, "REST-UPGRADE-TEST", 1);
+                if (upgradeCampaign == null || card == null ||
+                    !deck.TryAdd(card, out _) ||
+                    !RunCampaignService.TryUpgrade(
+                        upgradeCampaign,
+                        new RunEncounterProgressState(
+                            new RunBattleState(30, 30, 0), deck),
+                        card.OwnedCardId, rules, out _) ||
+                    card.CurrentLevel != 3)
+                {
+                    return false;
+                }
+
+                rules.EditorInitialize(1.1f, 0);
+                return rules.GetValidationErrors().Count == 2;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(rules);
+            }
+        }
+
         private static bool ValidateInvalidConsumableDefinitions()
         {
             ConsumableData blank = ScriptableObject.CreateInstance<ConsumableData>();
@@ -391,6 +439,7 @@ namespace HaveABreak.EditorTools
 
             RunNodeGenerationConfig generation = config.RunNodeGenerationConfig;
             ShopEconomyConfig economy = config.ShopEconomyConfig;
+            RestUpgradeConfig restUpgrade = config.RestUpgradeConfig;
             BattleRewardConfig rewards = config.BattleRewardConfig;
             if (generation == null ||
                 generation.GetValidationErrors().Count != 0 ||
@@ -414,6 +463,12 @@ namespace HaveABreak.EditorTools
                 economy.GetEnchantPrice(CardRarity.Legendary) != 120 ||
                 economy.GetRerollCost(0) != 10 ||
                 economy.GetRerollCost(2) != 20 ||
+                restUpgrade == null ||
+                restUpgrade.GetValidationErrors().Count != 0 ||
+                !Mathf.Approximately(restUpgrade.HealingRatio, 0.3f) ||
+                restUpgrade.UpgradeLevelIncrease != 1 ||
+                restUpgrade.GetHealingAmount(30) != 9 ||
+                restUpgrade.GetHealingAmount(31) != 10 ||
                 rewards == null || rewards.GetValidationErrors().Count != 0 ||
                 config.EncounterProgressionConfig == null ||
                 config.EncounterProgressionConfig.GetValidationErrors(

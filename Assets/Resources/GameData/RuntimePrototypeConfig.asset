@@ -18,6 +18,7 @@ MonoBehaviour:
   situationEventDatabase: {fileID: 11400000, guid: b4100000000000000000000000000005, type: 2}
   runNodeGenerationConfig: {fileID: 11400000, guid: c5100000000000000000000000000002, type: 2}
   shopEconomyConfig: {fileID: 11400000, guid: d6100000000000000000000000000002, type: 2}
+  restUpgradeConfig: {fileID: 11400000, guid: a9300000000000000000000000000002, type: 2}
   battleRewardConfig: {fileID: 11400000, guid: e7100000000000000000000000000002, type: 2}
   encounterDatabase: {fileID: 11400000, guid: 37db0000000000000000000000000001, type: 2}
   encounterProgressionConfig: {fileID: 11400000, guid: f8200000000000000000000000000002, type: 2}
