@@ -38,7 +38,7 @@ namespace HaveABreak.Cards
                 1, maximumActCount);
         }
 
-        internal void EditorInitialize(int maximumHealth, int gold, int mana,
+        public void EditorInitialize(int maximumHealth, int gold, int mana,
             int actNodeCount, int actCount, IEnumerable<string> consumableIds)
         {
             startingMaximumHealth = maximumHealth;
