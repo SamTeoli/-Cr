@@ -23,6 +23,33 @@ namespace HaveABreak.Cards
             out BattleTurnFailure turnFailure,
             out List<string> validationErrors)
         {
+            return TryBegin(
+                progress, battleInstanceId, encounter, shuffleSeed, maximumMana,
+                selectedStartingHandRedrawIds, rewardSeed, null, out context,
+                out failure, out flowFailure, out runDeckFailure,
+                out bootstrapFailure, out sessionFailure, out redrawFailure,
+                out turnFailure, out validationErrors);
+        }
+
+        public static bool TryBegin(
+            RunEncounterProgressState progress,
+            string battleInstanceId,
+            EncounterData encounter,
+            int shuffleSeed,
+            int maximumMana,
+            IEnumerable<string> selectedStartingHandRedrawIds,
+            uint rewardSeed,
+            BattleRewardConfig rewardConfig,
+            out BattleRuntimeEncounterContext context,
+            out RunEncounterProgressFailure failure,
+            out BattleRuntimeEncounterFlowFailure flowFailure,
+            out RunDeckFailure runDeckFailure,
+            out BattleRuntimeBootstrapFailure bootstrapFailure,
+            out BattleRuntimeSessionFailure sessionFailure,
+            out StartingHandRedrawFailure redrawFailure,
+            out BattleTurnFailure turnFailure,
+            out List<string> validationErrors)
+        {
             context = null;
             List<string> redrawIds = selectedStartingHandRedrawIds == null
                 ? new List<string>()
@@ -71,6 +98,7 @@ namespace HaveABreak.Cards
                     maximumMana,
                     redrawIds,
                     rewardSeed,
+                    rewardConfig,
                     out context,
                     out flowFailure,
                     out runDeckFailure,

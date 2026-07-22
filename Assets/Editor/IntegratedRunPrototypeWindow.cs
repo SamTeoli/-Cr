@@ -869,6 +869,7 @@ namespace HaveABreak.EditorTools
             if (!RunEncounterProgressService.TryBegin(
                     progress, battleId, encounter, seed, 5,
                     Array.Empty<string>(), (uint)Mathf.Abs(seed),
+                    prototypeConfig.BattleRewardConfig,
                     out _,
                     out RunEncounterProgressFailure failure,
                     out BattleRuntimeEncounterFlowFailure flowFailure,

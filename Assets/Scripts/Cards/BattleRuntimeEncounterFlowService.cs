@@ -30,6 +30,7 @@ namespace HaveABreak.Cards
                 maximumMana,
                 selectedStartingHandRedrawIds,
                 rewardSeed,
+                null,
                 out context,
                 out failure,
                 out _,
@@ -49,6 +50,33 @@ namespace HaveABreak.Cards
             int maximumMana,
             IEnumerable<string> selectedStartingHandRedrawIds,
             uint rewardSeed,
+            out BattleRuntimeEncounterContext context,
+            out BattleRuntimeEncounterFlowFailure failure,
+            out RunDeckFailure runDeckFailure,
+            out BattleRuntimeBootstrapFailure bootstrapFailure,
+            out BattleRuntimeSessionFailure sessionFailure,
+            out StartingHandRedrawFailure redrawFailure,
+            out BattleTurnFailure turnFailure,
+            out List<string> validationErrors)
+        {
+            return TryCreateAndBegin(
+                runDeck, battleInstanceId, runState, encounter, shuffleSeed,
+                maximumMana, selectedStartingHandRedrawIds, rewardSeed, null,
+                out context, out failure, out runDeckFailure,
+                out bootstrapFailure, out sessionFailure, out redrawFailure,
+                out turnFailure, out validationErrors);
+        }
+
+        public static bool TryCreateAndBegin(
+            RunDeckState runDeck,
+            string battleInstanceId,
+            RunBattleState runState,
+            EncounterData encounter,
+            int shuffleSeed,
+            int maximumMana,
+            IEnumerable<string> selectedStartingHandRedrawIds,
+            uint rewardSeed,
+            BattleRewardConfig rewardConfig,
             out BattleRuntimeEncounterContext context,
             out BattleRuntimeEncounterFlowFailure failure,
             out RunDeckFailure runDeckFailure,
@@ -85,6 +113,7 @@ namespace HaveABreak.Cards
                 maximumMana,
                 selectedStartingHandRedrawIds,
                 rewardSeed,
+                rewardConfig,
                 out context,
                 out failure,
                 out runDeckFailure,
@@ -104,6 +133,7 @@ namespace HaveABreak.Cards
             int maximumMana,
             IEnumerable<string> selectedStartingHandRedrawIds,
             uint rewardSeed,
+            BattleRewardConfig rewardConfig,
             out BattleRuntimeEncounterContext context,
             out BattleRuntimeEncounterFlowFailure failure,
             out RunDeckFailure runDeckFailure,
@@ -168,7 +198,8 @@ namespace HaveABreak.Cards
                 settlement,
                 runState,
                 encounter.EncounterGrade,
-                rewardSeed);
+                rewardSeed,
+                rewardConfig);
             context = new BattleRuntimeEncounterContext(
                 bootstrap,
                 runState,

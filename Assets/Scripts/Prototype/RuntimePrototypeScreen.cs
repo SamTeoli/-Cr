@@ -1002,7 +1002,8 @@ namespace HaveABreak.Cards
             int seed = campaign.Seed + campaign.CompletedNodeCount * 101;
             if (!RunEncounterProgressService.TryBegin(
                     progress, battleId, encounter, seed, 5, Array.Empty<string>(),
-                    (uint)Mathf.Abs(seed), out _, out var failure, out var flowFailure,
+                    (uint)Mathf.Abs(seed), config.BattleRewardConfig,
+                    out _, out var failure, out var flowFailure,
                     out var deckFailure, out var bootstrapFailure, out var sessionFailure,
                     out var redrawFailure, out var turnFailure,
                     out List<string> validationErrors))
