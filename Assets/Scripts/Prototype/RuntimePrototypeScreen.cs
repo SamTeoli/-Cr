@@ -315,7 +315,8 @@ namespace HaveABreak.Cards
             GUILayout.Label("상점", headingStyle);
             IReadOnlyList<RunShopProductSlot> offers =
                 RunCampaignService.GetShopSlots(campaign,
-                    PrototypeConsumableCatalog.All, config.EnchantDatabase.Enchants);
+                    PrototypeConsumableCatalog.All, config.EnchantDatabase.Enchants,
+                    config.ShopEconomyConfig);
             GUILayout.Label("소모아이템");
             foreach (RunShopProductSlot offer in offers.Where(value =>
                          value.ProductType == RunShopProductType.Consumable))
