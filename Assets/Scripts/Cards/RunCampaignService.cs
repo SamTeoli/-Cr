@@ -42,6 +42,68 @@ namespace HaveABreak.Cards
         UnsupportedVersion
     }
 
+    public enum RunShopProductType
+    {
+        Consumable,
+        Enchant
+    }
+
+    public enum RunSituationEffect
+    {
+        GainGold,
+        TakeDamage,
+        IncreaseMaximumHealth
+    }
+
+    [Serializable]
+    public sealed class RunShopProductSlot
+    {
+        [SerializeField] private string slotId;
+        [SerializeField] private RunShopProductType productType;
+        [SerializeField] private string contentId;
+        [SerializeField] private int price;
+        [SerializeField] private bool purchased;
+
+        public RunShopProductSlot(string id, RunShopProductType type,
+            string productContentId, int productPrice)
+        {
+            slotId = id;
+            productType = type;
+            contentId = productContentId;
+            price = Mathf.Max(0, productPrice);
+        }
+
+        public string SlotId => slotId;
+        public RunShopProductType ProductType => productType;
+        public string ContentId => contentId;
+        public int Price => price;
+        public bool Purchased => purchased;
+        internal void MarkPurchased() => purchased = true;
+    }
+
+    [Serializable]
+    public sealed class RunSituationEventChoice
+    {
+        [SerializeField] private string choiceId;
+        [SerializeField] private RunSituationEffect effect;
+        [SerializeField] private int value;
+        [SerializeField] private string displayText;
+
+        public RunSituationEventChoice(string id, RunSituationEffect choiceEffect,
+            int effectValue, string text)
+        {
+            choiceId = id;
+            effect = choiceEffect;
+            value = effectValue;
+            displayText = text;
+        }
+
+        public string ChoiceId => choiceId;
+        public RunSituationEffect Effect => effect;
+        public int Value => value;
+        public string DisplayText => displayText;
+    }
+
     [Serializable]
     public sealed class RunNodeChoice
     {
@@ -81,6 +143,8 @@ namespace HaveABreak.Cards
         [SerializeField] private int shopRerollCount;
         [SerializeField] private RunCampaignPhase phase;
         [SerializeField] private RunNodeChoice activeNode;
+        [SerializeField] private List<RunShopProductSlot> shopSlots = new();
+        [SerializeField] private List<RunSituationEventChoice> eventChoices = new();
 
         private RunCampaignState()
         {
@@ -98,6 +162,10 @@ namespace HaveABreak.Cards
         public int ShopRerollCount => shopRerollCount;
         public RunCampaignPhase Phase => phase;
         public RunNodeChoice ActiveNode => activeNode;
+        public IReadOnlyList<RunShopProductSlot> ShopSlots =>
+            shopSlots ??= new List<RunShopProductSlot>();
+        public IReadOnlyList<RunSituationEventChoice> EventChoices =>
+            eventChoices ??= new List<RunSituationEventChoice>();
         public bool IsFinished => phase == RunCampaignPhase.Completed ||
                                   phase == RunCampaignPhase.Defeated;
 
@@ -105,6 +173,10 @@ namespace HaveABreak.Cards
         {
             activeNode = choice;
             shopRerollCount = 0;
+            shopSlots ??= new List<RunShopProductSlot>();
+            eventChoices ??= new List<RunSituationEventChoice>();
+            shopSlots.Clear();
+            eventChoices.Clear();
             phase = choice.IsBattle
                 ? RunCampaignPhase.Battle
                 : RunCampaignPhase.NodeResolution;
@@ -121,6 +193,8 @@ namespace HaveABreak.Cards
             bool finalBoss = activeNode?.NodeType == RunNodeType.FinalBoss;
             activeNode = null;
             shopRerollCount = 0;
+            shopSlots?.Clear();
+            eventChoices?.Clear();
             phase = finalBoss
                 ? RunCampaignPhase.Completed
                 : RunCampaignPhase.NodeSelection;
@@ -134,6 +208,21 @@ namespace HaveABreak.Cards
         internal void IncrementShopReroll()
         {
             shopRerollCount++;
+            shopSlots?.Clear();
+        }
+
+        internal void SetShopSlots(IEnumerable<RunShopProductSlot> values)
+        {
+            shopSlots = values == null
+                ? new List<RunShopProductSlot>()
+                : new List<RunShopProductSlot>(values);
+        }
+
+        internal void SetEventChoices(IEnumerable<RunSituationEventChoice> values)
+        {
+            eventChoices = values == null
+                ? new List<RunSituationEventChoice>()
+                : new List<RunSituationEventChoice>(values);
         }
     }
 
@@ -227,27 +316,119 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            int outcome = PositiveMod(
-                campaign.Seed + campaign.CompletedNodeCount * 17, 3);
-            if (outcome == 0)
+            IReadOnlyList<RunSituationEventChoice> choices =
+                GetSituationEventChoices(campaign);
+            return TryResolveSituationEvent(campaign, run,
+                choices.Count > 0 ? choices[0].ChoiceId : null,
+                out result, out failure);
+        }
+
+        public static IReadOnlyList<RunSituationEventChoice> GetSituationEventChoices(
+            RunCampaignState campaign)
+        {
+            if (campaign == null || campaign.ActiveNode?.NodeType !=
+                RunNodeType.SituationEvent)
             {
-                run.AddRewardGold(20);
-                result = "버려진 매표기에서 골드 20을 얻었습니다.";
+                return Array.Empty<RunSituationEventChoice>();
             }
-            else if (outcome == 1)
+
+            if (campaign.EventChoices.Count == 0)
             {
-                int damage = run.ApplyDamage(3);
-                result = $"무너진 통로를 지나며 HP {damage}를 잃었습니다.";
+                int offset = PositiveMod(
+                    campaign.Seed + campaign.CompletedNodeCount * 17, 3);
+                RunSituationEventChoice[] pool =
+                {
+                    new("EVENT-GOLD", RunSituationEffect.GainGold, 20,
+                        "버려진 매표기를 조사한다 · 골드 20"),
+                    new("EVENT-DAMAGE", RunSituationEffect.TakeDamage, 3,
+                        "무너진 통로를 통과한다 · HP 3 피해"),
+                    new("EVENT-HEALTH", RunSituationEffect.IncreaseMaximumHealth, 2,
+                        "안전한 객실에서 쉰다 · 최대 HP +2")
+                };
+                List<RunSituationEventChoice> ordered = new();
+                for (int i = 0; i < pool.Length; i++)
+                    ordered.Add(pool[(offset + i) % pool.Length]);
+                campaign.SetEventChoices(ordered);
             }
-            else
+
+            return campaign.EventChoices;
+        }
+
+        public static bool TryResolveSituationEvent(
+            RunCampaignState campaign,
+            RunBattleState run,
+            string choiceId,
+            out string result,
+            out RunCampaignFailure failure)
+        {
+            result = null;
+            if (!ValidateNode(campaign, run, RunNodeType.SituationEvent,
+                    out failure)) return false;
+
+            RunSituationEventChoice choice = null;
+            foreach (RunSituationEventChoice candidate in
+                     GetSituationEventChoices(campaign))
             {
-                run.IncreaseMaximumHealth(2);
-                result = "안전한 객실을 찾아 최대 HP가 2 증가했습니다.";
+                if (string.Equals(candidate.ChoiceId, choiceId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    choice = candidate;
+                    break;
+                }
+            }
+
+            if (choice == null)
+            {
+                failure = RunCampaignFailure.InvalidChoice;
+                return false;
+            }
+
+            switch (choice.Effect)
+            {
+                case RunSituationEffect.GainGold:
+                    run.AddRewardGold(choice.Value);
+                    result = $"골드 {choice.Value}을 얻었습니다.";
+                    break;
+                case RunSituationEffect.TakeDamage:
+                    int damage = run.ApplyDamage(choice.Value);
+                    result = $"HP {damage}를 잃었습니다.";
+                    break;
+                default:
+                    run.IncreaseMaximumHealth(choice.Value);
+                    result = $"최대 HP가 {choice.Value} 증가했습니다.";
+                    break;
             }
 
             FinishNonBattleNode(campaign, run);
             failure = RunCampaignFailure.None;
             return true;
+        }
+
+        public static IReadOnlyList<RunShopProductSlot> GetShopSlots(
+            RunCampaignState campaign,
+            IEnumerable<ConsumableData> consumables,
+            IEnumerable<EnchantData> enchants)
+        {
+            if (campaign == null || campaign.ActiveNode?.NodeType != RunNodeType.Shop)
+                return Array.Empty<RunShopProductSlot>();
+            if (campaign.ShopSlots.Count > 0) return campaign.ShopSlots;
+
+            int seed = campaign.Seed + campaign.CompletedNodeCount * 31 +
+                       campaign.ShopRerollCount * 101;
+            List<RunShopProductSlot> slots = new();
+            int index = 0;
+            foreach (ConsumableData item in Rotate(consumables, seed, 3))
+                slots.Add(new RunShopProductSlot(
+                    $"SHOP-R{campaign.ShopRerollCount}-C-{index++ + 1}",
+                    RunShopProductType.Consumable, item.ItemId, item.ShopPrice));
+            index = 0;
+            foreach (EnchantData enchant in Rotate(enchants, seed + 7, 4))
+                slots.Add(new RunShopProductSlot(
+                    $"SHOP-R{campaign.ShopRerollCount}-E-{index++ + 1}",
+                    RunShopProductType.Enchant, enchant.DefinitionId,
+                    EnchantShopPrice(enchant)));
+            campaign.SetShopSlots(slots);
+            return campaign.ShopSlots;
         }
 
         public static bool TryRest(
@@ -346,6 +527,13 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!IsAvailableShopProduct(campaign,
+                    RunShopProductType.Consumable, itemId))
+            {
+                failure = RunCampaignFailure.InvalidChoice;
+                return false;
+            }
+
             if (!run.TrySpendGold(item.ShopPrice))
             {
                 failure = RunCampaignFailure.InsufficientGold;
@@ -353,6 +541,7 @@ namespace HaveABreak.Cards
             }
 
             run.TryAddRewardConsumableItem(item.ItemId);
+            MarkPurchasedSlot(campaign, RunShopProductType.Consumable, itemId);
             failure = RunCampaignFailure.None;
             return true;
         }
@@ -394,6 +583,13 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!IsAvailableShopProduct(campaign,
+                    RunShopProductType.Enchant, enchant.DefinitionId))
+            {
+                failure = RunCampaignFailure.InvalidChoice;
+                return false;
+            }
+
             if (!progress.RunState.TrySpendGold(price))
             {
                 failure = RunCampaignFailure.InsufficientGold;
@@ -407,6 +603,8 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            MarkPurchasedSlot(campaign, RunShopProductType.Enchant,
+                enchant.DefinitionId);
             failure = RunCampaignFailure.None;
             return true;
         }
@@ -521,6 +719,59 @@ namespace HaveABreak.Cards
         {
             int result = value % divisor;
             return result < 0 ? result + divisor : result;
+        }
+
+        private static IEnumerable<T> Rotate<T>(
+            IEnumerable<T> source, int seed, int count) where T : class
+        {
+            List<T> values = source == null
+                ? new List<T>()
+                : new List<T>(source);
+            values.RemoveAll(value => value == null);
+            if (values.Count == 0) yield break;
+            int start = PositiveMod(seed, values.Count);
+            int take = Mathf.Min(count, values.Count);
+            for (int i = 0; i < take; i++)
+                yield return values[(start + i) % values.Count];
+        }
+
+        private static int EnchantShopPrice(EnchantData enchant)
+        {
+            return enchant.Rarity switch
+            {
+                CardRarity.Legendary => 120,
+                CardRarity.Rare => 80,
+                _ => 45
+            };
+        }
+
+        private static void MarkPurchasedSlot(
+            RunCampaignState campaign, RunShopProductType type, string contentId)
+        {
+            if (campaign == null) return;
+            foreach (RunShopProductSlot slot in campaign.ShopSlots)
+            {
+                if (!slot.Purchased && slot.ProductType == type &&
+                    string.Equals(slot.ContentId, contentId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    slot.MarkPurchased();
+                    return;
+                }
+            }
+        }
+
+        private static bool IsAvailableShopProduct(
+            RunCampaignState campaign, RunShopProductType type, string contentId)
+        {
+            if (campaign == null || campaign.ShopSlots.Count == 0) return true;
+            foreach (RunShopProductSlot slot in campaign.ShopSlots)
+            {
+                if (!slot.Purchased && slot.ProductType == type &&
+                    string.Equals(slot.ContentId, contentId,
+                        StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
         }
     }
 

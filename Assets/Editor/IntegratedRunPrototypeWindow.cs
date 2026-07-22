@@ -287,21 +287,19 @@ namespace HaveABreak.EditorTools
         private void DrawSituationEvent()
         {
             EditorGUILayout.LabelField("상황 이벤트", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(
-                "노드 시드에 따라 골드 획득, 피해, 최대 HP 증가 중 하나가 " +
-                "발생합니다.", MessageType.Info);
-            if (GUILayout.Button("이벤트 선택지 진행", GUILayout.Height(36f)))
+            foreach (RunSituationEventChoice choice in
+                     RunCampaignService.GetSituationEventChoices(campaign))
             {
-                if (RunCampaignService.TryResolveSituationEvent(
-                        campaign, progress.RunState,
-                        out string result, out RunCampaignFailure failure))
+                if (GUILayout.Button(choice.DisplayText, GUILayout.Height(36f)))
                 {
-                    message = result;
-                    SaveRun(null);
-                }
-                else
-                {
-                    message = $"이벤트 처리 실패: {failure}";
+                    if (RunCampaignService.TryResolveSituationEvent(
+                            campaign, progress.RunState, choice.ChoiceId,
+                            out string result, out RunCampaignFailure failure))
+                    {
+                        message = result;
+                        SaveRun(null);
+                    }
+                    else message = $"이벤트 처리 실패: {failure}";
                 }
             }
         }
@@ -356,28 +354,32 @@ namespace HaveABreak.EditorTools
         private void DrawShop()
         {
             EditorGUILayout.LabelField("상점", EditorStyles.boldLabel);
-            int offerSeed = campaign.Seed + campaign.CompletedNodeCount * 31 +
-                            campaign.ShopRerollCount * 101;
+            IReadOnlyList<RunShopProductSlot> offers =
+                RunCampaignService.GetShopSlots(campaign,
+                    PrototypeConsumableCatalog.All, enchantDatabase.Enchants);
             EditorGUILayout.LabelField("소모아이템", EditorStyles.miniBoldLabel);
-            foreach (ConsumableData item in
-                     Rotate(PrototypeConsumableCatalog.All, offerSeed).Take(3))
+            foreach (RunShopProductSlot offer in offers.Where(value =>
+                         value.ProductType == RunShopProductType.Consumable))
             {
+                ConsumableData item = PrototypeConsumableCatalog.Find(offer.ContentId);
+                if (item == null) continue;
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 EditorGUILayout.LabelField(
                     $"{item.DisplayName} · {item.RulesText}",
                     EditorStyles.wordWrappedLabel);
-                if (GUILayout.Button($"{item.ShopPrice}G", GUILayout.Width(70f)))
+                using (new EditorGUI.DisabledScope(offer.Purchased))
                 {
-                    if (RunCampaignService.TryBuyConsumable(
-                            campaign, progress.RunState, item.ItemId,
-                            out RunCampaignFailure failure))
+                    if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
+                            GUILayout.Width(70f)))
                     {
-                        message = $"{item.DisplayName} 구매 완료.";
-                        SaveRun(null);
-                    }
-                    else
-                    {
-                        message = $"구매 실패: {failure}";
+                        if (RunCampaignService.TryBuyConsumable(
+                                campaign, progress.RunState, item.ItemId,
+                                out RunCampaignFailure failure))
+                        {
+                            message = $"{item.DisplayName} 구매 완료.";
+                            SaveRun(null);
+                        }
+                        else message = $"구매 실패: {failure}";
                     }
                 }
 
@@ -386,10 +388,10 @@ namespace HaveABreak.EditorTools
 
             EditorGUILayout.Space(5f);
             EditorGUILayout.LabelField("인첸트", EditorStyles.miniBoldLabel);
-            foreach (EnchantData enchant in
-                     Rotate(enchantDatabase.Enchants, offerSeed + 7).Take(4))
+            foreach (RunShopProductSlot offer in offers.Where(value =>
+                         value.ProductType == RunShopProductType.Enchant))
             {
-                DrawShopEnchant(enchant);
+                DrawShopEnchant(enchantDatabase.Find(offer.ContentId), offer);
             }
 
             EditorGUILayout.BeginHorizontal();
@@ -427,32 +429,27 @@ namespace HaveABreak.EditorTools
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawShopEnchant(EnchantData enchant)
+        private void DrawShopEnchant(EnchantData enchant, RunShopProductSlot offer)
         {
             if (enchant == null)
             {
                 return;
             }
 
-            int price = enchant.Rarity switch
-            {
-                CardRarity.Legendary => 120,
-                CardRarity.Rare => 80,
-                _ => 45
-            };
             EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
             EditorGUILayout.LabelField(
                 $"{enchant.DisplayName} [{enchant.Rarity}] · {enchant.RulesText}",
                 EditorStyles.wordWrappedLabel);
-            using (new EditorGUI.DisabledScope(
-                       !TryFindEnchantTarget(enchant,
-                           out RunCardInstance target, out int slot)))
+            bool canAttach = TryFindEnchantTarget(enchant,
+                out RunCardInstance target, out int slot);
+            using (new EditorGUI.DisabledScope(offer.Purchased || !canAttach))
             {
-                if (GUILayout.Button($"{price}G", GUILayout.Width(70f)))
+                if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
+                        GUILayout.Width(70f)))
                 {
                     if (RunCampaignService.TryBuyEnchant(
                             campaign, progress, enchant,
-                            target.OwnedCardId, slot, price,
+                            target.OwnedCardId, slot, offer.Price,
                             out EnchantAttachmentFailure attachmentFailure,
                             out RunCampaignFailure failure))
                     {
