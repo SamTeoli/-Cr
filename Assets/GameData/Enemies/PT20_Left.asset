@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 430a0000000000000000000000000001, type: 3}
+  m_Name: PT20_Left
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EnemyDefinitionData
+  enemyId: TEST-ENEMY-MIDBOSS-LEFT
+  displayName: "시험 중간보스 적 · 좌측"
+  attack: 1
+  maximumHealth: 12
+  actionPattern:
+    turns:
+    - moves: 0
+      moveDirection: 0
+      moveSteps: 1
+      attackCount: 1
+      abilities: []
+    - moves: 0
+      moveDirection: 0
+      moveSteps: 1
+      attackCount: 0
+      abilities:
+      - abilityId: TEST-ABILITY-BIND
+        affectsFriendlySide: 1
+        isAreaAbility: 0
+        statusKeyword: 2
+        statusAmount: 1
+    - moves: 1
+      moveDirection: 1
+      moveSteps: 1
+      attackCount: 1
+      abilities:
+      - abilityId: TEST-ABILITY-BIND
+        affectsFriendlySide: 1
+        isAreaAbility: 0
+        statusKeyword: 2
+        statusAmount: 1
