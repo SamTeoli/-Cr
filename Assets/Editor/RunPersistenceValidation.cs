@@ -2835,4 +2835,44 @@ namespace HaveABreak.Editor
             }
         }
     }
+
+    internal static class RunActionConfirmationPolicyValidation
+    {
+        internal static bool Validate()
+        {
+            return !RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                       false,
+                       true,
+                       RunSaveSlotState.Empty) &&
+                   RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                       true,
+                       true,
+                       RunSaveSlotState.Empty) &&
+                   RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                       false,
+                       false,
+                       RunSaveSlotState.Empty) &&
+                   RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                       false,
+                       true,
+                       RunSaveSlotState.RunProgress) &&
+                   RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                       false,
+                       true,
+                       RunSaveSlotState.ActiveBattleCheckpoint) &&
+                   RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                       false,
+                       true,
+                       RunSaveSlotState.InvalidRunProgress) &&
+                   RunActionConfirmationPolicy.ShouldConfirmContinue(
+                       true,
+                       RunCampaignPhase.Battle) &&
+                   !RunActionConfirmationPolicy.ShouldConfirmContinue(
+                       false,
+                       RunCampaignPhase.Battle) &&
+                   !RunActionConfirmationPolicy.ShouldConfirmContinue(
+                       true,
+                       RunCampaignPhase.NodeSelection);
+        }
+    }
 }

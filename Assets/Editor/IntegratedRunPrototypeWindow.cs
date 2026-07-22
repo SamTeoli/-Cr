@@ -105,13 +105,13 @@ namespace HaveABreak.EditorTools
             if (GUILayout.Button("새 런", EditorStyles.toolbarButton,
                     GUILayout.Width(70f)))
             {
-                StartNewRun();
+                RequestStartNewRun();
             }
 
             if (GUILayout.Button("이어하기", EditorStyles.toolbarButton,
                     GUILayout.Width(80f)))
             {
-                ContinueRun();
+                RequestContinueRun();
             }
 
             using (new EditorGUI.DisabledScope(
@@ -146,12 +146,12 @@ namespace HaveABreak.EditorTools
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("새 런 시작", GUILayout.Height(42f)))
             {
-                StartNewRun();
+                RequestStartNewRun();
             }
 
             if (GUILayout.Button("저장된 런 이어하기", GUILayout.Height(42f)))
             {
-                ContinueRun();
+                RequestContinueRun();
             }
 
             EditorGUILayout.EndHorizontal();
@@ -743,6 +743,54 @@ namespace HaveABreak.EditorTools
             if (GUILayout.Button("보상 완료 · 다음 노드", GUILayout.Height(40f)))
             {
                 CompleteRewards();
+            }
+        }
+
+        private void RequestStartNewRun()
+        {
+            if (!DatabasesReady())
+            {
+                LoadDatabases();
+                return;
+            }
+
+            bool hasCurrentRun = campaign != null || progress != null;
+            bool inspected = RunSaveSlotService.TryInspectDefault(
+                cardDatabase,
+                enchantDatabase,
+                encounterDatabase,
+                permanentRewards,
+                out RunSaveSlotInfo slot,
+                out _);
+            RunSaveSlotState slotState = slot?.State ?? RunSaveSlotState.Empty;
+            if (!RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                    hasCurrentRun, inspected, slotState) ||
+                EditorUtility.DisplayDialog(
+                    "새 런을 시작할까요?",
+                    "현재 진행과 저장된 런이 새 런으로 교체됩니다. " +
+                    "이 작업은 되돌릴 수 없습니다.",
+                    "새 런 시작",
+                    "취소"))
+            {
+                StartNewRun();
+            }
+        }
+
+        private void RequestContinueRun()
+        {
+            bool hasCurrentRun = campaign != null && progress != null;
+            RunCampaignPhase phase = campaign?.Phase ??
+                                     RunCampaignPhase.NodeSelection;
+            if (!RunActionConfirmationPolicy.ShouldConfirmContinue(
+                    hasCurrentRun, phase) ||
+                EditorUtility.DisplayDialog(
+                    "전투를 처음부터 다시 시작할까요?",
+                    "이어하기를 선택하면 현재 전투 진행을 버리고 " +
+                    "전투 시작 체크포인트에서 다시 시작합니다.",
+                    "전투 다시 시작",
+                    "취소"))
+            {
+                ContinueRun();
             }
         }
 

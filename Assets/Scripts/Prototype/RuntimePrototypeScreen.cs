@@ -7,6 +7,13 @@ namespace HaveABreak.Cards
 {
     public sealed class RuntimePrototypeScreen : MonoBehaviour
     {
+        private enum PendingRunAction
+        {
+            None,
+            StartNewRun,
+            ContinueRun
+        }
+
         private RuntimePrototypeConfig config;
         private RunCampaignState campaign;
         private RunEncounterProgressState progress;
@@ -19,6 +26,7 @@ namespace HaveABreak.Cards
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
         private GUIStyle wrappedStyle;
+        private PendingRunAction pendingRunAction;
 
         public void Initialize(RuntimePrototypeConfig value)
         {
@@ -39,6 +47,13 @@ namespace HaveABreak.Cards
             GUILayout.BeginArea(new Rect(
                 panel.x + 12f, panel.y + 10f,
                 panel.width - 24f, panel.height - 20f));
+            if (pendingRunAction != PendingRunAction.None)
+            {
+                DrawRunActionConfirmation();
+                GUILayout.EndArea();
+                return;
+            }
+
             DrawToolbar();
             GUILayout.Space(8f);
 
@@ -106,11 +121,11 @@ namespace HaveABreak.Cards
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("새 런", GUILayout.Width(90f)))
             {
-                StartNewRun();
+                RequestStartNewRun();
             }
             if (GUILayout.Button("이어하기", GUILayout.Width(100f)))
             {
-                ContinueRun();
+                RequestContinueRun();
             }
             bool previous = GUI.enabled;
             GUI.enabled = campaign != null && progress != null;
@@ -135,11 +150,11 @@ namespace HaveABreak.Cards
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("새 런 시작", GUILayout.Height(52f)))
             {
-                StartNewRun();
+                RequestStartNewRun();
             }
             if (GUILayout.Button("저장된 런 이어하기", GUILayout.Height(52f)))
             {
-                ContinueRun();
+                RequestContinueRun();
             }
             GUILayout.EndHorizontal();
             DrawMessage();
@@ -819,6 +834,92 @@ namespace HaveABreak.Cards
             }
             if (GUILayout.Button("보상 완료 · 다음 노드", GUILayout.Height(46f)))
                 CompleteRewards();
+        }
+
+        private void RequestStartNewRun()
+        {
+            if (config == null || !config.IsReady)
+            {
+                message = "게임 데이터베이스를 불러올 수 없습니다.";
+                return;
+            }
+
+            bool hasCurrentRun = campaign != null || progress != null;
+            bool inspected = RunSaveSlotService.TryInspectDefault(
+                config.CardDatabase,
+                config.EnchantDatabase,
+                config.EncounterDatabase,
+                permanentRewards,
+                out RunSaveSlotInfo slot,
+                out _);
+            RunSaveSlotState slotState = slot?.State ?? RunSaveSlotState.Empty;
+            if (RunActionConfirmationPolicy.ShouldConfirmNewRun(
+                    hasCurrentRun, inspected, slotState))
+            {
+                pendingRunAction = PendingRunAction.StartNewRun;
+                return;
+            }
+
+            StartNewRun();
+        }
+
+        private void RequestContinueRun()
+        {
+            bool hasCurrentRun = campaign != null && progress != null;
+            RunCampaignPhase phase = campaign?.Phase ??
+                                     RunCampaignPhase.NodeSelection;
+            if (RunActionConfirmationPolicy.ShouldConfirmContinue(
+                    hasCurrentRun, phase))
+            {
+                pendingRunAction = PendingRunAction.ContinueRun;
+                return;
+            }
+
+            ContinueRun();
+        }
+
+        private void DrawRunActionConfirmation()
+        {
+            bool startsNewRun = pendingRunAction == PendingRunAction.StartNewRun;
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label(
+                startsNewRun
+                    ? "새 런을 시작할까요?"
+                    : "전투를 처음부터 다시 시작할까요?",
+                titleStyle);
+            GUILayout.Space(12f);
+            GUILayout.Label(
+                startsNewRun
+                    ? "현재 진행과 저장된 런이 새 런으로 교체됩니다. " +
+                      "이 작업은 되돌릴 수 없습니다."
+                    : "이어하기를 선택하면 현재 전투 진행을 버리고 " +
+                      "전투 시작 체크포인트에서 다시 시작합니다.",
+                wrappedStyle);
+            GUILayout.Space(18f);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("취소", GUILayout.Height(44f)))
+            {
+                pendingRunAction = PendingRunAction.None;
+            }
+            if (GUILayout.Button(
+                    startsNewRun ? "새 런 시작" : "전투 다시 시작",
+                    GUILayout.Height(44f)))
+            {
+                PendingRunAction confirmedAction = pendingRunAction;
+                pendingRunAction = PendingRunAction.None;
+                if (confirmedAction == PendingRunAction.StartNewRun)
+                {
+                    StartNewRun();
+                }
+                else
+                {
+                    ContinueRun();
+                }
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
         }
 
         private void StartNewRun()
