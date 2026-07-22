@@ -149,6 +149,7 @@ namespace HaveABreak.Cards
         [SerializeField] private RunNodeChoice activeNode;
         [SerializeField] private List<RunShopProductSlot> shopSlots = new();
         [SerializeField] private List<RunSituationEventChoice> eventChoices = new();
+        [SerializeField] private string activeSituationEventId;
         [SerializeField] private List<RunNodeChoice> availableNodeChoices = new();
         [SerializeField] private List<string> selectedNodePath = new();
 
@@ -172,6 +173,7 @@ namespace HaveABreak.Cards
             shopSlots ??= new List<RunShopProductSlot>();
         public IReadOnlyList<RunSituationEventChoice> EventChoices =>
             eventChoices ??= new List<RunSituationEventChoice>();
+        public string ActiveSituationEventId => activeSituationEventId;
         public IReadOnlyList<RunNodeChoice> AvailableNodeChoices =>
             availableNodeChoices ??= new List<RunNodeChoice>();
         public IReadOnlyList<string> SelectedNodePath =>
@@ -190,6 +192,7 @@ namespace HaveABreak.Cards
             eventChoices ??= new List<RunSituationEventChoice>();
             shopSlots.Clear();
             eventChoices.Clear();
+            activeSituationEventId = null;
             phase = choice.IsBattle
                 ? RunCampaignPhase.Battle
                 : RunCampaignPhase.NodeResolution;
@@ -208,6 +211,7 @@ namespace HaveABreak.Cards
             shopRerollCount = 0;
             shopSlots?.Clear();
             eventChoices?.Clear();
+            activeSituationEventId = null;
             phase = finalBoss
                 ? RunCampaignPhase.Completed
                 : RunCampaignPhase.NodeSelection;
@@ -244,10 +248,20 @@ namespace HaveABreak.Cards
                 ? new List<RunSituationEventChoice>()
                 : new List<RunSituationEventChoice>(values);
         }
+
+        internal void SetSituationEvent(
+            string eventId, IEnumerable<RunSituationEventChoice> values)
+        {
+            activeSituationEventId = eventId?.Trim();
+            SetEventChoices(values);
+        }
     }
 
     public static class RunCampaignService
     {
+        private static SituationEventDatabase SituationEvents =>
+            Resources.Load<RuntimePrototypeConfig>(
+                "GameData/RuntimePrototypeConfig")?.SituationEventDatabase;
         private static readonly RunNodeType[] Rotation =
         {
             RunNodeType.Battle,
@@ -363,21 +377,17 @@ namespace HaveABreak.Cards
 
             if (campaign.EventChoices.Count == 0)
             {
-                int offset = PositiveMod(
-                    campaign.Seed + campaign.CompletedNodeCount * 17, 3);
-                RunSituationEventChoice[] pool =
-                {
-                    new("EVENT-GOLD", RunSituationEffect.GainGold, 20,
-                        "버려진 매표기를 조사한다 · 골드 20"),
-                    new("EVENT-DAMAGE", RunSituationEffect.TakeDamage, 3,
-                        "무너진 통로를 통과한다 · HP 3 피해"),
-                    new("EVENT-HEALTH", RunSituationEffect.IncreaseMaximumHealth, 2,
-                        "안전한 객실에서 쉰다 · 최대 HP +2")
-                };
-                List<RunSituationEventChoice> ordered = new();
-                for (int i = 0; i < pool.Length; i++)
-                    ordered.Add(pool[(offset + i) % pool.Length]);
-                campaign.SetEventChoices(ordered);
+                IReadOnlyList<SituationEventData> events = SituationEvents?.Events;
+                if (events == null || events.Count == 0)
+                    return Array.Empty<RunSituationEventChoice>();
+                SituationEventData selected = events[PositiveMod(
+                    campaign.Seed + campaign.CompletedNodeCount * 17,
+                    events.Count)];
+                List<RunSituationEventChoice> choices = new();
+                foreach (SituationEventChoiceData choice in selected.Choices)
+                    choices.Add(new RunSituationEventChoice(choice.ChoiceId,
+                        choice.Effect, choice.Value, choice.DisplayText));
+                campaign.SetSituationEvent(selected.EventId, choices);
             }
 
             return campaign.EventChoices;

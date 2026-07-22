@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4100000000000000000000000000001, type: 3}
+  m_Name: PrototypeStationEvent
+  m_EditorClassIdentifier:
+  eventId: TEST-EVENT-STATION-01
+  displayName: 버려진 역의 갈림길
+  choices:
+  - choiceId: EVENT-GOLD
+    effect: 0
+    value: 20
+    displayText: 버려진 매표기를 조사한다 · 골드 20
+  - choiceId: EVENT-DAMAGE
+    effect: 1
+    value: 3
+    displayText: 무너진 통로를 통과한다 · HP 3 피해
+  - choiceId: EVENT-HEALTH
+    effect: 2
+    value: 2
+    displayText: 안전한 객실에서 쉰다 · 최대 HP +2

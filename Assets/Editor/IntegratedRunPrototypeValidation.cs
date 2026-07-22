@@ -168,7 +168,12 @@ namespace HaveABreak.EditorTools
         {
             EnchantDatabase enchants = AssetDatabase.LoadAssetAtPath<EnchantDatabase>(
                 "Assets/GameData/EnchantDatabase.asset");
-            if (enchants == null) return false;
+            SituationEventDatabase events =
+                AssetDatabase.LoadAssetAtPath<SituationEventDatabase>(
+                    "Assets/GameData/SituationEventDatabase.asset");
+            if (enchants == null || events == null ||
+                events.GetValidationErrors().Count > 0 ||
+                events.Events.Count == 0) return false;
 
             RunCampaignState shop = CampaignAtNode(RunNodeType.Shop);
             RunBattleState run = new(30, 30, 500);
@@ -212,9 +217,13 @@ namespace HaveABreak.EditorTools
             string json = JsonUtility.ToJson(situation);
             RunCampaignState restored = JsonUtility.FromJson<RunCampaignState>(json);
             return choices.Count == 3 &&
+                   situation.ActiveSituationEventId ==
+                       events.Events[0].EventId &&
                    choices.Select(choice => choice.ChoiceId)
                        .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 3 &&
                    restored.EventChoices.Count == 3 &&
+                   restored.ActiveSituationEventId ==
+                       situation.ActiveSituationEventId &&
                    restored.EventChoices[0].ChoiceId == choices[0].ChoiceId;
         }
 
