@@ -23,6 +23,7 @@ namespace HaveABreak.Cards
         public const string CleanseScroll = "ITEM-CLEANSE";
         public const string ManaBattery = "ITEM-MANA-2";
         public const string EnchantHammer = "ITEM-ENCHANT-HAMMER";
+        public const string MutationScroll = "ITEM-MUTATION-SCROLL";
 
         private static ConsumableDatabase Database =>
             Resources.Load<RuntimePrototypeConfig>(
@@ -62,7 +63,8 @@ namespace HaveABreak.Cards
             ConsumableData item =
                 PrototypeConsumableCatalog.Find(itemId);
             if (item == null ||
-                item.Effect == ConsumableEffect.IncreaseEnchantSlot)
+                item.Effect == ConsumableEffect.IncreaseEnchantSlot ||
+                item.Effect == ConsumableEffect.ReplaceEnchant)
             {
                 failure = PrototypeConsumableFailure.InvalidItem;
                 return false;
@@ -105,7 +107,8 @@ namespace HaveABreak.Cards
             string ownedCardId,
             out PrototypeConsumableFailure failure)
         {
-            if (progress?.RunState == null || progress.RunDeck == null ||
+            if (progress?.RunState == null || progress.RunState.RunEnded ||
+                progress.OwnedCards == null ||
                 progress.HasActiveEncounter)
             {
                 failure = PrototypeConsumableFailure.InvalidContext;
@@ -119,7 +122,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            RunCardInstance card = progress.RunDeck.Find(ownedCardId);
+            RunCardInstance card = progress.OwnedCards.Find(ownedCardId);
             if (card == null)
             {
                 failure = PrototypeConsumableFailure.InvalidCard;
@@ -134,6 +137,55 @@ namespace HaveABreak.Cards
 
             progress.RunState.RemoveConsumableItem(
                 PrototypeConsumableCatalog.EnchantHammer);
+            failure = PrototypeConsumableFailure.None;
+            return true;
+        }
+
+        public static bool TryUseMutationScroll(
+            RunEncounterProgressState progress,
+            string ownedCardId,
+            int slotIndex,
+            EnchantData replacement,
+            out EnchantAttachmentFailure attachmentFailure,
+            out PrototypeConsumableFailure failure)
+        {
+            attachmentFailure = EnchantAttachmentFailure.None;
+            if (progress?.RunState == null || progress.RunState.RunEnded ||
+                progress.OwnedCards == null ||
+                progress.HasActiveEncounter)
+            {
+                failure = PrototypeConsumableFailure.InvalidContext;
+                return false;
+            }
+
+            if (!Contains(progress.RunState.ConsumableItemIds,
+                    PrototypeConsumableCatalog.MutationScroll))
+            {
+                failure = PrototypeConsumableFailure.ItemNotOwned;
+                return false;
+            }
+
+            RunCardInstance card = progress.OwnedCards.Find(ownedCardId);
+            if (card == null)
+            {
+                failure = PrototypeConsumableFailure.InvalidCard;
+                return false;
+            }
+
+            if (!card.Enchants.TryReplace(
+                    slotIndex, replacement, false, out attachmentFailure))
+            {
+                failure = PrototypeConsumableFailure.NoEffect;
+                return false;
+            }
+
+            if (!progress.RunState.RemoveConsumableItem(
+                    PrototypeConsumableCatalog.MutationScroll))
+            {
+                failure = PrototypeConsumableFailure.RecordFailed;
+                return false;
+            }
+
             failure = PrototypeConsumableFailure.None;
             return true;
         }

@@ -198,8 +198,9 @@ namespace HaveABreak.Cards
 
             if (!progress.RunState.ConsumableItemIds.Contains(
                     PrototypeConsumableCatalog.EnchantHammer) ||
-                progress.RunDeck.Count == 0)
+                progress.OwnedCards.Count == 0)
             {
+                DrawMutationScroll();
                 return;
             }
 
@@ -221,6 +222,36 @@ namespace HaveABreak.Cards
                 else message = $"인첸트 망치 사용 실패: {failure}";
             }
             GUILayout.EndHorizontal();
+            DrawMutationScroll();
+        }
+
+        private void DrawMutationScroll()
+        {
+            if (!progress.RunState.ConsumableItemIds.Contains(
+                    PrototypeConsumableCatalog.MutationScroll)) return;
+
+            GUILayout.Label("변이 주문서", headingStyle);
+            foreach (RunCardInstance card in progress.OwnedCards.Cards)
+            foreach (RunEnchantSlot slot in card.Enchants.Slots
+                         .Where(value => !value.IsEmpty))
+            foreach (EnchantData replacement in config.EnchantDatabase.Enchants
+                         .Where(value => value != null &&
+                             !value.MatchesDefinition(slot.Enchant) &&
+                             value.IsCompatible(card.Card.CardType)))
+            {
+                if (!GUILayout.Button(
+                        $"{card.Card.DisplayName} · {slot.Enchant.DisplayName} → " +
+                        replacement.DisplayName)) continue;
+                if (PrototypeConsumableService.TryUseMutationScroll(
+                        progress, card.OwnedCardId, slot.SlotIndex, replacement,
+                        out var attachmentFailure, out var failure))
+                {
+                    message = $"{replacement.DisplayName}(으)로 변이했습니다.";
+                    SaveRun(null);
+                    return;
+                }
+                message = $"변이 주문서 사용 실패: {failure} / {attachmentFailure}";
+            }
         }
 
         private void DrawNodeSelection()
@@ -466,7 +497,8 @@ namespace HaveABreak.Cards
                 ConsumableData item =
                     PrototypeConsumableCatalog.Find(itemId);
                 if (item == null ||
-                    item.Effect == ConsumableEffect.IncreaseEnchantSlot)
+                    item.Effect == ConsumableEffect.IncreaseEnchantSlot ||
+                    item.Effect == ConsumableEffect.ReplaceEnchant)
                     continue;
                 int owned = progress.RunState.ConsumableItemIds.Count(value =>
                     string.Equals(value, itemId, StringComparison.OrdinalIgnoreCase));
@@ -977,7 +1009,7 @@ namespace HaveABreak.Cards
                 message = $"이어하기 실패: {failure}";
                 return;
             }
-            selectedUpgradeCardId = progress.RunDeck.Cards.FirstOrDefault()?.OwnedCardId;
+            selectedUpgradeCardId = progress.OwnedCards.Cards.FirstOrDefault()?.OwnedCardId;
             selectedBanishCardIds.Clear();
             scroll = Vector2.zero;
             SelectFirstEnemy();
@@ -1196,8 +1228,8 @@ namespace HaveABreak.Cards
         {
             target = null;
             slot = -1;
-            if (enchant == null || progress?.RunDeck == null) return false;
-            foreach (RunCardInstance card in progress.RunDeck.Cards)
+            if (enchant == null || progress?.OwnedCards == null) return false;
+            foreach (RunCardInstance card in progress.OwnedCards.Cards)
             for (int i = 0; i < card.Enchants.SlotCount; i++)
             {
                 if (!card.Enchants.CanAttach(enchant, i, out _)) continue;
@@ -1210,16 +1242,16 @@ namespace HaveABreak.Cards
 
         private RunCardInstance SelectedUpgradeCard()
         {
-            RunCardInstance selected = progress?.RunDeck?.Cards.FirstOrDefault(card =>
+            RunCardInstance selected = progress?.OwnedCards?.Cards.FirstOrDefault(card =>
                 string.Equals(card.OwnedCardId, selectedUpgradeCardId,
                     StringComparison.OrdinalIgnoreCase));
-            return selected ?? progress?.RunDeck?.Cards.FirstOrDefault();
+            return selected ?? progress?.OwnedCards?.Cards.FirstOrDefault();
         }
 
         private void CycleUpgradeCard()
         {
-            if (progress?.RunDeck == null || progress.RunDeck.Count == 0) return;
-            List<RunCardInstance> cards = progress.RunDeck.Cards.ToList();
+            if (progress?.OwnedCards == null || progress.OwnedCards.Count == 0) return;
+            List<RunCardInstance> cards = progress.OwnedCards.Cards.ToList();
             int index = cards.FindIndex(card => card.OwnedCardId == selectedUpgradeCardId);
             selectedUpgradeCardId = cards[(index + 1 + cards.Count) % cards.Count].OwnedCardId;
         }

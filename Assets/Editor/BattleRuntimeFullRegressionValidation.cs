@@ -83,6 +83,9 @@ namespace HaveABreak.Editor
                 "Enchant attachment processing order",
                 EnchantAttachmentOrderValidation.Validate);
             valid &= Run(
+                "Enchant mutation preserves slot and attachment order",
+                EnchantMutationValidation.Validate);
+            valid &= Run(
                 "Runtime state composition",
                 BattleRuntimeStateValidation.Validate);
             valid &= Run(

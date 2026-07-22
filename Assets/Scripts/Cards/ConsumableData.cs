@@ -7,7 +7,8 @@ namespace HaveABreak.Cards
         HealPlayer,
         ClearPlayerStatuses,
         RestoreMana,
-        IncreaseEnchantSlot
+        IncreaseEnchantSlot,
+        ReplaceEnchant
     }
 
     [CreateAssetMenu(
