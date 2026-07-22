@@ -1,5 +1,3 @@
-using System;
-
 namespace HaveABreak.Cards
 {
     public static class BattleRuntimeC07EffectService
@@ -14,33 +12,21 @@ namespace HaveABreak.Cards
             if (runtime == null || playResult == null || playResult.Card == null ||
                 playResult.PlayedEvent == null ||
                 runtime.EventLog.Find(playResult.PlayedEvent.EventId) !=
-                playResult.PlayedEvent ||
-                !string.Equals(
+                playResult.PlayedEvent)
+            {
+                return false;
+            }
+
+            if (!CardEffectRegistrationCatalog.TryFind(
                     playResult.Card.SourceCard.CatalogCardId,
-                    TestContentIds.C07,
-                    StringComparison.OrdinalIgnoreCase))
+                    out CardEffectRegistration registration) ||
+                registration.Handler is not IBanishSkillCardEffectHandler handler)
             {
                 return false;
             }
 
-            if (!C07LostTicketResolver.TryResolve(
-                    playResult.PlayedEvent,
-                    playResult.Card,
-                    selectedBanishBattleCardId,
-                    runtime.Deck,
-                    runtime.Monsters,
-                    runtime.EventLog,
-                    runtime.EffectResolutions,
-                    out int drawnCount,
-                    out bool banished,
-                    out int defendedMonsterCount))
-            {
-                return false;
-            }
-
-            result = new BattleRuntimeC07EffectResult(
-                drawnCount, banished, defendedMonsterCount);
-            return true;
+            return handler.TryResolve(
+                runtime, playResult, selectedBanishBattleCardId, out result);
         }
     }
 }

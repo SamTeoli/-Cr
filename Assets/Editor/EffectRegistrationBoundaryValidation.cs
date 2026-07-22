@@ -47,7 +47,9 @@ namespace HaveABreak.Editor
 
             foreach (string id in ids)
             {
-                if (!CardEffectRegistrationCatalog.TryFind(id, out _))
+                if (!CardEffectRegistrationCatalog.TryFind(
+                        id, out CardEffectRegistration registration) ||
+                    !HasExpectedHandler(registration))
                 {
                     return false;
                 }
@@ -57,6 +59,20 @@ namespace HaveABreak.Editor
                        TestContentIds.C07, out CardEffectRegistration c07) &&
                    c07.Route == CardEffectRoute.BanishSkill &&
                    c07.DefersSkillResolution;
+        }
+
+        private static bool HasExpectedHandler(CardEffectRegistration registration)
+        {
+            return registration.Route switch
+            {
+                CardEffectRoute.Summon =>
+                    registration.Handler is ISummonCardEffectHandler,
+                CardEffectRoute.TargetedSkill =>
+                    registration.Handler is ITargetedSkillCardEffectHandler,
+                CardEffectRoute.BanishSkill =>
+                    registration.Handler is IBanishSkillCardEffectHandler,
+                _ => true
+            };
         }
 
         private static bool ValidateBuiltInEnchants()

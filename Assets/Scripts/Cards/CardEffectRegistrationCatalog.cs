@@ -14,14 +14,19 @@ namespace HaveABreak.Cards
 
     public sealed class CardEffectRegistration
     {
-        public CardEffectRegistration(string catalogCardId, CardEffectRoute route)
+        public CardEffectRegistration(
+            string catalogCardId,
+            CardEffectRoute route,
+            ICardEffectHandler handler = null)
         {
             CatalogCardId = catalogCardId?.Trim();
             Route = route;
+            Handler = handler;
         }
 
         public string CatalogCardId { get; }
         public CardEffectRoute Route { get; }
+        public ICardEffectHandler Handler { get; }
         public bool DefersSkillResolution => Route == CardEffectRoute.BanishSkill;
     }
 
@@ -32,13 +37,13 @@ namespace HaveABreak.Cards
 
         static CardEffectRegistrationCatalog()
         {
-            RegisterBuiltIn(TestContentIds.C01, CardEffectRoute.Summon);
-            RegisterBuiltIn(TestContentIds.C02, CardEffectRoute.Summon);
+            RegisterBuiltIn(TestContentIds.C01, CardEffectRoute.Summon, new C01CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C02, CardEffectRoute.Summon, new C02CardEffectHandler());
             RegisterBuiltIn(TestContentIds.C03, CardEffectRoute.Passive);
             RegisterBuiltIn(TestContentIds.C04, CardEffectRoute.Passive);
-            RegisterBuiltIn(TestContentIds.C05, CardEffectRoute.TargetedSkill);
-            RegisterBuiltIn(TestContentIds.C06, CardEffectRoute.TargetedSkill);
-            RegisterBuiltIn(TestContentIds.C07, CardEffectRoute.BanishSkill);
+            RegisterBuiltIn(TestContentIds.C05, CardEffectRoute.TargetedSkill, new C05CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C06, CardEffectRoute.TargetedSkill, new C06CardEffectHandler());
+            RegisterBuiltIn(TestContentIds.C07, CardEffectRoute.BanishSkill, new C07CardEffectHandler());
             RegisterBuiltIn(TestContentIds.C08, CardEffectRoute.TrapInstallation);
             RegisterBuiltIn(TestContentIds.C09, CardEffectRoute.TrapInstallation);
             RegisterBuiltIn(TestContentIds.C10, CardEffectRoute.TrapInstallation);
@@ -69,9 +74,12 @@ namespace HaveABreak.Cards
             return Registrations.TryGetValue(catalogCardId.Trim(), out registration);
         }
 
-        private static void RegisterBuiltIn(string catalogCardId, CardEffectRoute route)
+        private static void RegisterBuiltIn(
+            string catalogCardId,
+            CardEffectRoute route,
+            ICardEffectHandler handler = null)
         {
-            TryRegister(new CardEffectRegistration(catalogCardId, route));
+            TryRegister(new CardEffectRegistration(catalogCardId, route, handler));
         }
     }
 }
