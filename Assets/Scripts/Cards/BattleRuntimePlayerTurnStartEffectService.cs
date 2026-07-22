@@ -26,22 +26,14 @@ namespace HaveABreak.Cards
             {
                 if (card == null ||
                     card.SourceCard.CardType != CardType.Barrier ||
-                    !string.Equals(
-                        card.SourceCard.CatalogCardId,
-                        TestContentIds.C11,
-                        StringComparison.OrdinalIgnoreCase))
+                    !CardEffectRegistrationCatalog.TryFind(
+                        card.SourceCard.CatalogCardId, out CardEffectRegistration registration) ||
+                    registration.Handler is not IPlayerTurnStartCardEffectHandler handler)
                 {
                     continue;
                 }
 
-                if (!C11LateNightWaitingRoomResolver.TryResolve(
-                        card,
-                        runtime.Turn.PlayerTurnNumber,
-                        runtime.Deck,
-                        runtime.Monsters,
-                        runtime.EventLog,
-                        runtime.EffectResolutions,
-                        out int drawn,
+                if (!handler.TryResolve(runtime, card, out int drawn,
                         out string defendedMonsterId))
                 {
                     return false;

@@ -33,6 +33,50 @@ namespace HaveABreak.Cards
             out BattleRuntimeC07EffectResult result);
     }
 
+    public interface IPlayerTurnEndCardEffectHandler : ICardEffectHandler
+    {
+        bool TryResolve(BattleRuntimeState runtime, BattleMonsterState monster,
+            int firstPlayerTurnEventIndex, out int defenseGained);
+    }
+
+    public interface IEnemyMovementMonsterCardEffectHandler : ICardEffectHandler
+    {
+        bool TryResolve(BattleRuntimeState runtime, BattleMonsterState monster,
+            BattleEventRecord movedEvent, out int attackEnhancementGained);
+    }
+
+    public interface IEnemyMovementBarrierCardEffectHandler : ICardEffectHandler
+    {
+        bool TryResolve(BattleRuntimeState runtime, BattleCardInstance card,
+            BattleEventRecord movedEvent, out int vulnerableGained, out int damageApplied);
+    }
+
+    public interface IPlayerTurnStartCardEffectHandler : ICardEffectHandler
+    {
+        bool TryResolve(BattleRuntimeState runtime, BattleCardInstance card,
+            out int drawn, out string defendedMonsterId);
+    }
+
+    public interface IEnemyMoveTrapCardEffectHandler : ICardEffectHandler
+    {
+        bool TryResolve(BattleRuntimeState runtime, BattleRuntimeTrapInstallation installation,
+            BattleEventRecord moveAttemptEvent, int requestedSteps, string movingEnemyId,
+            out int replacementSteps);
+    }
+
+    public interface IIncomingAttackTrapCardEffectHandler : ICardEffectHandler
+    {
+        bool TryResolve(BattleRuntimeState runtime, BattleRuntimeTrapInstallation installation,
+            BattleEventRecord declaredAttack, string targetBattleCardId, out int defenseGained);
+    }
+
+    public interface IEnemyAbilityTrapCardEffectHandler : ICardEffectHandler
+    {
+        bool TryResolve(BattleRuntimeState runtime, BattleRuntimeTrapInstallation installation,
+            BattleEventRecord abilityEvent, EnemyAbilityResolutionContext ability,
+            out bool cancelled, out bool returnedToHand);
+    }
+
     internal sealed class C01CardEffectHandler : ISummonCardEffectHandler
     {
         public bool TryResolve(BattleRuntimeState runtime, BattleRuntimeCardPlayResult play,
@@ -138,6 +182,85 @@ namespace HaveABreak.Cards
                     out int defended)) return false;
             result = new BattleRuntimeC07EffectResult(drawn, banished, defended);
             return true;
+        }
+    }
+
+    internal sealed class C03CardEffectHandler : IPlayerTurnEndCardEffectHandler
+    {
+        public bool TryResolve(BattleRuntimeState runtime, BattleMonsterState monster,
+            int firstPlayerTurnEventIndex, out int defenseGained)
+        {
+            defenseGained = 0;
+            if (!C03SeatRepairerTurnEndResolver.TryResolve(monster,
+                    runtime.Turn.PlayerTurnNumber, firstPlayerTurnEventIndex, runtime.EventLog,
+                    runtime.EffectResolutions, out C03SeatRepairerResult result)) return false;
+            defenseGained = result.DefenseGained;
+            return true;
+        }
+    }
+
+    internal sealed class C04CardEffectHandler : IEnemyMovementMonsterCardEffectHandler
+    {
+        public bool TryResolve(BattleRuntimeState runtime, BattleMonsterState monster,
+            BattleEventRecord movedEvent, out int attackEnhancementGained) =>
+            C04TerminalCatResolver.TryResolve(movedEvent, runtime.Turn.PlayerTurnNumber,
+                monster, runtime.CardTurnTriggers, runtime.EventLog,
+                out attackEnhancementGained);
+    }
+
+    internal sealed class C12CardEffectHandler : IEnemyMovementBarrierCardEffectHandler
+    {
+        public bool TryResolve(BattleRuntimeState runtime, BattleCardInstance card,
+            BattleEventRecord movedEvent, out int vulnerableGained, out int damageApplied) =>
+            C12RouteMapStarlightResolver.TryResolve(movedEvent,
+                runtime.Turn.PlayerTurnNumber, card, runtime.CardTurnTriggers,
+                runtime.EnemyStatuses, runtime.FindEnemy(movedEvent.TargetId)?.Vital,
+                runtime.EventLog, out vulnerableGained, out damageApplied);
+    }
+
+    internal sealed class C11CardEffectHandler : IPlayerTurnStartCardEffectHandler
+    {
+        public bool TryResolve(BattleRuntimeState runtime, BattleCardInstance card,
+            out int drawn, out string defendedMonsterId) =>
+            C11LateNightWaitingRoomResolver.TryResolve(card,
+                runtime.Turn.PlayerTurnNumber, runtime.Deck, runtime.Monsters,
+                runtime.EventLog, runtime.EffectResolutions, out drawn,
+                out defendedMonsterId);
+    }
+
+    internal sealed class C08CardEffectHandler : IEnemyMoveTrapCardEffectHandler
+    {
+        public bool TryResolve(BattleRuntimeState runtime, BattleRuntimeTrapInstallation installation,
+            BattleEventRecord moveAttemptEvent, int requestedSteps, string movingEnemyId,
+            out int replacementSteps) => C08ClosingDoorResolver.TryReplace(moveAttemptEvent,
+                runtime.Turn.PlayerTurnNumber, installation.EligibleEnemyTurn, requestedSteps,
+                movingEnemyId, installation.SourceTrap, runtime.EnemyMovementLocks,
+                runtime.EnemyStatuses, runtime.CardTurnTriggers, runtime.EventLog,
+                out replacementSteps);
+    }
+
+    internal sealed class C09CardEffectHandler : IIncomingAttackTrapCardEffectHandler
+    {
+        public bool TryResolve(BattleRuntimeState runtime, BattleRuntimeTrapInstallation installation,
+            BattleEventRecord declaredAttack, string targetBattleCardId, out int defenseGained) =>
+            C09InspectionBlanketResolver.TryResolve(declaredAttack,
+                runtime.Turn.PlayerTurnNumber, installation.EligibleEnemyTurn,
+                installation.SourceTrap, runtime.Monsters.Find(targetBattleCardId),
+                runtime.DefenseRetention, runtime.CardTurnTriggers, runtime.EventLog,
+                out defenseGained);
+    }
+
+    internal sealed class C10CardEffectHandler : IEnemyAbilityTrapCardEffectHandler
+    {
+        public bool TryResolve(BattleRuntimeState runtime, BattleRuntimeTrapInstallation installation,
+            BattleEventRecord abilityEvent, EnemyAbilityResolutionContext ability,
+            out bool cancelled, out bool returnedToHand)
+        {
+            bool resolved = C10BrokenCallLineResolver.TryCancel(abilityEvent, ability,
+                installation.SourceTrap, runtime.Deck.Zones, runtime.EnemyStatuses,
+                runtime.EventLog, runtime.EffectResolutions, out cancelled, out returnedToHand);
+            if (resolved && returnedToHand) runtime.TrapInstallations.TryRemove(installation);
+            return resolved;
         }
     }
 }

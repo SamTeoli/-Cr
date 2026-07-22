@@ -28,10 +28,9 @@ namespace HaveABreak.Cards
             {
                 if (monster == null ||
                     monster.Card.Zone != CardZone.MonsterField ||
-                    !string.Equals(
-                        monster.Card.SourceCard.CatalogCardId,
-                        TestContentIds.C04,
-                        StringComparison.OrdinalIgnoreCase))
+                    !CardEffectRegistrationCatalog.TryFind(
+                        monster.Card.SourceCard.CatalogCardId, out CardEffectRegistration registration) ||
+                    registration.Handler is not IEnemyMovementMonsterCardEffectHandler handler)
                 {
                     continue;
                 }
@@ -50,44 +49,27 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
-                if (C04TerminalCatResolver.TryResolve(
-                        movedEvent,
-                        runtime.Turn.PlayerTurnNumber,
-                        monster,
-                        runtime.CardTurnTriggers,
-                        runtime.EventLog,
-                        out int gained))
+                if (handler.TryResolve(runtime, monster, movedEvent, out int gained))
                 {
                     resolvedC04Count++;
                     attackEnhancementGained += gained;
                 }
             }
 
-            BattleEnemyRuntimeState movedEnemy =
-                runtime.FindEnemy(movedEvent.TargetId);
             foreach (BattleCardInstance card in
                      runtime.Deck.Zones.GetCards(CardZone.SkillField))
             {
                 if (card == null ||
                     card.SourceCard.CardType != CardType.Barrier ||
-                    !string.Equals(
-                        card.SourceCard.CatalogCardId,
-                        TestContentIds.C12,
-                        StringComparison.OrdinalIgnoreCase))
+                    !CardEffectRegistrationCatalog.TryFind(
+                        card.SourceCard.CatalogCardId, out CardEffectRegistration registration) ||
+                    registration.Handler is not IEnemyMovementBarrierCardEffectHandler handler)
                 {
                     continue;
                 }
 
-                if (C12RouteMapStarlightResolver.TryResolve(
-                        movedEvent,
-                        runtime.Turn.PlayerTurnNumber,
-                        card,
-                        runtime.CardTurnTriggers,
-                        runtime.EnemyStatuses,
-                        movedEnemy?.Vital,
-                        runtime.EventLog,
-                        out int vulnerable,
-                        out int damage))
+                if (handler.TryResolve(runtime, card, movedEvent,
+                        out int vulnerable, out int damage))
                 {
                     resolvedC12Count++;
                     vulnerableGained += vulnerable;

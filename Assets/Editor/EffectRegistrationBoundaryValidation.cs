@@ -63,6 +63,21 @@ namespace HaveABreak.Editor
 
         private static bool HasExpectedHandler(CardEffectRegistration registration)
         {
+            if (registration.CatalogCardId == TestContentIds.C03)
+                return registration.Handler is IPlayerTurnEndCardEffectHandler;
+            if (registration.CatalogCardId == TestContentIds.C04)
+                return registration.Handler is IEnemyMovementMonsterCardEffectHandler;
+            if (registration.CatalogCardId == TestContentIds.C08)
+                return registration.Handler is IEnemyMoveTrapCardEffectHandler;
+            if (registration.CatalogCardId == TestContentIds.C09)
+                return registration.Handler is IIncomingAttackTrapCardEffectHandler;
+            if (registration.CatalogCardId == TestContentIds.C10)
+                return registration.Handler is IEnemyAbilityTrapCardEffectHandler;
+            if (registration.CatalogCardId == TestContentIds.C11)
+                return registration.Handler is IPlayerTurnStartCardEffectHandler;
+            if (registration.CatalogCardId == TestContentIds.C12)
+                return registration.Handler is IEnemyMovementBarrierCardEffectHandler;
+
             return registration.Route switch
             {
                 CardEffectRoute.Summon =>
