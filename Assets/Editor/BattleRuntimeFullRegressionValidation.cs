@@ -65,6 +65,9 @@ namespace HaveABreak.Editor
 
             bool valid = true;
             valid &= Run(
+                "Card and enchant effect registration boundary",
+                EffectRegistrationBoundaryValidation.Validate);
+            valid &= Run(
                 "Runtime state composition",
                 BattleRuntimeStateValidation.Validate);
             valid &= Run(
