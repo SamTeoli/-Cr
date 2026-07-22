@@ -7,7 +7,7 @@ namespace HaveABreak.Cards
 {
     public static class RunProgressSaveService
     {
-        private const int CurrentSchemaVersion = 1;
+        private const int CurrentSchemaVersion = 2;
         private const string DefaultFileName = "run-progress.json";
 
         [Serializable]
@@ -23,6 +23,7 @@ namespace HaveABreak.Cards
             [SerializeField] private List<string> completedBattleInstanceIds =
                 new();
             [SerializeField] private List<CardSaveData> cards = new();
+            [SerializeField] private List<string> deckOwnedCardIds = new();
 
             public SaveData()
             {
@@ -53,9 +54,14 @@ namespace HaveABreak.Cards
                     }
                 }
                 cards = new List<CardSaveData>();
-                foreach (RunCardInstance card in progress.RunDeck.Cards)
+                foreach (RunCardInstance card in progress.OwnedCards.Cards)
                 {
                     cards.Add(new CardSaveData(card));
+                }
+                deckOwnedCardIds = new List<string>();
+                foreach (RunCardInstance card in progress.RunDeck.Cards)
+                {
+                    deckOwnedCardIds.Add(card.OwnedCardId);
                 }
             }
 
@@ -70,6 +76,7 @@ namespace HaveABreak.Cards
             public IReadOnlyList<string> CompletedBattleInstanceIds =>
                 completedBattleInstanceIds;
             public IReadOnlyList<CardSaveData> Cards => cards;
+            public IReadOnlyList<string> DeckOwnedCardIds => deckOwnedCardIds;
         }
 
         [Serializable]
@@ -278,7 +285,8 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (data.SchemaVersion != CurrentSchemaVersion)
+            if (data.SchemaVersion < 1 ||
+                data.SchemaVersion > CurrentSchemaVersion)
             {
                 failure = RunProgressSaveFailure.UnsupportedVersion;
                 return false;
@@ -294,11 +302,14 @@ namespace HaveABreak.Cards
                     data,
                     out List<string> battleIds,
                     out failure) ||
-                !TryRestoreDeck(
+                !TryRestoreOwnedCards(
                     data,
                     cardDatabase,
                     enchantDatabase,
-                    out RunDeckState runDeck,
+                    out RunOwnedCardState ownedCards,
+                    out failure) ||
+                !TryRestoreSelectedDeck(
+                    data, ownedCards, out RunDeckState runDeck,
                     out failure))
             {
                 return false;
@@ -314,6 +325,7 @@ namespace HaveABreak.Cards
                     data.RunEnded);
                 progress = new RunEncounterProgressState(
                     runState,
+                    ownedCards,
                     runDeck,
                     permanentRewards,
                     battleIds,
@@ -517,14 +529,14 @@ namespace HaveABreak.Cards
             return true;
         }
 
-        private static bool TryRestoreDeck(
+        private static bool TryRestoreOwnedCards(
             SaveData data,
             CardDatabase cardDatabase,
             EnchantDatabase enchantDatabase,
-            out RunDeckState runDeck,
+            out RunOwnedCardState ownedCards,
             out RunProgressSaveFailure failure)
         {
-            runDeck = new RunDeckState();
+            ownedCards = new RunOwnedCardState();
             foreach (CardSaveData savedCard in data.Cards)
             {
                 if (savedCard == null ||
@@ -603,7 +615,7 @@ namespace HaveABreak.Cards
                     }
                 }
 
-                if (!runDeck.TryAdd(
+                if (!ownedCards.TryAdd(
                         restored,
                         out RunDeckFailure deckFailure))
                 {
@@ -617,6 +629,39 @@ namespace HaveABreak.Cards
 
             failure = RunProgressSaveFailure.None;
             return true;
+        }
+
+        private static bool TryRestoreSelectedDeck(
+            SaveData data,
+            RunOwnedCardState ownedCards,
+            out RunDeckState runDeck,
+            out RunProgressSaveFailure failure)
+        {
+            IEnumerable<string> selectedIds =
+                data.SchemaVersion == 1 || data.DeckOwnedCardIds == null ||
+                data.DeckOwnedCardIds.Count == 0
+                    ? GetAllOwnedCardIds(ownedCards)
+                    : data.DeckOwnedCardIds;
+            if (!RunDeckSelectionService.TryCreateDeck(
+                    ownedCards, selectedIds, out runDeck,
+                    out RunDeckFailure deckFailure))
+            {
+                failure = deckFailure == RunDeckFailure.DuplicateOwnedCardId
+                    ? RunProgressSaveFailure.DuplicateOwnedCardId
+                    : RunProgressSaveFailure.InvalidData;
+                return false;
+            }
+            failure = RunProgressSaveFailure.None;
+            return true;
+        }
+
+        private static IEnumerable<string> GetAllOwnedCardIds(
+            RunOwnedCardState ownedCards)
+        {
+            foreach (RunCardInstance card in ownedCards.Cards)
+            {
+                yield return card.OwnedCardId;
+            }
         }
 
         private static bool TryNormalizePath(

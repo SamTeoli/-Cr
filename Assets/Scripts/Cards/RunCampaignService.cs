@@ -570,7 +570,7 @@ namespace HaveABreak.Cards
             RestUpgradeConfig config,
             out RunCampaignFailure failure)
         {
-            if (progress?.RunState == null || progress.RunDeck == null)
+            if (progress?.RunState == null || progress.OwnedCards == null)
             {
                 failure = RunCampaignFailure.InvalidState;
                 return false;
@@ -582,7 +582,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            RunCardInstance card = progress.RunDeck.Find(ownedCardId);
+            RunCardInstance card = progress.OwnedCards.Find(ownedCardId);
             if (card == null)
             {
                 failure = RunCampaignFailure.InvalidCard;
@@ -736,7 +736,7 @@ namespace HaveABreak.Cards
             out RunCampaignFailure failure)
         {
             attachmentFailure = EnchantAttachmentFailure.None;
-            if (progress?.RunState == null || progress.RunDeck == null)
+            if (progress?.RunState == null || progress.OwnedCards == null)
             {
                 failure = RunCampaignFailure.InvalidState;
                 return false;
@@ -748,7 +748,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            RunCardInstance card = progress.RunDeck.Find(ownedCardId);
+            RunCardInstance card = progress.OwnedCards.Find(ownedCardId);
             if (card == null)
             {
                 failure = RunCampaignFailure.InvalidCard;
@@ -808,7 +808,7 @@ namespace HaveABreak.Cards
             out RunCampaignFailure failure)
         {
             attachmentFailure = EnchantAttachmentFailure.None;
-            if (progress?.RunState == null || progress.RunDeck == null)
+            if (progress?.RunState == null || progress.OwnedCards == null)
             {
                 failure = RunCampaignFailure.InvalidState;
                 return false;
@@ -827,7 +827,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            RunCardInstance card = progress.RunDeck.Find(ownedCardId);
+            RunCardInstance card = progress.OwnedCards.Find(ownedCardId);
             if (card == null)
             {
                 failure = RunCampaignFailure.InvalidCard;
