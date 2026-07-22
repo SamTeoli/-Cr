@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b9c7d8e9f0a4123b4c5d6e7f8091021, type: 3}
+  m_Name: RuntimePrototypeConfig
+  m_EditorClassIdentifier:
+  cardDatabase: {fileID: 11400000, guid: 98f60209926350148a5dd6dfb586373e, type: 2}
+  enchantDatabase: {fileID: 11400000, guid: f9a4ae70fee9a7649b619170e431f1b6, type: 2}
+  encounterDatabase: {fileID: 11400000, guid: 37db0000000000000000000000000001, type: 2}
+  normalEncounterId: TEST-ENCOUNTER-PROTOTYPE-01
+  eliteEncounterId: TEST-ENCOUNTER-PROTOTYPE-ELITE
+  midBossEncounterId: TEST-ENCOUNTER-PROTOTYPE-MIDBOSS
+  finalBossEncounterId: TEST-ENCOUNTER-PROTOTYPE-FINALBOSS
