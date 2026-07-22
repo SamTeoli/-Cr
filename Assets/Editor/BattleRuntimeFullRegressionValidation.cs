@@ -15,6 +15,23 @@ namespace HaveABreak.Editor
         [MenuItem("Have a Break/Tests/Run Complete Test Harness")]
         private static void ValidateCompleteTestHarnessFromMenu()
         {
+            RunCompleteTestHarness();
+        }
+
+        // Unity command-line entry point for unattended validation.
+        // Example: -batchmode -quit -executeMethod
+        // HaveABreak.Editor.BattleRuntimeFullRegressionValidation.RunCompleteTestHarnessBatchMode
+        public static void RunCompleteTestHarnessBatchMode()
+        {
+            if (!RunCompleteTestHarness())
+            {
+                throw new InvalidOperationException(
+                    "Complete test harness failed. Check the first Console error.");
+            }
+        }
+
+        internal static bool RunCompleteTestHarness()
+        {
             bool contentValid = AllCardAndEnchantRegressionValidation.Validate();
             bool runtimeValid = Validate();
             bool valid = contentValid && runtimeValid;
@@ -30,12 +47,7 @@ namespace HaveABreak.Editor
                     "Complete test harness failed. Check the first Console error.");
             }
 
-            EditorUtility.DisplayDialog(
-                "Have a Break Test Harness",
-                valid
-                    ? "Complete test harness passed."
-                    : "Test harness failed. Check the Console.",
-                "OK");
+            return valid;
         }
 
         [MenuItem("Have a Break/Validate Full Battle Runtime C01-C12")]
