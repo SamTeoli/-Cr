@@ -45,6 +45,39 @@ namespace HaveABreak.Editor
                 valid &= !state.TryReplace(1, original, false,
                     out EnchantAttachmentFailure invalidSlotFailure) &&
                     invalidSlotFailure == EnchantAttachmentFailure.InvalidSlot;
+
+                RunCardInstance ownedCard = new(card, "MUTATION-OWNED");
+                RunOwnedCardState ownedCards = new();
+                RunDeckState deck = new();
+                valid &= ownedCards.TryAdd(ownedCard, out _);
+                valid &= ownedCard.Enchants.TryAttach(
+                    original, 0, false, out _);
+                RunEncounterProgressState progress = new(
+                    new RunBattleState(30, 30, 0, new[]
+                    {
+                        PrototypeConsumableCatalog.MutationScroll
+                    }),
+                    ownedCards,
+                    deck,
+                    new PlayerPermanentRewardState(),
+                    System.Array.Empty<string>(),
+                    0);
+                valid &= !PrototypeConsumableService.TryUseMutationScroll(
+                    progress, ownedCard.OwnedCardId, 0, incompatible,
+                    out EnchantAttachmentFailure serviceAttachmentFailure,
+                    out PrototypeConsumableFailure serviceFailure) &&
+                    serviceAttachmentFailure ==
+                    EnchantAttachmentFailure.IncompatibleCardType &&
+                    serviceFailure == PrototypeConsumableFailure.NoEffect &&
+                    ownedCard.Enchants.Slots[0].Enchant == original &&
+                    progress.RunState.ConsumableItemIds.Count == 1;
+                valid &= PrototypeConsumableService.TryUseMutationScroll(
+                    progress, ownedCard.OwnedCardId, 0, replacement,
+                    out serviceAttachmentFailure, out serviceFailure) &&
+                    serviceAttachmentFailure == EnchantAttachmentFailure.None &&
+                    serviceFailure == PrototypeConsumableFailure.None &&
+                    ownedCard.Enchants.Slots[0].Enchant == replacement &&
+                    progress.RunState.ConsumableItemIds.Count == 0;
             }
 
             Object.DestroyImmediate(original);

@@ -195,22 +195,23 @@ namespace HaveABreak.EditorTools
                     string.Equals(itemId,
                         PrototypeConsumableCatalog.EnchantHammer,
                         StringComparison.OrdinalIgnoreCase)) ||
-                progress.RunDeck.Count == 0)
+                progress.OwnedCards.Count == 0)
             {
+                DrawMutationScroll();
                 return;
             }
 
-            string[] labels = progress.RunDeck.Cards.Select(card =>
+            string[] labels = progress.OwnedCards.Cards.Select(card =>
                 $"{card.Card.DisplayName} · 슬롯 {card.Enchants.SlotCount}/" +
                 $"{RunCardEnchantState.MaximumSlotCount}").ToArray();
             int selected = Mathf.Max(0,
-                progress.RunDeck.Cards.ToList().FindIndex(card =>
+                progress.OwnedCards.Cards.ToList().FindIndex(card =>
                     string.Equals(card.OwnedCardId, selectedUpgradeCardId,
                         StringComparison.OrdinalIgnoreCase)));
             selected = EditorGUILayout.Popup(
                 "인첸트 망치 대상", selected, labels);
             selectedUpgradeCardId =
-                progress.RunDeck.Cards[selected].OwnedCardId;
+                progress.OwnedCards.Cards[selected].OwnedCardId;
             if (GUILayout.Button("인첸트 망치 사용 · 슬롯 +1"))
             {
                 if (PrototypeConsumableService.TryUseEnchantHammer(
@@ -224,6 +225,39 @@ namespace HaveABreak.EditorTools
                 {
                     message = $"인첸트 망치 사용 실패: {failure}";
                 }
+            }
+            DrawMutationScroll();
+        }
+
+        private void DrawMutationScroll()
+        {
+            if (!progress.RunState.ConsumableItemIds.Any(itemId =>
+                    string.Equals(itemId,
+                        PrototypeConsumableCatalog.MutationScroll,
+                        StringComparison.OrdinalIgnoreCase))) return;
+
+            EditorGUILayout.LabelField("변이 주문서", EditorStyles.miniBoldLabel);
+            foreach (RunCardInstance card in progress.OwnedCards.Cards)
+            foreach (RunEnchantSlot slot in card.Enchants.Slots
+                         .Where(value => !value.IsEmpty))
+            foreach (EnchantData replacement in enchantDatabase.Enchants
+                         .Where(value => value != null &&
+                             !value.MatchesDefinition(slot.Enchant) &&
+                             value.IsCompatible(card.Card.CardType)))
+            {
+                if (!GUILayout.Button(
+                        $"{card.Card.DisplayName} · {slot.Enchant.DisplayName} → " +
+                        replacement.DisplayName)) continue;
+                if (PrototypeConsumableService.TryUseMutationScroll(
+                        progress, card.OwnedCardId, slot.SlotIndex, replacement,
+                        out EnchantAttachmentFailure attachmentFailure,
+                        out PrototypeConsumableFailure failure))
+                {
+                    message = $"{replacement.DisplayName}(으)로 변이했습니다.";
+                    SaveRun(null);
+                    return;
+                }
+                message = $"변이 주문서 사용 실패: {failure} / {attachmentFailure}";
             }
         }
 
@@ -327,17 +361,17 @@ namespace HaveABreak.EditorTools
                 }
             }
 
-            string[] cardLabels = progress.RunDeck.Cards.Select(card =>
+            string[] cardLabels = progress.OwnedCards.Cards.Select(card =>
                 $"{card.Card.DisplayName} · 레벨 {card.CurrentLevel}").ToArray();
             int selected = Mathf.Max(0,
-                progress.RunDeck.Cards.ToList().FindIndex(card =>
+                progress.OwnedCards.Cards.ToList().FindIndex(card =>
                     string.Equals(card.OwnedCardId, selectedUpgradeCardId,
                         StringComparison.OrdinalIgnoreCase)));
             selected = EditorGUILayout.Popup("강화할 카드", selected, cardLabels);
-            if (progress.RunDeck.Count > 0)
+            if (progress.OwnedCards.Count > 0)
             {
                 selectedUpgradeCardId =
-                    progress.RunDeck.Cards[selected].OwnedCardId;
+                    progress.OwnedCards.Cards[selected].OwnedCardId;
             }
 
             if (GUILayout.Button(
@@ -536,7 +570,8 @@ namespace HaveABreak.EditorTools
                 ConsumableData item =
                     PrototypeConsumableCatalog.Find(itemId);
                 if (item == null ||
-                    item.Effect == ConsumableEffect.IncreaseEnchantSlot)
+                    item.Effect == ConsumableEffect.IncreaseEnchantSlot ||
+                    item.Effect == ConsumableEffect.ReplaceEnchant)
                 {
                     continue;
                 }
@@ -839,7 +874,7 @@ namespace HaveABreak.EditorTools
             }
 
             selectedUpgradeCardId =
-                progress.RunDeck.Cards.FirstOrDefault()?.OwnedCardId;
+                progress.OwnedCards.Cards.FirstOrDefault()?.OwnedCardId;
             SelectFirstEnemy();
             message = $"이어하기 완료: {source}";
         }
@@ -1123,12 +1158,12 @@ namespace HaveABreak.EditorTools
         {
             target = null;
             slotIndex = -1;
-            if (enchant == null || progress?.RunDeck == null)
+            if (enchant == null || progress?.OwnedCards == null)
             {
                 return false;
             }
 
-            foreach (RunCardInstance card in progress.RunDeck.Cards)
+            foreach (RunCardInstance card in progress.OwnedCards.Cards)
             {
                 for (int i = 0; i < card.Enchants.SlotCount; i++)
                 {

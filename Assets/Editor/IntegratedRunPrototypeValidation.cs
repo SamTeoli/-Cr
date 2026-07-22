@@ -157,7 +157,7 @@ namespace HaveABreak.EditorTools
                 AssetDatabase.LoadAssetAtPath<ConsumableDatabase>(
                     "Assets/GameData/ConsumableDatabase.asset");
             IReadOnlyList<ConsumableData> items = database?.Consumables;
-            return database != null && items != null && items.Count == 4 &&
+            return database != null && items != null && items.Count == 5 &&
                    database.GetValidationErrors().Count == 0 &&
                    items.All(item => item != null &&
                        !string.IsNullOrWhiteSpace(item.ItemId) &&
@@ -168,6 +168,9 @@ namespace HaveABreak.EditorTools
                    items.Count &&
                    ReferenceEquals(PrototypeConsumableCatalog.Find(
                        PrototypeConsumableCatalog.HealingPotion), items[0]) &&
+                   PrototypeConsumableCatalog.Find(
+                       PrototypeConsumableCatalog.MutationScroll)?.Effect ==
+                   ConsumableEffect.ReplaceEnchant &&
                    ValidateInvalidConsumableDefinitions();
         }
 
