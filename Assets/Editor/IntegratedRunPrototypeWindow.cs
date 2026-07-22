@@ -395,11 +395,12 @@ namespace HaveABreak.EditorTools
             }
 
             EditorGUILayout.BeginHorizontal();
-            int rerollCost = RunCampaignService.GetShopRerollCost(campaign);
+            ShopEconomyConfig economy = prototypeConfig.ShopEconomyConfig;
+            int rerollCost = RunCampaignService.GetShopRerollCost(campaign, economy);
             if (GUILayout.Button($"전체 리롤 · {rerollCost}G"))
             {
                 if (RunCampaignService.TryRerollShop(
-                        campaign, progress.RunState,
+                        campaign, progress.RunState, economy,
                         out RunCampaignFailure failure))
                 {
                     message = "상점 상품을 다시 생성했습니다.";

@@ -91,17 +91,22 @@ namespace HaveABreak.EditorTools
             switch (campaign.ActiveNode.NodeType)
             {
                 case RunNodeType.Shop:
+                {
+                    ShopEconomyConfig economy =
+                        AssetDatabase.LoadAssetAtPath<ShopEconomyConfig>(
+                            "Assets/GameData/ShopEconomyConfig.asset");
                     if (!RunCampaignService.TryBuyConsumable(
                             campaign, run,
                             PrototypeConsumableCatalog.HealingPotion, out _) ||
                         !RunCampaignService.TryRerollShop(
-                            campaign, run, out _) ||
+                            campaign, run, economy, out _) ||
                         !RunCampaignService.TryLeaveShop(
                             campaign, run, out _))
                     {
                         return false;
                     }
                     break;
+                }
                 case RunNodeType.SituationEvent:
                     if (!RunCampaignService.TryResolveSituationEvent(
                             campaign, run, out _, out _))
@@ -171,7 +176,10 @@ namespace HaveABreak.EditorTools
             SituationEventDatabase events =
                 AssetDatabase.LoadAssetAtPath<SituationEventDatabase>(
                     "Assets/GameData/SituationEventDatabase.asset");
-            if (enchants == null || events == null ||
+            ShopEconomyConfig economy =
+                AssetDatabase.LoadAssetAtPath<ShopEconomyConfig>(
+                    "Assets/GameData/ShopEconomyConfig.asset");
+            if (enchants == null || events == null || economy == null ||
                 events.GetValidationErrors().Count > 0 ||
                 events.Events.Count == 0) return false;
 
@@ -184,6 +192,7 @@ namespace HaveABreak.EditorTools
             string firstSlotId = first.Count > 0 ? first[0].SlotId : null;
             RunBattleState poorRun = new(30, 30, 0);
             int goldBeforePurchase = run.Gold;
+            int expectedRerollCost = economy.GetRerollCost(0);
             if (first.Count != 7 || consumable == null || consumable.Purchased ||
                 RunCampaignService.TryBuyConsumableSlot(
                     shop, poorRun, consumable.SlotId, out _) ||
@@ -197,7 +206,11 @@ namespace HaveABreak.EditorTools
                 run.Gold != goldBeforePurchase - consumable.Price ||
                 RunCampaignService.TryBuyConsumableSlot(
                     shop, run, consumable.SlotId, out _) ||
-                !RunCampaignService.TryRerollShop(shop, run, out _))
+                !RunCampaignService.TryRerollShop(shop, run, economy, out _) ||
+                run.Gold != goldBeforePurchase - consumable.Price -
+                    expectedRerollCost ||
+                RunCampaignService.GetShopRerollCost(shop, economy) !=
+                    economy.GetRerollCost(1))
             {
                 return false;
             }
@@ -342,6 +355,7 @@ namespace HaveABreak.EditorTools
             }
 
             RunNodeGenerationConfig generation = config.RunNodeGenerationConfig;
+            ShopEconomyConfig economy = config.ShopEconomyConfig;
             if (generation == null ||
                 generation.GetValidationErrors().Count != 0 ||
                 generation.GeneralNodePool.Count != 5 ||
@@ -350,7 +364,12 @@ namespace HaveABreak.EditorTools
                 generation.MaximumChoiceCount != 4 ||
                 generation.EliteUnlockIndex != 2 ||
                 generation.MidBossIndex != 4 ||
-                generation.FinalBossIndex != 11)
+                generation.FinalBossIndex != 11 ||
+                economy == null || economy.GetValidationErrors().Count != 0 ||
+                economy.BaseRerollCost != 10 ||
+                economy.RerollCostIncrease != 5 ||
+                economy.GetRerollCost(0) != 10 ||
+                economy.GetRerollCost(2) != 20)
             {
                 return false;
             }
