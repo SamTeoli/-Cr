@@ -106,13 +106,18 @@ namespace HaveABreak.Cards
 
         public bool TrySpendGold(int amount)
         {
-            if (amount < 0 || gold < amount || runEnded)
+            if (!CanSpendGold(amount))
             {
                 return false;
             }
 
             gold -= amount;
             return true;
+        }
+
+        public bool CanSpendGold(int amount)
+        {
+            return amount >= 0 && gold >= amount && !runEnded;
         }
 
         public int ApplyHealing(int amount)

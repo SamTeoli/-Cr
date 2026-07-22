@@ -565,13 +565,19 @@ namespace HaveABreak.Cards
             }
 
             int price = slot?.Price ?? item.ShopPrice;
-            if (!run.TrySpendGold(price))
+            if (!run.CanSpendGold(price))
             {
                 failure = RunCampaignFailure.InsufficientGold;
                 return false;
             }
 
-            run.TryAddRewardConsumableItem(item.ItemId);
+            if (!run.TryAddRewardConsumableItem(item.ItemId) ||
+                !run.TrySpendGold(price))
+            {
+                run.RemoveConsumableItem(item.ItemId);
+                failure = RunCampaignFailure.InvalidChoice;
+                return false;
+            }
             MarkPurchasedSlot(campaign, RunShopProductType.Consumable, itemId);
             failure = RunCampaignFailure.None;
             return true;
@@ -597,13 +603,19 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (!run.TrySpendGold(slot.Price))
+            if (!run.CanSpendGold(slot.Price))
             {
                 failure = RunCampaignFailure.InsufficientGold;
                 return false;
             }
 
-            run.TryAddRewardConsumableItem(item.ItemId);
+            if (!run.TryAddRewardConsumableItem(item.ItemId) ||
+                !run.TrySpendGold(slot.Price))
+            {
+                run.RemoveConsumableItem(item.ItemId);
+                failure = RunCampaignFailure.InvalidChoice;
+                return false;
+            }
             slot.MarkPurchased();
             failure = RunCampaignFailure.None;
             return true;
@@ -646,14 +658,16 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (!IsAvailableShopProduct(campaign,
-                    RunShopProductType.Enchant, enchant.DefinitionId))
+            RunShopProductSlot shopSlot = FindAvailableShopProduct(
+                campaign, RunShopProductType.Enchant, enchant.DefinitionId);
+            if (campaign.ShopSlots.Count > 0 && shopSlot == null)
             {
                 failure = RunCampaignFailure.InvalidChoice;
                 return false;
             }
 
-            if (!progress.RunState.TrySpendGold(price))
+            int transactionPrice = shopSlot?.Price ?? price;
+            if (!progress.RunState.CanSpendGold(transactionPrice))
             {
                 failure = RunCampaignFailure.InsufficientGold;
                 return false;
@@ -663,6 +677,13 @@ namespace HaveABreak.Cards
                     enchant, slotIndex, false, out attachmentFailure))
             {
                 failure = RunCampaignFailure.AttachmentFailed;
+                return false;
+            }
+
+            if (!progress.RunState.TrySpendGold(transactionPrice))
+            {
+                card.Enchants.TryRemove(slotIndex, false, out _);
+                failure = RunCampaignFailure.InsufficientGold;
                 return false;
             }
 
@@ -716,7 +737,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (!progress.RunState.TrySpendGold(shopSlot.Price))
+            if (!progress.RunState.CanSpendGold(shopSlot.Price))
             {
                 failure = RunCampaignFailure.InsufficientGold;
                 return false;
@@ -726,6 +747,13 @@ namespace HaveABreak.Cards
                     out attachmentFailure))
             {
                 failure = RunCampaignFailure.AttachmentFailed;
+                return false;
+            }
+
+            if (!progress.RunState.TrySpendGold(shopSlot.Price))
+            {
+                card.Enchants.TryRemove(enchantSlotIndex, false, out _);
+                failure = RunCampaignFailure.InsufficientGold;
                 return false;
             }
 
