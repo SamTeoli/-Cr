@@ -234,6 +234,12 @@ namespace HaveABreak.Cards
         public IReadOnlyList<string> UsedBattleInstanceIds =>
             usedBattleInstanceIds ??= new List<string>();
 
+        internal void ReplaceRunDeck(RunDeckState replacement)
+        {
+            runDeck = replacement ??
+                throw new ArgumentNullException(nameof(replacement));
+        }
+
         private static RunOwnedCardState CreateOwnedCardsFromDeck(
             RunDeckState deck)
         {

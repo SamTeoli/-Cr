@@ -267,6 +267,9 @@ namespace HaveABreak.Editor
                 "Run deck battle snapshots and enchants",
                 RunDeckBattleSnapshotValidation.Validate);
             valid &= Run(
+                "Atomic run deck editing rules",
+                RunDeckEditingValidation.Validate);
+            valid &= Run(
                 "Run deck encounter flow integration",
                 BattleRuntimeRunDeckEncounterFlowValidation.Validate);
             valid &= Run(
