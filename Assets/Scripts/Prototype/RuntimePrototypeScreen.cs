@@ -350,7 +350,8 @@ namespace HaveABreak.Cards
         private void DrawNodeSelection()
         {
             GUILayout.Label("다음 노드 선택", headingStyle);
-            foreach (RunNodeChoice choice in RunCampaignService.GetChoices(campaign))
+            RunNodeChoice[] choices = RunCampaignService.GetChoices(campaign).ToArray();
+            foreach (RunNodeChoice choice in choices)
             {
                 if (!GUILayout.Button(
                         $"{choice.DisplayName}  ·  {choice.NodeId}",
