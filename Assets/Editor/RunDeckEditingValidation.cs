@@ -102,7 +102,7 @@ namespace HaveABreak.Editor
             {
                 CardData card = AssetDatabase.LoadAssetAtPath<CardData>(
                     AssetDatabase.GUIDToAssetPath(guid));
-                if (card != null && card.CardId == cardId)
+                if (card != null && card.CatalogCardId == cardId)
                 {
                     return card;
                 }
