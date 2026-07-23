@@ -44,6 +44,14 @@ namespace HaveABreak.Editor
             RunEncounterProgressState progress = new(
                 run, owned, initial, new PlayerPermanentRewardState(),
                 System.Array.Empty<string>(), 0);
+            if (progress.OwnedCards.Count != 3 ||
+                progress.RunDeck.Count != 2 ||
+                progress.RunDeck.Cards[0] != first ||
+                progress.RunDeck.Cards[1] != second ||
+                progress.OwnedCards.Find(third.OwnedCardId) != third)
+            {
+                return false;
+            }
 
             if (!RunDeckSelectionService.TryReplaceDeck(
                     progress,
