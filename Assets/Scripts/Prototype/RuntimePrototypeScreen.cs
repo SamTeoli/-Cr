@@ -23,6 +23,8 @@ namespace HaveABreak.Cards
         private string selectedUpgradeCardId;
         private string message;
         private Vector2 scroll;
+        private readonly List<string> deckEditingSelection = new();
+        private bool deckEditing;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
         private GUIStyle wrappedStyle;
@@ -183,9 +185,57 @@ namespace HaveABreak.Cards
             if (campaign.Phase != RunCampaignPhase.Battle &&
                 campaign.Phase != RunCampaignPhase.Reward)
             {
+                DrawDeckEditor();
                 DrawRunInventory();
             }
             GUILayout.Space(8f);
+        }
+
+        private void DrawDeckEditor()
+        {
+            if (progress.RunState.RunEnded) return;
+            GUILayout.Label("런 덱 편집", headingStyle);
+            if (!deckEditing)
+            {
+                if (GUILayout.Button("덱 편집 열기", GUILayout.Width(140f)))
+                {
+                    deckEditingSelection.Clear();
+                    deckEditingSelection.AddRange(
+                        progress.RunDeck.Cards.Select(card => card.OwnedCardId));
+                    deckEditing = true;
+                }
+                return;
+            }
+
+            GUILayout.Label($"선택 {deckEditingSelection.Count}장");
+            foreach (RunCardInstance card in progress.OwnedCards.Cards)
+            {
+                bool selected = deckEditingSelection.Contains(card.OwnedCardId);
+                if (!GUILayout.Button(
+                        $"{(selected ? "[편성]" : "[보유]")} " +
+                        $"{card.Card.DisplayName} · Lv.{card.Level}")) continue;
+                if (selected) deckEditingSelection.Remove(card.OwnedCardId);
+                else deckEditingSelection.Add(card.OwnedCardId);
+            }
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("취소")) deckEditing = false;
+            if (GUILayout.Button("선택한 덱 적용")) ApplyDeckEditing();
+            GUILayout.EndHorizontal();
+        }
+
+        private void ApplyDeckEditing()
+        {
+            if (RunDeckSelectionService.TryReplaceDeck(
+                    progress, deckEditingSelection, out RunDeckFailure failure))
+            {
+                deckEditing = false;
+                selectedUpgradeCardId = progress.RunDeck.Cards.FirstOrDefault()?.OwnedCardId;
+                message = $"런 덱을 {progress.RunDeck.Count}장으로 변경했습니다.";
+                SaveRun(null);
+                return;
+            }
+            message = $"런 덱 변경 실패: {failure}";
         }
 
         private void DrawRunInventory()
@@ -990,6 +1040,8 @@ namespace HaveABreak.Cards
             selectedUpgradeCardId = deck.Cards.FirstOrDefault()?.OwnedCardId;
             selectedEnemyId = null;
             selectedBanishCardIds.Clear();
+            deckEditing = false;
+            deckEditingSelection.Clear();
             scroll = Vector2.zero;
             message = "새 런을 시작했습니다.";
             SaveRun(null);
@@ -1011,6 +1063,8 @@ namespace HaveABreak.Cards
             }
             selectedUpgradeCardId = progress.OwnedCards.Cards.FirstOrDefault()?.OwnedCardId;
             selectedBanishCardIds.Clear();
+            deckEditing = false;
+            deckEditingSelection.Clear();
             scroll = Vector2.zero;
             SelectFirstEnemy();
             message = $"이어하기 완료: {source}";
