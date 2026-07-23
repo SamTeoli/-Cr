@@ -665,7 +665,8 @@ namespace HaveABreak.EditorTools
         {
             EditorGUILayout.LabelField("소모아이템", EditorStyles.miniBoldLabel);
             EditorGUILayout.BeginHorizontal();
-            foreach (string itemId in progress.RunState.ConsumableItemIds.Distinct())
+            foreach (string itemId in progress.RunState.ConsumableItemIds
+                         .Distinct().ToList())
             {
                 ConsumableData item =
                     PrototypeConsumableCatalog.Find(itemId);
@@ -773,7 +774,7 @@ namespace HaveABreak.EditorTools
             List<BattleCardInstance> hand =
                 context.Runtime.Deck.Zones.GetCards(CardZone.Hand);
             EditorGUILayout.LabelField($"패 ({hand.Count})", EditorStyles.miniBoldLabel);
-            foreach (BattleCardInstance card in hand)
+            foreach (BattleCardInstance card in hand.ToList())
             {
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 EditorGUILayout.LabelField(
@@ -829,7 +830,7 @@ namespace HaveABreak.EditorTools
                     context.VictoryEnchantRewards;
                 if (rewards != null && !rewards.Claimed)
                 {
-                    foreach (EnchantData enchant in rewards.OfferedChoices)
+                    foreach (EnchantData enchant in rewards.OfferedChoices.ToList())
                     {
                         if (GUILayout.Button(
                                 $"{enchant.DisplayName} [{enchant.Rarity}]\n" +
@@ -855,7 +856,7 @@ namespace HaveABreak.EditorTools
                     !context.VictoryConsumableRewards.Claimed)
                 {
                     foreach (ConsumableData item in
-                             PrototypeConsumableCatalog.All.Take(3))
+                             PrototypeConsumableCatalog.All.Take(3).ToList())
                     {
                         if (GUILayout.Button($"{item.DisplayName} · {item.RulesText}"))
                         {
