@@ -948,7 +948,7 @@ namespace HaveABreak.Cards
                     context.VictoryEnchantRewards;
                 if (rewards != null && !rewards.Claimed)
                 {
-                    foreach (EnchantData enchant in rewards.OfferedChoices)
+                    foreach (EnchantData enchant in rewards.OfferedChoices.ToList())
                     {
                         if (GUILayout.Button(
                                 $"{enchant.DisplayName} [{enchant.Rarity}] · " +
@@ -966,7 +966,7 @@ namespace HaveABreak.Cards
                     !context.VictoryConsumableRewards.Claimed)
                 {
                     foreach (ConsumableData item in
-                             PrototypeConsumableCatalog.All.Take(3))
+                             PrototypeConsumableCatalog.All.Take(3).ToList())
                     {
                         if (!GUILayout.Button($"{item.DisplayName} · {item.RulesText}"))
                             continue;
