@@ -10,6 +10,8 @@ namespace HaveABreak.Cards
         CardNotFound,
         InvalidBattleInstanceId,
         InvalidRuntime,
-        EnchantRegistrationFailed
+        EnchantRegistrationFailed,
+        BattleLocked,
+        RunEnded
     }
 }
