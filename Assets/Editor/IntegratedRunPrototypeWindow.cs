@@ -177,7 +177,7 @@ namespace HaveABreak.EditorTools
                 bool selected = runPreparationSelection.Contains(card.OwnedCardId);
                 if (!GUILayout.Button(
                         $"{(selected ? "[편성]" : "[보유]")} " +
-                        $"{card.Card.DisplayName} · Lv.{card.Level}")) continue;
+                        $"{card.Card.DisplayName} · Lv.{card.CurrentLevel}")) continue;
                 if (selected) runPreparationSelection.Remove(card.OwnedCardId);
                 else runPreparationSelection.Add(card.OwnedCardId);
             }
@@ -248,7 +248,7 @@ namespace HaveABreak.EditorTools
                 bool selected = deckEditingSelection.Contains(card.OwnedCardId);
                 if (!GUILayout.Button(
                         $"{(selected ? "[편성]" : "[보유]")} " +
-                        $"{card.Card.DisplayName} · Lv.{card.Level}")) continue;
+                        $"{card.Card.DisplayName} · Lv.{card.CurrentLevel}")) continue;
                 if (selected) deckEditingSelection.Remove(card.OwnedCardId);
                 else deckEditingSelection.Add(card.OwnedCardId);
             }
