@@ -1798,6 +1798,10 @@ namespace HaveABreak.Editor
             RunEncounterProgressState restored,
             PlayerPermanentRewardState permanentRewards)
         {
+            string[] expectedDeckIds = {
+                "OWNED-52-C01", "OWNED-52-C03", "OWNED-52-C05",
+                "OWNED-52-C07", "OWNED-52-C09", "OWNED-52-C11"
+            };
             if (restored?.RunState == null || restored.RunDeck == null ||
                 restored.HasActiveEncounter ||
                 restored.PermanentRewards != permanentRewards ||
@@ -1814,7 +1818,7 @@ namespace HaveABreak.Editor
                 restored.UsedBattleInstanceIds[1] != "BATTLE-52-B" ||
                 restored.OwnedCards == null ||
                 restored.OwnedCards.Count != 12 ||
-                restored.RunDeck.Count != 6)
+                restored.RunDeck.Count != expectedDeckIds.Length)
             {
                 return false;
             }
@@ -1827,6 +1831,41 @@ namespace HaveABreak.Editor
                 if (card == null || card.CatalogCardId != cardId ||
                     card.CurrentLevel !=
                     ((number - 1) % CardData.MaximumLevel) + 1)
+                {
+                    return false;
+                }
+            }
+
+            for (int index = 0; index < expectedDeckIds.Length; index++)
+            {
+                RunCardInstance runCard = restored.RunDeck.Cards[index];
+                if (runCard == null ||
+                    runCard.OwnedCardId != expectedDeckIds[index] ||
+                    runCard != restored.OwnedCards.Find(expectedDeckIds[index]))
+                {
+                    return false;
+                }
+            }
+
+            if (!RunDeckBattleSnapshotService.TryCreate(
+                    restored.RunDeck,
+                    "BATTLE-RESTORED-DECK",
+                    out RunDeckBattleSnapshot snapshot,
+                    out RunDeckFailure snapshotFailure) ||
+                snapshotFailure != RunDeckFailure.None ||
+                snapshot.Cards.Count != expectedDeckIds.Length)
+            {
+                return false;
+            }
+
+            for (int index = 0; index < expectedDeckIds.Length; index++)
+            {
+                RunCardInstance runCard = restored.RunDeck.Cards[index];
+                BattleCardInstance battleCard = snapshot.Cards[index];
+                if (battleCard == null ||
+                    battleCard.Ids.OwnedCardId != expectedDeckIds[index] ||
+                    battleCard.CurrentLevel != runCard.CurrentLevel ||
+                    snapshot.FindRunCard(battleCard.Ids.BattleCardId) != runCard)
                 {
                     return false;
                 }
