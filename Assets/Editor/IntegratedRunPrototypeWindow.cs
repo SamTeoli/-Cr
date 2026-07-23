@@ -360,8 +360,9 @@ namespace HaveABreak.EditorTools
         {
             EditorGUILayout.LabelField("다음 노드 선택", EditorStyles.boldLabel);
             EditorGUILayout.BeginHorizontal();
-            foreach (RunNodeChoice choice in
-                     RunCampaignService.GetChoices(campaign))
+            RunNodeChoice[] choices =
+                RunCampaignService.GetChoices(campaign).ToArray();
+            foreach (RunNodeChoice choice in choices)
             {
                 if (GUILayout.Button(
                         $"{choice.DisplayName}\n{choice.NodeId}",
@@ -381,6 +382,8 @@ namespace HaveABreak.EditorTools
                         message = $"{choice.DisplayName} 노드에 들어왔습니다.";
                         SaveRun(null);
                     }
+                    EditorGUILayout.EndHorizontal();
+                    return;
                 }
             }
 
@@ -418,8 +421,9 @@ namespace HaveABreak.EditorTools
         private void DrawSituationEvent()
         {
             EditorGUILayout.LabelField("상황 이벤트", EditorStyles.boldLabel);
-            foreach (RunSituationEventChoice choice in
-                     RunCampaignService.GetSituationEventChoices(campaign))
+            RunSituationEventChoice[] choices =
+                RunCampaignService.GetSituationEventChoices(campaign).ToArray();
+            foreach (RunSituationEventChoice choice in choices)
             {
                 if (GUILayout.Button(choice.DisplayText, GUILayout.Height(36f)))
                 {
@@ -429,6 +433,7 @@ namespace HaveABreak.EditorTools
                     {
                         message = result;
                         SaveRun(null);
+                        return;
                     }
                     else message = $"이벤트 처리 실패: {failure}";
                 }
