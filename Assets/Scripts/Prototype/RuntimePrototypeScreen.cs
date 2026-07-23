@@ -367,6 +367,7 @@ namespace HaveABreak.Cards
                     message = $"{choice.DisplayName} 노드에 들어왔습니다.";
                     SaveRun(null);
                 }
+                return;
             }
         }
 
@@ -389,8 +390,9 @@ namespace HaveABreak.Cards
         private void DrawSituationEvent()
         {
             GUILayout.Label("상황 이벤트", headingStyle);
-            foreach (RunSituationEventChoice choice in
-                     RunCampaignService.GetSituationEventChoices(campaign))
+            RunSituationEventChoice[] choices =
+                RunCampaignService.GetSituationEventChoices(campaign).ToArray();
+            foreach (RunSituationEventChoice choice in choices)
             {
                 if (!GUILayout.Button(choice.DisplayText, GUILayout.Height(42f)))
                     continue;
@@ -400,6 +402,7 @@ namespace HaveABreak.Cards
                 {
                     message = result;
                     SaveRun(null);
+                    return;
                 }
                 else message = $"이벤트 처리 실패: {failure}";
             }
