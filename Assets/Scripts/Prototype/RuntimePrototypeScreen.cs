@@ -26,6 +26,7 @@ namespace HaveABreak.Cards
         private readonly RunDeckSelectionViewModel deckSelection = new();
         private readonly RunNodeSelectionViewModel nodeSelection = new();
         private readonly RunSituationEventViewModel situationEvent = new();
+        private readonly RunRestUpgradeViewModel restUpgrade = new();
         private RunOwnedCardState runPreparationCards;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
@@ -417,36 +418,67 @@ namespace HaveABreak.Cards
             GUILayout.Label("회복 · 강화", headingStyle);
             RestUpgradeConfig rules = config.RestUpgradeConfig;
             if (GUILayout.Button(
-                    $"최대 HP의 {rules.HealingRatio * 100f:0.#}% 회복",
+                    restUpgrade.RestButtonLabel(rules),
                     GUILayout.Height(38f)))
             {
-                if (RunCampaignService.TryRest(
-                        campaign, progress.RunState, rules,
-                        out int healed, out var failure))
+                if (restUpgrade.TryRest(
+                        campaign,
+                        progress.RunState,
+                        rules,
+                        out _,
+                        out string result,
+                        out RunCampaignFailure failure))
                 {
-                    message = $"HP를 {healed} 회복했습니다.";
+                    message = result;
                     SaveRun(null);
+                    return;
                 }
-                else message = $"회복 실패: {failure}";
+
+                message = $"회복 실패: {failure}";
             }
-            RunCardInstance selected = SelectedUpgradeCard();
+
+            RunRestUpgradeCardOption selected = restUpgrade.SelectedCard(
+                campaign,
+                progress,
+                selectedUpgradeCardId);
+            if (selected != null)
+            {
+                selectedUpgradeCardId = selected.OwnedCardId;
+            }
+
             GUILayout.BeginHorizontal(GUI.skin.box);
             GUILayout.Label(selected == null
                 ? "강화할 카드 없음"
-                : $"강화 대상: {selected.Card.DisplayName} Lv.{selected.CurrentLevel}");
-            if (GUILayout.Button("다음 카드", GUILayout.Width(100f))) CycleUpgradeCard();
-            if (GUILayout.Button(
-                    $"{rules.UpgradeLevelIncrease}레벨 강화",
-                    GUILayout.Width(120f)))
+                : $"강화 대상: {selected.DisplayName} Lv.{selected.CurrentLevel}");
+            if (GUILayout.Button("다음 카드", GUILayout.Width(100f)))
             {
-                if (RunCampaignService.TryUpgrade(
-                        campaign, progress, selectedUpgradeCardId, rules,
-                        out var failure))
+                selected = restUpgrade.CycleCard(
+                    campaign,
+                    progress,
+                    selectedUpgradeCardId);
+                selectedUpgradeCardId = selected?.OwnedCardId;
+            }
+            if (GUILayout.Button(
+                    restUpgrade.UpgradeButtonLabel(rules),
+                    GUILayout.Width(150f)))
+            {
+                if (restUpgrade.TryUpgrade(
+                        campaign,
+                        progress,
+                        rules,
+                        selectedUpgradeCardId,
+                        out RunRestUpgradeCardOption upgraded,
+                        out string result,
+                        out RunCampaignFailure failure))
                 {
-                    message = $"카드를 {rules.UpgradeLevelIncrease}레벨 강화했습니다.";
+                    selectedUpgradeCardId = upgraded.OwnedCardId;
+                    message = result;
                     SaveRun(null);
+                    GUILayout.EndHorizontal();
+                    return;
                 }
-                else message = $"강화 실패: {failure}";
+
+                message = $"강화 실패: {failure}";
             }
             GUILayout.EndHorizontal();
         }

@@ -31,6 +31,7 @@ namespace HaveABreak.EditorTools
         private readonly RunDeckSelectionViewModel deckSelection = new();
         private readonly RunNodeSelectionViewModel nodeSelection = new();
         private readonly RunSituationEventViewModel situationEvent = new();
+        private readonly RunRestUpgradeViewModel restUpgrade = new();
         private RunOwnedCardState runPreparationCards;
 
         [MenuItem("Have a Break/Play Integrated Prototype")]
@@ -445,50 +446,78 @@ namespace HaveABreak.EditorTools
             EditorGUILayout.LabelField("회복 · 강화", EditorStyles.boldLabel);
             RestUpgradeConfig rules = prototypeConfig.RestUpgradeConfig;
             if (GUILayout.Button(
-                    $"최대 HP의 {rules.HealingRatio * 100f:0.#}% 회복",
+                    restUpgrade.RestButtonLabel(rules),
                     GUILayout.Height(34f)))
             {
-                if (RunCampaignService.TryRest(
-                        campaign, progress.RunState, rules,
-                        out int healed, out RunCampaignFailure failure))
+                if (restUpgrade.TryRest(
+                        campaign,
+                        progress.RunState,
+                        rules,
+                        out _,
+                        out string result,
+                        out RunCampaignFailure failure))
                 {
-                    message = $"HP를 {healed} 회복했습니다.";
+                    message = result;
                     SaveRun(null);
+                    return;
                 }
-                else
-                {
-                    message = $"회복 실패: {failure}";
-                }
+
+                message = $"회복 실패: {failure}";
             }
 
-            string[] cardLabels = progress.OwnedCards.Cards.Select(card =>
-                $"{card.Card.DisplayName} · 레벨 {card.CurrentLevel}").ToArray();
-            int selected = Mathf.Max(0,
-                progress.OwnedCards.Cards.ToList().FindIndex(card =>
-                    string.Equals(card.OwnedCardId, selectedUpgradeCardId,
-                        StringComparison.OrdinalIgnoreCase)));
-            selected = EditorGUILayout.Popup("강화할 카드", selected, cardLabels);
-            if (progress.OwnedCards.Count > 0)
+            RunRestUpgradeCardOption[] options =
+                restUpgrade.CreateCardOptions(
+                    campaign,
+                    progress,
+                    selectedUpgradeCardId);
+            if (options.Length == 0)
             {
-                selectedUpgradeCardId =
-                    progress.OwnedCards.Cards[selected].OwnedCardId;
+                EditorGUILayout.HelpBox(
+                    "강화할 카드가 없습니다.",
+                    MessageType.Info);
+                return;
+            }
+
+            int selectedIndex = Array.FindIndex(
+                options,
+                option => option.IsSelected);
+            selectedIndex = Mathf.Max(0, selectedIndex);
+            string[] labels = options
+                .Select(option => option.DisplayLabel)
+                .ToArray();
+            int nextIndex = EditorGUILayout.Popup(
+                "강화할 카드",
+                selectedIndex,
+                labels);
+            if (nextIndex >= 0 && nextIndex < options.Length &&
+                restUpgrade.SelectCard(
+                    campaign,
+                    progress,
+                    options[nextIndex].OwnedCardId))
+            {
+                selectedUpgradeCardId = options[nextIndex].OwnedCardId;
             }
 
             if (GUILayout.Button(
-                    $"선택 카드 {rules.UpgradeLevelIncrease}레벨 강화",
+                    restUpgrade.UpgradeButtonLabel(rules),
                     GUILayout.Height(34f)))
             {
-                if (RunCampaignService.TryUpgrade(
-                        campaign, progress, selectedUpgradeCardId, rules,
+                if (restUpgrade.TryUpgrade(
+                        campaign,
+                        progress,
+                        rules,
+                        selectedUpgradeCardId,
+                        out RunRestUpgradeCardOption upgraded,
+                        out string result,
                         out RunCampaignFailure failure))
                 {
-                    message = $"카드를 {rules.UpgradeLevelIncrease}레벨 강화했습니다.";
+                    selectedUpgradeCardId = upgraded.OwnedCardId;
+                    message = result;
                     SaveRun(null);
+                    return;
                 }
-                else
-                {
-                    message = $"강화 실패: {failure}";
-                }
+
+                message = $"강화 실패: {failure}";
             }
         }
 
