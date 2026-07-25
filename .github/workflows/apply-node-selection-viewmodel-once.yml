@@ -127,18 +127,16 @@ jobs:
 
           harness_path = Path("Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
           harness = harness_path.read_text(encoding="utf-8")
-          harness = insert_after(
-              harness,
-              '''            valid &= Run(
-                  "New run deck preparation and atomic editing rules",
-                  RunDeckEditingValidation.Validate);
-          ''',
-              '''            valid &= Run(
-                  "Run node selection ViewModel and command flow",
-                  RunNodeSelectionViewModelValidation.Validate);
-          ''',
-              "RunNodeSelectionViewModelValidation.Validate",
-              "full regression harness")
+          validation_marker = "RunNodeSelectionViewModelValidation.Validate"
+          if validation_marker not in harness:
+              anchor = "RunDeckEditingValidation.Validate);"
+              anchor_index = harness.index(anchor) + len(anchor)
+              addition = (
+                  "\n            valid &= Run(\n"
+                  "                \"Run node selection ViewModel and command flow\",\n"
+                  "                RunNodeSelectionViewModelValidation.Validate);"
+              )
+              harness = harness[:anchor_index] + addition + harness[anchor_index:]
           harness_path.write_text(harness, encoding="utf-8")
           PY
 
