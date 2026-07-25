@@ -23,12 +23,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          def replace_exact(text, old, new, label):
-              count = text.count(old)
-              if count != 1:
-                  raise RuntimeError(f"{label}: expected one match, found {count}")
-              return text.replace(old, new, 1)
-
           def replace_method(text, name, replacement):
               start_token = f"        private void {name}("
               start = text.index(start_token)
@@ -37,15 +31,21 @@ jobs:
                   raise RuntimeError(f"next method not found after {name}")
               return text[:start] + replacement.rstrip() + "\n" + text[end:]
 
+          def insert_after(text, anchor, addition, marker, label):
+              if marker in text:
+                  return text
+              count = text.count(anchor)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected one anchor, found {count}")
+              return text.replace(anchor, anchor + addition, 1)
+
           runtime_path = Path("Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
           runtime = runtime_path.read_text(encoding="utf-8")
-          runtime = replace_exact(
+          runtime = insert_after(
               runtime,
-              """        private readonly RunDeckSelectionViewModel deckSelection = new();
-                  private RunOwnedCardState runPreparationCards;""",
-              """        private readonly RunDeckSelectionViewModel deckSelection = new();
-                  private readonly RunNodeSelectionViewModel nodeSelection = new();
-                  private RunOwnedCardState runPreparationCards;""",
+              "        private readonly RunDeckSelectionViewModel deckSelection = new();\n",
+              "        private readonly RunNodeSelectionViewModel nodeSelection = new();\n",
+              "private readonly RunNodeSelectionViewModel nodeSelection",
               "runtime node selection field")
           runtime = replace_method(runtime, "DrawNodeSelection", '''        private void DrawNodeSelection()
           {
@@ -81,13 +81,11 @@ jobs:
 
           editor_path = Path("Assets/Editor/IntegratedRunPrototypeWindow.cs")
           editor = editor_path.read_text(encoding="utf-8")
-          editor = replace_exact(
+          editor = insert_after(
               editor,
-              """        private readonly RunDeckSelectionViewModel deckSelection = new();
-                  private RunOwnedCardState runPreparationCards;""",
-              """        private readonly RunDeckSelectionViewModel deckSelection = new();
-                  private readonly RunNodeSelectionViewModel nodeSelection = new();
-                  private RunOwnedCardState runPreparationCards;""",
+              "        private readonly RunDeckSelectionViewModel deckSelection = new();\n",
+              "        private readonly RunNodeSelectionViewModel nodeSelection = new();\n",
+              "private readonly RunNodeSelectionViewModel nodeSelection",
               "editor node selection field")
           editor = replace_method(editor, "DrawNodeSelection", '''        private void DrawNodeSelection()
           {
@@ -129,23 +127,17 @@ jobs:
 
           harness_path = Path("Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
           harness = harness_path.read_text(encoding="utf-8")
-          harness = replace_exact(
+          harness = insert_after(
               harness,
-              """            valid &= Run(
-                      "New run deck preparation and atomic editing rules",
-                      RunDeckEditingValidation.Validate);
-                  valid &= Run(
-                      "Run deck encounter flow integration",
-                      BattleRuntimeRunDeckEncounterFlowValidation.Validate);""",
-              """            valid &= Run(
-                      "New run deck preparation and atomic editing rules",
-                      RunDeckEditingValidation.Validate);
-                  valid &= Run(
-                      "Run node selection ViewModel and command flow",
-                      RunNodeSelectionViewModelValidation.Validate);
-                  valid &= Run(
-                      "Run deck encounter flow integration",
-                      BattleRuntimeRunDeckEncounterFlowValidation.Validate);""",
+              '''            valid &= Run(
+                  "New run deck preparation and atomic editing rules",
+                  RunDeckEditingValidation.Validate);
+          ''',
+              '''            valid &= Run(
+                  "Run node selection ViewModel and command flow",
+                  RunNodeSelectionViewModelValidation.Validate);
+          ''',
+              "RunNodeSelectionViewModelValidation.Validate",
               "full regression harness")
           harness_path.write_text(harness, encoding="utf-8")
           PY
