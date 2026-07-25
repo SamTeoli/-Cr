@@ -1,0 +1,162 @@
+name: Apply node selection ViewModel once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/deck-selection-viewmodel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/deck-selection-viewmodel
+          fetch-depth: 0
+
+      - name: Connect node selection ViewModel
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          def replace_method(text, name, replacement):
+              start_token = f"        private void {name}("
+              start = text.index(start_token)
+              end = text.find("\n        private ", start + len(start_token))
+              if end < 0:
+                  raise RuntimeError(f"next method not found after {name}")
+              return text[:start] + replacement.rstrip() + "\n" + text[end:]
+
+          runtime_path = Path("Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          runtime = replace_exact(
+              runtime,
+              """        private readonly RunDeckSelectionViewModel deckSelection = new();
+                  private RunOwnedCardState runPreparationCards;""",
+              """        private readonly RunDeckSelectionViewModel deckSelection = new();
+                  private readonly RunNodeSelectionViewModel nodeSelection = new();
+                  private RunOwnedCardState runPreparationCards;""",
+              "runtime node selection field")
+          runtime = replace_method(runtime, "DrawNodeSelection", '''        private void DrawNodeSelection()
+          {
+              GUILayout.Label("다음 노드 선택", headingStyle);
+              RunNodeSelectionOption[] options =
+                  nodeSelection.CreateOptions(campaign);
+              foreach (RunNodeSelectionOption option in options)
+              {
+                  if (!GUILayout.Button(
+                          option.InlineLabel,
+                          GUILayout.Height(46f))) continue;
+                  if (!nodeSelection.TrySelect(
+                          campaign,
+                          option.NodeId,
+                          out RunNodeSelectionOption selected,
+                          out RunCampaignFailure failure))
+                  {
+                      message = $"노드 선택 실패: {failure}";
+                  }
+                  else if (selected.IsBattle)
+                  {
+                      BeginSelectedBattle();
+                  }
+                  else
+                  {
+                      message = $"{selected.DisplayName} 노드에 들어왔습니다.";
+                      SaveRun(null);
+                  }
+                  return;
+              }
+          }''')
+          runtime_path.write_text(runtime, encoding="utf-8")
+
+          editor_path = Path("Assets/Editor/IntegratedRunPrototypeWindow.cs")
+          editor = editor_path.read_text(encoding="utf-8")
+          editor = replace_exact(
+              editor,
+              """        private readonly RunDeckSelectionViewModel deckSelection = new();
+                  private RunOwnedCardState runPreparationCards;""",
+              """        private readonly RunDeckSelectionViewModel deckSelection = new();
+                  private readonly RunNodeSelectionViewModel nodeSelection = new();
+                  private RunOwnedCardState runPreparationCards;""",
+              "editor node selection field")
+          editor = replace_method(editor, "DrawNodeSelection", '''        private void DrawNodeSelection()
+          {
+              EditorGUILayout.LabelField("다음 노드 선택", EditorStyles.boldLabel);
+              EditorGUILayout.BeginHorizontal();
+              RunNodeSelectionOption[] options =
+                  nodeSelection.CreateOptions(campaign);
+              foreach (RunNodeSelectionOption option in options)
+              {
+                  if (GUILayout.Button(
+                          option.StackedLabel,
+                          GUILayout.MinHeight(62f)))
+                  {
+                      if (!nodeSelection.TrySelect(
+                              campaign,
+                              option.NodeId,
+                              out RunNodeSelectionOption selected,
+                              out RunCampaignFailure failure))
+                      {
+                          message = $"노드 선택 실패: {failure}";
+                      }
+                      else if (selected.IsBattle)
+                      {
+                          BeginSelectedBattle();
+                      }
+                      else
+                      {
+                          message = $"{selected.DisplayName} 노드에 들어왔습니다.";
+                          SaveRun(null);
+                      }
+                      EditorGUILayout.EndHorizontal();
+                      return;
+                  }
+              }
+
+              EditorGUILayout.EndHorizontal();
+          }''')
+          editor_path.write_text(editor, encoding="utf-8")
+
+          harness_path = Path("Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
+          harness = harness_path.read_text(encoding="utf-8")
+          harness = replace_exact(
+              harness,
+              """            valid &= Run(
+                      "New run deck preparation and atomic editing rules",
+                      RunDeckEditingValidation.Validate);
+                  valid &= Run(
+                      "Run deck encounter flow integration",
+                      BattleRuntimeRunDeckEncounterFlowValidation.Validate);""",
+              """            valid &= Run(
+                      "New run deck preparation and atomic editing rules",
+                      RunDeckEditingValidation.Validate);
+                  valid &= Run(
+                      "Run node selection ViewModel and command flow",
+                      RunNodeSelectionViewModelValidation.Validate);
+                  valid &= Run(
+                      "Run deck encounter flow integration",
+                      BattleRuntimeRunDeckEncounterFlowValidation.Validate);""",
+              "full regression harness")
+          harness_path.write_text(harness, encoding="utf-8")
+          PY
+
+          rm -f .github/workflows/apply-node-selection-viewmodel-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Scripts/Prototype/RuntimePrototypeScreen.cs \
+                  Assets/Editor/IntegratedRunPrototypeWindow.cs \
+                  Assets/Editor/BattleRuntimeFullRegressionValidation.cs \
+                  .github/workflows/apply-node-selection-viewmodel-once.yml
+          git diff --cached --check
+          git commit -m "노드 선택 ViewModel 화면 연결"
+          git push origin HEAD:agent/deck-selection-viewmodel
