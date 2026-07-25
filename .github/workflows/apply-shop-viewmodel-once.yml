@@ -51,8 +51,7 @@ jobs:
 
           runtime_path = Path("Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
           runtime = runtime_path.read_text(encoding="utf-8")
-          runtime = replace_exact(
-              runtime,
+          runtime = replace_exact(runtime,
               "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n",
               "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n"
               "        private readonly RunShopViewModel shop = new();\n",
@@ -62,56 +61,35 @@ jobs:
           {
               GUILayout.Label("상점", headingStyle);
               RunShopProductOption[] options = shop.CreateOptions(
-                  campaign,
-                  progress,
-                  config.EnchantDatabase,
+                  campaign, progress, config.EnchantDatabase,
                   config.ShopEconomyConfig);
-              DrawShopProducts(
-                  "소모아이템",
-                  options.Where(option =>
-                      option.ProductType == RunShopProductType.Consumable));
-              DrawShopProducts(
-                  "인첸트",
-                  options.Where(option =>
-                      option.ProductType == RunShopProductType.Enchant));
-
+              DrawShopProducts("소모아이템", options.Where(option =>
+                  option.ProductType == RunShopProductType.Consumable));
+              DrawShopProducts("인첸트", options.Where(option =>
+                  option.ProductType == RunShopProductType.Enchant));
               GUILayout.BeginHorizontal();
               int rerollCost = shop.GetRerollCost(
-                  campaign,
-                  config.ShopEconomyConfig);
+                  campaign, config.ShopEconomyConfig);
               if (GUILayout.Button($"전체 리롤 · {rerollCost}G"))
               {
-                  if (shop.TryReroll(
-                          campaign,
-                          progress.RunState,
-                          config.ShopEconomyConfig,
-                          out _,
-                          out string result,
+                  if (shop.TryReroll(campaign, progress.RunState,
+                          config.ShopEconomyConfig, out _, out string result,
                           out RunCampaignFailure failure))
                   {
                       message = result;
                       SaveRun(null);
                   }
-                  else
-                  {
-                      message = $"리롤 실패: {failure}";
-                  }
+                  else message = $"리롤 실패: {failure}";
               }
               if (GUILayout.Button("상점 나가기"))
               {
-                  if (shop.TryLeave(
-                          campaign,
-                          progress.RunState,
-                          out string result,
-                          out RunCampaignFailure failure))
+                  if (shop.TryLeave(campaign, progress.RunState,
+                          out string result, out RunCampaignFailure failure))
                   {
                       message = result;
                       SaveRun(null);
                   }
-                  else
-                  {
-                      message = $"상점 종료 실패: {failure}";
-                  }
+                  else message = $"상점 종료 실패: {failure}";
               }
               GUILayout.EndHorizontal();
           }
@@ -125,27 +103,18 @@ jobs:
               {
                   GUILayout.BeginHorizontal(GUI.skin.box);
                   string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
-                      ? string.Empty
-                      : $"\n장착 대상: {option.TargetLabel}";
+                      ? string.Empty : $"\n장착 대상: {option.TargetLabel}";
                   string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
-                      ? string.Empty
-                      : $"\n{option.BlockReason}";
-                  GUILayout.Label(
-                      option.DisplayText + targetText + blockText,
+                      ? string.Empty : $"\n{option.BlockReason}";
+                  GUILayout.Label(option.DisplayText + targetText + blockText,
                       wrappedStyle);
                   bool previous = GUI.enabled;
                   GUI.enabled = option.CanPurchase;
-                  if (GUILayout.Button(
-                          option.PurchaseButtonLabel,
+                  if (GUILayout.Button(option.PurchaseButtonLabel,
                           GUILayout.Width(80f)))
                   {
-                      if (shop.TryBuy(
-                              campaign,
-                              progress,
-                              config.EnchantDatabase,
-                              config.ShopEconomyConfig,
-                              option.SlotId,
-                              out _,
+                      if (shop.TryBuy(campaign, progress, config.EnchantDatabase,
+                              config.ShopEconomyConfig, option.SlotId, out _,
                               out string result,
                               out EnchantAttachmentFailure attachmentFailure,
                               out RunCampaignFailure failure))
@@ -153,12 +122,9 @@ jobs:
                           message = result;
                           SaveRun(null);
                       }
-                      else
-                      {
-                          message = option.ProductType == RunShopProductType.Enchant
-                              ? $"인첸트 구매 실패: {failure} / {attachmentFailure}"
-                              : $"구매 실패: {failure}";
-                      }
+                      else message = option.ProductType == RunShopProductType.Enchant
+                          ? $"인첸트 구매 실패: {failure} / {attachmentFailure}"
+                          : $"구매 실패: {failure}";
                   }
                   GUI.enabled = previous;
                   GUILayout.EndHorizontal();
@@ -170,8 +136,7 @@ jobs:
 
           editor_path = Path("Assets/Editor/IntegratedRunPrototypeWindow.cs")
           editor = editor_path.read_text(encoding="utf-8")
-          editor = replace_exact(
-              editor,
+          editor = replace_exact(editor,
               "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n",
               "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n"
               "        private readonly RunShopViewModel shop = new();\n",
@@ -181,57 +146,36 @@ jobs:
           {
               EditorGUILayout.LabelField("상점", EditorStyles.boldLabel);
               RunShopProductOption[] options = shop.CreateOptions(
-                  campaign,
-                  progress,
-                  enchantDatabase,
+                  campaign, progress, enchantDatabase,
                   prototypeConfig.ShopEconomyConfig);
-              DrawShopProducts(
-                  "소모아이템",
-                  options.Where(option =>
-                      option.ProductType == RunShopProductType.Consumable));
+              DrawShopProducts("소모아이템", options.Where(option =>
+                  option.ProductType == RunShopProductType.Consumable));
               EditorGUILayout.Space(5f);
-              DrawShopProducts(
-                  "인첸트",
-                  options.Where(option =>
-                      option.ProductType == RunShopProductType.Enchant));
-
+              DrawShopProducts("인첸트", options.Where(option =>
+                  option.ProductType == RunShopProductType.Enchant));
               EditorGUILayout.BeginHorizontal();
               int rerollCost = shop.GetRerollCost(
-                  campaign,
-                  prototypeConfig.ShopEconomyConfig);
+                  campaign, prototypeConfig.ShopEconomyConfig);
               if (GUILayout.Button($"전체 리롤 · {rerollCost}G"))
               {
-                  if (shop.TryReroll(
-                          campaign,
-                          progress.RunState,
-                          prototypeConfig.ShopEconomyConfig,
-                          out _,
-                          out string result,
-                          out RunCampaignFailure failure))
+                  if (shop.TryReroll(campaign, progress.RunState,
+                          prototypeConfig.ShopEconomyConfig, out _,
+                          out string result, out RunCampaignFailure failure))
                   {
                       message = result;
                       SaveRun(null);
                   }
-                  else
-                  {
-                      message = $"리롤 실패: {failure}";
-                  }
+                  else message = $"리롤 실패: {failure}";
               }
               if (GUILayout.Button("상점 나가기"))
               {
-                  if (shop.TryLeave(
-                          campaign,
-                          progress.RunState,
-                          out string result,
-                          out RunCampaignFailure failure))
+                  if (shop.TryLeave(campaign, progress.RunState,
+                          out string result, out RunCampaignFailure failure))
                   {
                       message = result;
                       SaveRun(null);
                   }
-                  else
-                  {
-                      message = $"상점 종료 실패: {failure}";
-                  }
+                  else message = $"상점 종료 실패: {failure}";
               }
               EditorGUILayout.EndHorizontal();
           }
@@ -240,48 +184,35 @@ jobs:
               string sectionLabel,
               IEnumerable<RunShopProductOption> options)
           {
-              EditorGUILayout.LabelField(
-                  sectionLabel,
-                  EditorStyles.miniBoldLabel);
+              EditorGUILayout.LabelField(sectionLabel, EditorStyles.miniBoldLabel);
               foreach (RunShopProductOption option in options)
               {
                   EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                   string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
-                      ? string.Empty
-                      : $"\n장착 대상: {option.TargetLabel}";
+                      ? string.Empty : $"\n장착 대상: {option.TargetLabel}";
                   string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
-                      ? string.Empty
-                      : $"\n{option.BlockReason}";
+                      ? string.Empty : $"\n{option.BlockReason}";
                   EditorGUILayout.LabelField(
                       option.DisplayText + targetText + blockText,
                       EditorStyles.wordWrappedLabel);
                   using (new EditorGUI.DisabledScope(!option.CanPurchase))
                   {
-                      if (GUILayout.Button(
-                              option.PurchaseButtonLabel,
+                      if (GUILayout.Button(option.PurchaseButtonLabel,
                               GUILayout.Width(70f)))
                       {
-                          if (shop.TryBuy(
-                                  campaign,
-                                  progress,
-                                  enchantDatabase,
-                                  prototypeConfig.ShopEconomyConfig,
-                                  option.SlotId,
-                                  out _,
-                                  out string result,
+                          if (shop.TryBuy(campaign, progress, enchantDatabase,
+                                  prototypeConfig.ShopEconomyConfig, option.SlotId,
+                                  out _, out string result,
                                   out EnchantAttachmentFailure attachmentFailure,
                                   out RunCampaignFailure failure))
                           {
                               message = result;
                               SaveRun(null);
                           }
-                          else
-                          {
-                              message = option.ProductType ==
-                                      RunShopProductType.Enchant
-                                  ? $"인첸트 구매 실패: {failure} / {attachmentFailure}"
-                                  : $"구매 실패: {failure}";
-                          }
+                          else message = option.ProductType ==
+                                  RunShopProductType.Enchant
+                              ? $"인첸트 구매 실패: {failure} / {attachmentFailure}"
+                              : $"구매 실패: {failure}";
                       }
                   }
                   EditorGUILayout.EndHorizontal();
@@ -299,10 +230,7 @@ jobs:
                 "Run shop ViewModel and transaction flow",
                 RunShopViewModelValidation.Validate);
           '''
-          harness = replace_exact(
-              harness,
-              marker,
-              block + marker,
+          harness = replace_exact(harness, marker, block + marker,
               "full regression shop registration")
           harness_path.write_text(harness, encoding="utf-8")
           PY
