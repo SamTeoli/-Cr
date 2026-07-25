@@ -279,6 +279,9 @@ namespace HaveABreak.Editor
                 "Run rest upgrade ViewModel and command flow",
                 RunRestUpgradeViewModelValidation.Validate);
             valid &= Run(
+                "Run shop ViewModel and transaction flow",
+                RunShopViewModelValidation.Validate);
+            valid &= Run(
                 "Run deck encounter flow integration",
                 BattleRuntimeRunDeckEncounterFlowValidation.Validate);
             valid &= Run(

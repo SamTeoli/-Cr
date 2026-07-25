@@ -27,6 +27,7 @@ namespace HaveABreak.Cards
         private readonly RunNodeSelectionViewModel nodeSelection = new();
         private readonly RunSituationEventViewModel situationEvent = new();
         private readonly RunRestUpgradeViewModel restUpgrade = new();
+        private readonly RunShopViewModel shop = new();
         private RunOwnedCardState runPreparationCards;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
@@ -486,59 +487,33 @@ namespace HaveABreak.Cards
         private void DrawShop()
         {
             GUILayout.Label("상점", headingStyle);
-            IReadOnlyList<RunShopProductSlot> offers =
-                RunCampaignService.GetShopSlots(campaign,
-                    PrototypeConsumableCatalog.All, config.EnchantDatabase.Enchants,
-                    config.ShopEconomyConfig);
-            GUILayout.Label("소모아이템");
-            foreach (RunShopProductSlot offer in offers.Where(value =>
-                         value.ProductType == RunShopProductType.Consumable))
-            {
-                ConsumableData item = PrototypeConsumableCatalog.Find(offer.ContentId);
-                if (item == null) continue;
-                GUILayout.BeginHorizontal(GUI.skin.box);
-                GUILayout.Label($"{item.DisplayName} · {item.RulesText}", wrappedStyle);
-                bool previous = GUI.enabled;
-                GUI.enabled = !offer.Purchased;
-                if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
-                        GUILayout.Width(80f)))
-                {
-                    if (RunCampaignService.TryBuyConsumableSlot(
-                            campaign, progress.RunState, offer.SlotId, out var failure))
-                    {
-                        message = $"{item.DisplayName} 구매 완료.";
-                        SaveRun(null);
-                    }
-                    else message = $"구매 실패: {failure}";
-                }
-                GUI.enabled = previous;
-                GUILayout.EndHorizontal();
-            }
-            GUILayout.Label("인첸트");
-            foreach (RunShopProductSlot offer in offers.Where(value =>
-                         value.ProductType == RunShopProductType.Enchant))
-            {
-                DrawShopEnchant(config.EnchantDatabase.Find(offer.ContentId), offer);
-            }
+            RunShopProductOption[] options = shop.CreateOptions(
+                campaign, progress, config.EnchantDatabase,
+                config.ShopEconomyConfig);
+            DrawShopProducts("소모아이템", options.Where(option =>
+                option.ProductType == RunShopProductType.Consumable));
+            DrawShopProducts("인첸트", options.Where(option =>
+                option.ProductType == RunShopProductType.Enchant));
             GUILayout.BeginHorizontal();
-            ShopEconomyConfig economy = config.ShopEconomyConfig;
-            int cost = RunCampaignService.GetShopRerollCost(campaign, economy);
-            if (GUILayout.Button($"전체 리롤 · {cost}G"))
+            int rerollCost = shop.GetRerollCost(
+                campaign, config.ShopEconomyConfig);
+            if (GUILayout.Button($"전체 리롤 · {rerollCost}G"))
             {
-                if (RunCampaignService.TryRerollShop(
-                        campaign, progress.RunState, economy, out var failure))
+                if (shop.TryReroll(campaign, progress.RunState,
+                        config.ShopEconomyConfig, out _, out string result,
+                        out RunCampaignFailure failure))
                 {
-                    message = "상점 상품을 다시 생성했습니다.";
+                    message = result;
                     SaveRun(null);
                 }
                 else message = $"리롤 실패: {failure}";
             }
             if (GUILayout.Button("상점 나가기"))
             {
-                if (RunCampaignService.TryLeaveShop(
-                        campaign, progress.RunState, out var failure))
+                if (shop.TryLeave(campaign, progress.RunState,
+                        out string result, out RunCampaignFailure failure))
                 {
-                    message = "상점을 나왔습니다.";
+                    message = result;
                     SaveRun(null);
                 }
                 else message = $"상점 종료 실패: {failure}";
@@ -546,31 +521,43 @@ namespace HaveABreak.Cards
             GUILayout.EndHorizontal();
         }
 
-        private void DrawShopEnchant(EnchantData enchant, RunShopProductSlot offer)
+        private void DrawShopProducts(
+            string sectionLabel,
+            IEnumerable<RunShopProductOption> options)
         {
-            if (enchant == null) return;
-            bool canAttach = TryFindEnchantTarget(enchant, out var target, out int slot);
-            GUILayout.BeginHorizontal(GUI.skin.box);
-            GUILayout.Label(
-                $"{enchant.DisplayName} [{enchant.Rarity}] · {enchant.RulesText}",
-                wrappedStyle);
-            bool previous = GUI.enabled;
-            GUI.enabled = canAttach && !offer.Purchased;
-            if (GUILayout.Button(offer.Purchased ? "판매 완료" : $"{offer.Price}G",
-                    GUILayout.Width(80f)))
+            GUILayout.Label(sectionLabel);
+            foreach (RunShopProductOption option in options)
             {
-                if (RunCampaignService.TryBuyEnchantSlot(
-                        campaign, progress, enchant, offer.SlotId,
-                        target.OwnedCardId, slot,
-                        out var attachFailure, out var failure))
+                GUILayout.BeginHorizontal(GUI.skin.box);
+                string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
+                    ? string.Empty : $"
+        장착 대상: {option.TargetLabel}";
+                string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                    ? string.Empty : $"
+        {option.BlockReason}";
+                GUILayout.Label(option.DisplayText + targetText + blockText,
+                    wrappedStyle);
+                bool previous = GUI.enabled;
+                GUI.enabled = option.CanPurchase;
+                if (GUILayout.Button(option.PurchaseButtonLabel,
+                        GUILayout.Width(80f)))
                 {
-                    message = $"{target.Card.DisplayName}에 {enchant.DisplayName} 장착.";
-                    SaveRun(null);
+                    if (shop.TryBuy(campaign, progress, config.EnchantDatabase,
+                            config.ShopEconomyConfig, option.SlotId, out _,
+                            out string result,
+                            out EnchantAttachmentFailure attachmentFailure,
+                            out RunCampaignFailure failure))
+                    {
+                        message = result;
+                        SaveRun(null);
+                    }
+                    else message = option.ProductType == RunShopProductType.Enchant
+                        ? $"인첸트 구매 실패: {failure} / {attachmentFailure}"
+                        : $"구매 실패: {failure}";
                 }
-                else message = $"인첸트 구매 실패: {failure} / {attachFailure}";
+                GUI.enabled = previous;
+                GUILayout.EndHorizontal();
             }
-            GUI.enabled = previous;
-            GUILayout.EndHorizontal();
         }
 
         private void DrawBattle()
