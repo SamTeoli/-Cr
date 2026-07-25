@@ -48,19 +48,9 @@ namespace HaveABreak.Editor
                 progress.RunDeck.Count != 2 ||
                 progress.RunDeck.Cards[0] != first ||
                 progress.RunDeck.Cards[1] != second ||
-                progress.OwnedCards.Find(third.OwnedCardId) != third)
-            {
-                return false;
-            }
-
-            if (!RunDeckSelectionService.TryReplaceDeck(
-                    progress,
-                    new[] { third.OwnedCardId, first.OwnedCardId },
-                    out RunDeckFailure successFailure) ||
-                successFailure != RunDeckFailure.None ||
-                progress.RunDeck.Count != 2 ||
-                progress.RunDeck.Cards[0] != third ||
-                progress.RunDeck.Cards[1] != first)
+                progress.OwnedCards.Find(third.OwnedCardId) != third ||
+                !ValidateSelectionViewModel(
+                    progress, first, second, third))
             {
                 return false;
             }
@@ -93,6 +83,73 @@ namespace HaveABreak.Editor
                    endedRejected && endedFailure == RunDeckFailure.RunEnded &&
                    endedProgress.RunDeck == successfulDeck &&
                    progress.RunDeck == successfulDeck;
+        }
+
+        private static bool ValidateSelectionViewModel(
+            RunEncounterProgressState progress,
+            RunCardInstance first,
+            RunCardInstance second,
+            RunCardInstance third)
+        {
+            RunDeckSelectionViewModel selection = new();
+            if (selection.Toggle(first.OwnedCardId))
+            {
+                return false;
+            }
+
+            selection.OpenFromDeck(progress.RunDeck);
+            RunDeckSelectionOption[] initialOptions =
+                selection.CreateOptions(progress.OwnedCards);
+            if (!selection.IsOpen || selection.SelectedCount != 2 ||
+                initialOptions.Length != 3 ||
+                !initialOptions[0].IsSelected ||
+                initialOptions[0].SelectionOrder != 1 ||
+                !initialOptions[1].IsSelected ||
+                initialOptions[1].SelectionOrder != 2 ||
+                initialOptions[2].IsSelected ||
+                initialOptions[2].SelectionOrder != 0 ||
+                initialOptions[0].DisplayLabel !=
+                $"[편성] {first.Card.DisplayName} · Lv.{first.CurrentLevel}")
+            {
+                return false;
+            }
+
+            if (!selection.Toggle(second.OwnedCardId) ||
+                !selection.Toggle(third.OwnedCardId) ||
+                selection.SelectedCount != 2 ||
+                selection.SelectedOwnedCardIds[0] != first.OwnedCardId ||
+                selection.SelectedOwnedCardIds[1] != third.OwnedCardId ||
+                !selection.TryApply(progress, out RunDeckFailure applyFailure) ||
+                applyFailure != RunDeckFailure.None ||
+                selection.IsOpen || selection.SelectedCount != 0 ||
+                progress.RunDeck.Count != 2 ||
+                progress.RunDeck.Cards[0] != first ||
+                progress.RunDeck.Cards[1] != third)
+            {
+                return false;
+            }
+
+            selection.OpenWithAllOwnedCards(progress.OwnedCards);
+            RunDeckSelectionOption[] allOptions =
+                selection.CreateOptions(progress.OwnedCards);
+            if (!selection.IsOpen || selection.SelectedCount != 3 ||
+                allOptions.Length != 3 ||
+                !allOptions[0].IsSelected || allOptions[0].SelectionOrder != 1 ||
+                !allOptions[1].IsSelected || allOptions[1].SelectionOrder != 2 ||
+                !allOptions[2].IsSelected || allOptions[2].SelectionOrder != 3 ||
+                !selection.TryCreateDeck(
+                    progress.OwnedCards,
+                    out RunDeckState allCardsDeck,
+                    out RunDeckFailure createFailure) ||
+                createFailure != RunDeckFailure.None ||
+                allCardsDeck.Count != 3)
+            {
+                return false;
+            }
+
+            selection.Close();
+            return !selection.IsOpen && selection.SelectedCount == 0 &&
+                   selection.CreateOptions(null).Length == 0;
         }
 
         private static CardData FindCard(string cardId)
