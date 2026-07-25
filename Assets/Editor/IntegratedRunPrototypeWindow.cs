@@ -30,6 +30,7 @@ namespace HaveABreak.EditorTools
         private Vector2 scroll;
         private readonly RunDeckSelectionViewModel deckSelection = new();
         private readonly RunNodeSelectionViewModel nodeSelection = new();
+        private readonly RunSituationEventViewModel situationEvent = new();
         private RunOwnedCardState runPreparationCards;
 
         [MenuItem("Have a Break/Play Integrated Prototype")]
@@ -412,23 +413,30 @@ namespace HaveABreak.EditorTools
 
         private void DrawSituationEvent()
         {
-            EditorGUILayout.LabelField("상황 이벤트", EditorStyles.boldLabel);
-            RunSituationEventChoice[] choices =
-                RunCampaignService.GetSituationEventChoices(campaign).ToArray();
-            foreach (RunSituationEventChoice choice in choices)
+            EditorGUILayout.LabelField(
+                "상황 이벤트",
+                EditorStyles.boldLabel);
+            RunSituationEventOption[] options =
+                situationEvent.CreateOptions(campaign);
+            foreach (RunSituationEventOption option in options)
             {
-                if (GUILayout.Button(choice.DisplayText, GUILayout.Height(36f)))
+                if (!GUILayout.Button(
+                        option.DisplayText,
+                        GUILayout.Height(36f))) continue;
+                if (situationEvent.TryResolve(
+                        campaign,
+                        progress.RunState,
+                        option.ChoiceId,
+                        out _,
+                        out string result,
+                        out RunCampaignFailure failure))
                 {
-                    if (RunCampaignService.TryResolveSituationEvent(
-                            campaign, progress.RunState, choice.ChoiceId,
-                            out string result, out RunCampaignFailure failure))
-                    {
-                        message = result;
-                        SaveRun(null);
-                        return;
-                    }
-                    else message = $"이벤트 처리 실패: {failure}";
+                    message = result;
+                    SaveRun(null);
+                    return;
                 }
+
+                message = $"이벤트 처리 실패: {failure}";
             }
         }
 

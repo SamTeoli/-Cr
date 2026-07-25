@@ -25,6 +25,7 @@ namespace HaveABreak.Cards
         private Vector2 scroll;
         private readonly RunDeckSelectionViewModel deckSelection = new();
         private readonly RunNodeSelectionViewModel nodeSelection = new();
+        private readonly RunSituationEventViewModel situationEvent = new();
         private RunOwnedCardState runPreparationCards;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
@@ -387,21 +388,27 @@ namespace HaveABreak.Cards
         private void DrawSituationEvent()
         {
             GUILayout.Label("상황 이벤트", headingStyle);
-            RunSituationEventChoice[] choices =
-                RunCampaignService.GetSituationEventChoices(campaign).ToArray();
-            foreach (RunSituationEventChoice choice in choices)
+            RunSituationEventOption[] options =
+                situationEvent.CreateOptions(campaign);
+            foreach (RunSituationEventOption option in options)
             {
-                if (!GUILayout.Button(choice.DisplayText, GUILayout.Height(42f)))
-                    continue;
-                if (RunCampaignService.TryResolveSituationEvent(
-                        campaign, progress.RunState, choice.ChoiceId,
-                        out string result, out var failure))
+                if (!GUILayout.Button(
+                        option.DisplayText,
+                        GUILayout.Height(42f))) continue;
+                if (situationEvent.TryResolve(
+                        campaign,
+                        progress.RunState,
+                        option.ChoiceId,
+                        out _,
+                        out string result,
+                        out RunCampaignFailure failure))
                 {
                     message = result;
                     SaveRun(null);
                     return;
                 }
-                else message = $"이벤트 처리 실패: {failure}";
+
+                message = $"이벤트 처리 실패: {failure}";
             }
         }
 
