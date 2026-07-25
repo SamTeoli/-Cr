@@ -28,10 +28,8 @@ namespace HaveABreak.EditorTools
         private string selectedUpgradeCardId;
         private string message;
         private Vector2 scroll;
-        private readonly List<string> deckEditingSelection = new();
-        private bool deckEditing;
+        private readonly RunDeckSelectionViewModel deckSelection = new();
         private RunOwnedCardState runPreparationCards;
-        private readonly List<string> runPreparationSelection = new();
 
         [MenuItem("Have a Break/Play Integrated Prototype")]
         public static void ShowWindow()
@@ -170,16 +168,13 @@ namespace HaveABreak.EditorTools
                 "카드를 선택한 순서가 덱 순서가 됩니다.",
                 MessageType.Info);
             EditorGUILayout.LabelField(
-                $"선택 {runPreparationSelection.Count}장",
+                $"선택 {deckSelection.SelectedCount}장",
                 EditorStyles.boldLabel);
-            foreach (RunCardInstance card in runPreparationCards.Cards)
+            foreach (RunDeckSelectionOption option in
+                     deckSelection.CreateOptions(runPreparationCards))
             {
-                bool selected = runPreparationSelection.Contains(card.OwnedCardId);
-                if (!GUILayout.Button(
-                        $"{(selected ? "[편성]" : "[보유]")} " +
-                        $"{card.Card.DisplayName} · Lv.{card.CurrentLevel}")) continue;
-                if (selected) runPreparationSelection.Remove(card.OwnedCardId);
-                else runPreparationSelection.Add(card.OwnedCardId);
+                if (!GUILayout.Button(option.DisplayLabel)) continue;
+                deckSelection.Toggle(option.OwnedCardId);
             }
 
             EditorGUILayout.Space(8f);
@@ -230,41 +225,34 @@ namespace HaveABreak.EditorTools
         {
             if (progress.RunState.RunEnded) return;
             EditorGUILayout.LabelField("런 덱 편집", EditorStyles.miniBoldLabel);
-            if (!deckEditing)
+            if (!deckSelection.IsOpen)
             {
                 if (GUILayout.Button("덱 편집 열기"))
                 {
-                    deckEditingSelection.Clear();
-                    deckEditingSelection.AddRange(
-                        progress.RunDeck.Cards.Select(card => card.OwnedCardId));
-                    deckEditing = true;
+                    deckSelection.OpenFromDeck(progress.RunDeck);
                 }
                 return;
             }
 
-            EditorGUILayout.LabelField($"선택 {deckEditingSelection.Count}장");
-            foreach (RunCardInstance card in progress.OwnedCards.Cards)
+            EditorGUILayout.LabelField($"선택 {deckSelection.SelectedCount}장");
+            foreach (RunDeckSelectionOption option in
+                     deckSelection.CreateOptions(progress.OwnedCards))
             {
-                bool selected = deckEditingSelection.Contains(card.OwnedCardId);
-                if (!GUILayout.Button(
-                        $"{(selected ? "[편성]" : "[보유]")} " +
-                        $"{card.Card.DisplayName} · Lv.{card.CurrentLevel}")) continue;
-                if (selected) deckEditingSelection.Remove(card.OwnedCardId);
-                else deckEditingSelection.Add(card.OwnedCardId);
+                if (!GUILayout.Button(option.DisplayLabel)) continue;
+                deckSelection.Toggle(option.OwnedCardId);
             }
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("취소")) deckEditing = false;
+            if (GUILayout.Button("취소")) deckSelection.Close();
             if (GUILayout.Button("선택한 덱 적용")) ApplyDeckEditing();
             EditorGUILayout.EndHorizontal();
         }
 
         private void ApplyDeckEditing()
         {
-            if (RunDeckSelectionService.TryReplaceDeck(
-                    progress, deckEditingSelection, out RunDeckFailure failure))
+            if (deckSelection.TryApply(
+                    progress, out RunDeckFailure failure))
             {
-                deckEditing = false;
                 selectedUpgradeCardId =
                     progress.RunDeck.Cards.FirstOrDefault()?.OwnedCardId;
                 message = $"런 덱을 {progress.RunDeck.Count}장으로 변경했습니다.";
@@ -937,15 +925,14 @@ namespace HaveABreak.EditorTools
             }
 
             runPreparationCards = new RunOwnedCardState();
-            runPreparationSelection.Clear();
             int index = 0;
             foreach (CardData card in cardDatabase.Cards.Where(card => card != null))
             {
                 RunCardInstance ownedCard = new(
                     card, $"OWNED-RUN-{++index:00}-{card.CatalogCardId}", 1);
                 if (!runPreparationCards.TryAdd(ownedCard, out _)) continue;
-                runPreparationSelection.Add(ownedCard.OwnedCardId);
             }
+            deckSelection.OpenWithAllOwnedCards(runPreparationCards);
 
             scroll = Vector2.zero;
             message = "런에 사용할 덱을 선택한 뒤 확정하세요.";
@@ -954,15 +941,15 @@ namespace HaveABreak.EditorTools
         private void CancelRunPreparation()
         {
             runPreparationCards = null;
-            runPreparationSelection.Clear();
+            deckSelection.Close();
             scroll = Vector2.zero;
             message = "새 런 준비를 취소했습니다.";
         }
 
         private void ConfirmRunPreparation()
         {
-            if (!RunDeckSelectionService.TryCreateDeck(
-                    runPreparationCards, runPreparationSelection,
+            if (!deckSelection.TryCreateDeck(
+                    runPreparationCards,
                     out RunDeckState deck, out RunDeckFailure failure))
             {
                 message = $"새 런 덱 확정 실패: {failure}";
@@ -979,10 +966,8 @@ namespace HaveABreak.EditorTools
             selectedEnemyId = null;
             selectedBanishCardId = null;
             selectedUpgradeCardId = deck.Cards.FirstOrDefault()?.OwnedCardId;
-            deckEditing = false;
-            deckEditingSelection.Clear();
+            deckSelection.Close();
             runPreparationCards = null;
-            runPreparationSelection.Clear();
             message = "새 통합 런을 시작했습니다.";
             SaveRun(null);
         }
@@ -990,7 +975,7 @@ namespace HaveABreak.EditorTools
         private void ContinueRun()
         {
             runPreparationCards = null;
-            runPreparationSelection.Clear();
+            deckSelection.Close();
             LoadPermanentRewards();
             if (!IntegratedRunSaveService.TryLoad(
                     cardDatabase, enchantDatabase, encounterDatabase,
@@ -1006,8 +991,7 @@ namespace HaveABreak.EditorTools
 
             selectedUpgradeCardId =
                 progress.OwnedCards.Cards.FirstOrDefault()?.OwnedCardId;
-            deckEditing = false;
-            deckEditingSelection.Clear();
+            deckSelection.Close();
             SelectFirstEnemy();
             message = $"이어하기 완료: {source}";
         }
