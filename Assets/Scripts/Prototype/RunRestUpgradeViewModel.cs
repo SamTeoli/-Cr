@@ -203,6 +203,17 @@ namespace HaveABreak.Cards
                 return;
             }
 
+            RunCardInstance preferred = cards.FirstOrDefault(card =>
+                card != null && string.Equals(
+                    card.OwnedCardId,
+                    preferredOwnedCardId,
+                    StringComparison.OrdinalIgnoreCase));
+            if (preferred != null)
+            {
+                selectedOwnedCardId = preferred.OwnedCardId;
+                return;
+            }
+
             RunCardInstance current = cards.FirstOrDefault(card =>
                 card != null && string.Equals(
                     card.OwnedCardId,
@@ -214,13 +225,7 @@ namespace HaveABreak.Cards
                 return;
             }
 
-            RunCardInstance preferred = cards.FirstOrDefault(card =>
-                card != null && string.Equals(
-                    card.OwnedCardId,
-                    preferredOwnedCardId,
-                    StringComparison.OrdinalIgnoreCase));
-            RunCardInstance fallback = preferred ?? cards.FirstOrDefault(card => card != null);
-            selectedOwnedCardId = fallback?.OwnedCardId;
+            selectedOwnedCardId = cards.FirstOrDefault(card => card != null)?.OwnedCardId;
         }
     }
 }
