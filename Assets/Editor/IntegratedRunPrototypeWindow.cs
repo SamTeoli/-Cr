@@ -346,41 +346,41 @@ namespace HaveABreak.EditorTools
         }
 
         private void DrawNodeSelection()
-{
-    EditorGUILayout.LabelField("다음 노드 선택", EditorStyles.boldLabel);
-    EditorGUILayout.BeginHorizontal();
-    RunNodeSelectionOption[] options =
-        nodeSelection.CreateOptions(campaign);
-    foreach (RunNodeSelectionOption option in options)
-    {
-        if (GUILayout.Button(
-                option.StackedLabel,
-                GUILayout.MinHeight(62f)))
         {
-            if (!nodeSelection.TrySelect(
-                    campaign,
-                    option.NodeId,
-                    out RunNodeSelectionOption selected,
-                    out RunCampaignFailure failure))
+            EditorGUILayout.LabelField("다음 노드 선택", EditorStyles.boldLabel);
+            EditorGUILayout.BeginHorizontal();
+            RunNodeSelectionOption[] options =
+                nodeSelection.CreateOptions(campaign);
+            foreach (RunNodeSelectionOption option in options)
             {
-                message = $"노드 선택 실패: {failure}";
+                if (GUILayout.Button(
+                        option.StackedLabel,
+                        GUILayout.MinHeight(62f)))
+                {
+                    if (!nodeSelection.TrySelect(
+                            campaign,
+                            option.NodeId,
+                            out RunNodeSelectionOption selected,
+                            out RunCampaignFailure failure))
+                    {
+                        message = $"노드 선택 실패: {failure}";
+                    }
+                    else if (selected.IsBattle)
+                    {
+                        BeginSelectedBattle();
+                    }
+                    else
+                    {
+                        message = $"{selected.DisplayName} 노드에 들어왔습니다.";
+                        SaveRun(null);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    return;
+                }
             }
-            else if (selected.IsBattle)
-            {
-                BeginSelectedBattle();
-            }
-            else
-            {
-                message = $"{selected.DisplayName} 노드에 들어왔습니다.";
-                SaveRun(null);
-            }
-            EditorGUILayout.EndHorizontal();
-            return;
-        }
-    }
 
-    EditorGUILayout.EndHorizontal();
-}
+            EditorGUILayout.EndHorizontal();
+        }
 
         private void DrawNonBattleNode()
         {

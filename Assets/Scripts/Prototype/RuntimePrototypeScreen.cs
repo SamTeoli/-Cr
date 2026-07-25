@@ -338,35 +338,35 @@ namespace HaveABreak.Cards
         }
 
         private void DrawNodeSelection()
-{
-    GUILayout.Label("다음 노드 선택", headingStyle);
-    RunNodeSelectionOption[] options =
-        nodeSelection.CreateOptions(campaign);
-    foreach (RunNodeSelectionOption option in options)
-    {
-        if (!GUILayout.Button(
-                option.InlineLabel,
-                GUILayout.Height(46f))) continue;
-        if (!nodeSelection.TrySelect(
-                campaign,
-                option.NodeId,
-                out RunNodeSelectionOption selected,
-                out RunCampaignFailure failure))
         {
-            message = $"노드 선택 실패: {failure}";
+            GUILayout.Label("다음 노드 선택", headingStyle);
+            RunNodeSelectionOption[] options =
+                nodeSelection.CreateOptions(campaign);
+            foreach (RunNodeSelectionOption option in options)
+            {
+                if (!GUILayout.Button(
+                        option.InlineLabel,
+                        GUILayout.Height(46f))) continue;
+                if (!nodeSelection.TrySelect(
+                        campaign,
+                        option.NodeId,
+                        out RunNodeSelectionOption selected,
+                        out RunCampaignFailure failure))
+                {
+                    message = $"노드 선택 실패: {failure}";
+                }
+                else if (selected.IsBattle)
+                {
+                    BeginSelectedBattle();
+                }
+                else
+                {
+                    message = $"{selected.DisplayName} 노드에 들어왔습니다.";
+                    SaveRun(null);
+                }
+                return;
+            }
         }
-        else if (selected.IsBattle)
-        {
-            BeginSelectedBattle();
-        }
-        else
-        {
-            message = $"{selected.DisplayName} 노드에 들어왔습니다.";
-            SaveRun(null);
-        }
-        return;
-    }
-}
 
         private void DrawNonBattleNode()
         {
