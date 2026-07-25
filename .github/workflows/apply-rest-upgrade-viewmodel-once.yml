@@ -1,0 +1,242 @@
+name: Apply rest upgrade ViewModel once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/deck-selection-viewmodel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/deck-selection-viewmodel
+          fetch-depth: 0
+
+      - name: Connect rest upgrade ViewModel
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          def replace_exact(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          def format_method(value):
+              return textwrap.indent(textwrap.dedent(value).strip(), "        ")
+
+          def replace_method(text, name, replacement):
+              start_token = f"        private void {name}("
+              start = text.index(start_token)
+              end = text.find("\n        private ", start + len(start_token))
+              if end < 0:
+                  raise RuntimeError(f"next method not found after {name}")
+              return text[:start] + format_method(replacement) + "\n" + text[end:]
+
+          runtime_path = Path("Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          runtime = replace_exact(
+              runtime,
+              "        private readonly RunSituationEventViewModel situationEvent = new();\n",
+              "        private readonly RunSituationEventViewModel situationEvent = new();\n"
+              "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n",
+              "runtime rest upgrade field")
+          runtime = replace_method(runtime, "DrawRestOrUpgrade", '''
+          private void DrawRestOrUpgrade()
+          {
+              GUILayout.Label("회복 · 강화", headingStyle);
+              RestUpgradeConfig rules = config.RestUpgradeConfig;
+              if (GUILayout.Button(
+                      restUpgrade.RestButtonLabel(rules),
+                      GUILayout.Height(38f)))
+              {
+                  if (restUpgrade.TryRest(
+                          campaign,
+                          progress.RunState,
+                          rules,
+                          out _,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      message = result;
+                      SaveRun(null);
+                      return;
+                  }
+
+                  message = $"회복 실패: {failure}";
+              }
+
+              RunRestUpgradeCardOption selected = restUpgrade.SelectedCard(
+                  campaign,
+                  progress,
+                  selectedUpgradeCardId);
+              if (selected != null)
+              {
+                  selectedUpgradeCardId = selected.OwnedCardId;
+              }
+
+              GUILayout.BeginHorizontal(GUI.skin.box);
+              GUILayout.Label(selected == null
+                  ? "강화할 카드 없음"
+                  : $"강화 대상: {selected.DisplayName} Lv.{selected.CurrentLevel}");
+              if (GUILayout.Button("다음 카드", GUILayout.Width(100f)))
+              {
+                  selected = restUpgrade.CycleCard(
+                      campaign,
+                      progress,
+                      selectedUpgradeCardId);
+                  selectedUpgradeCardId = selected?.OwnedCardId;
+              }
+              if (GUILayout.Button(
+                      restUpgrade.UpgradeButtonLabel(rules),
+                      GUILayout.Width(150f)))
+              {
+                  if (restUpgrade.TryUpgrade(
+                          campaign,
+                          progress,
+                          rules,
+                          selectedUpgradeCardId,
+                          out RunRestUpgradeCardOption upgraded,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      selectedUpgradeCardId = upgraded.OwnedCardId;
+                      message = result;
+                      SaveRun(null);
+                      GUILayout.EndHorizontal();
+                      return;
+                  }
+
+                  message = $"강화 실패: {failure}";
+              }
+              GUILayout.EndHorizontal();
+          }
+          ''')
+          runtime_path.write_text(runtime, encoding="utf-8")
+
+          editor_path = Path("Assets/Editor/IntegratedRunPrototypeWindow.cs")
+          editor = editor_path.read_text(encoding="utf-8")
+          editor = replace_exact(
+              editor,
+              "        private readonly RunSituationEventViewModel situationEvent = new();\n",
+              "        private readonly RunSituationEventViewModel situationEvent = new();\n"
+              "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n",
+              "editor rest upgrade field")
+          editor = replace_method(editor, "DrawRestOrUpgrade", '''
+          private void DrawRestOrUpgrade()
+          {
+              EditorGUILayout.LabelField("회복 · 강화", EditorStyles.boldLabel);
+              RestUpgradeConfig rules = prototypeConfig.RestUpgradeConfig;
+              if (GUILayout.Button(
+                      restUpgrade.RestButtonLabel(rules),
+                      GUILayout.Height(34f)))
+              {
+                  if (restUpgrade.TryRest(
+                          campaign,
+                          progress.RunState,
+                          rules,
+                          out _,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      message = result;
+                      SaveRun(null);
+                      return;
+                  }
+
+                  message = $"회복 실패: {failure}";
+              }
+
+              RunRestUpgradeCardOption[] options =
+                  restUpgrade.CreateCardOptions(
+                      campaign,
+                      progress,
+                      selectedUpgradeCardId);
+              if (options.Length == 0)
+              {
+                  EditorGUILayout.HelpBox(
+                      "강화할 카드가 없습니다.",
+                      MessageType.Info);
+                  return;
+              }
+
+              int selectedIndex = Array.FindIndex(
+                  options,
+                  option => option.IsSelected);
+              selectedIndex = Mathf.Max(0, selectedIndex);
+              string[] labels = options
+                  .Select(option => option.DisplayLabel)
+                  .ToArray();
+              int nextIndex = EditorGUILayout.Popup(
+                  "강화할 카드",
+                  selectedIndex,
+                  labels);
+              if (nextIndex >= 0 && nextIndex < options.Length &&
+                  restUpgrade.SelectCard(
+                      campaign,
+                      progress,
+                      options[nextIndex].OwnedCardId))
+              {
+                  selectedUpgradeCardId = options[nextIndex].OwnedCardId;
+              }
+
+              if (GUILayout.Button(
+                      restUpgrade.UpgradeButtonLabel(rules),
+                      GUILayout.Height(34f)))
+              {
+                  if (restUpgrade.TryUpgrade(
+                          campaign,
+                          progress,
+                          rules,
+                          selectedUpgradeCardId,
+                          out RunRestUpgradeCardOption upgraded,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      selectedUpgradeCardId = upgraded.OwnedCardId;
+                      message = result;
+                      SaveRun(null);
+                      return;
+                  }
+
+                  message = $"강화 실패: {failure}";
+              }
+          }
+          ''')
+          editor_path.write_text(editor, encoding="utf-8")
+
+          harness_path = Path("Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
+          harness = harness_path.read_text(encoding="utf-8")
+          marker = (
+              '            valid &= Run(\n'
+              '                "Run deck encounter flow integration",')
+          block = (
+              '            valid &= Run(\n'
+              '                "Run rest upgrade ViewModel and command flow",\n'
+              '                RunRestUpgradeViewModelValidation.Validate);\n')
+          harness = replace_exact(
+              harness,
+              marker,
+              block + marker,
+              "full regression rest upgrade registration")
+          harness_path.write_text(harness, encoding="utf-8")
+          PY
+
+          rm -f .github/workflows/apply-rest-upgrade-viewmodel-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Scripts/Prototype/RuntimePrototypeScreen.cs \
+                  Assets/Editor/IntegratedRunPrototypeWindow.cs \
+                  Assets/Editor/BattleRuntimeFullRegressionValidation.cs \
+                  .github/workflows/apply-rest-upgrade-viewmodel-once.yml
+          git diff --cached --check
+          git commit -m "회복 강화 ViewModel 화면 연결"
+          git push origin HEAD:agent/deck-selection-viewmodel
