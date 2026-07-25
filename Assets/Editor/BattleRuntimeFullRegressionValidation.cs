@@ -270,6 +270,9 @@ namespace HaveABreak.Editor
                 "New run deck preparation and atomic editing rules",
                 RunDeckEditingValidation.Validate);
             valid &= Run(
+                "Run node selection ViewModel and command flow",
+                RunNodeSelectionViewModelValidation.Validate);
+            valid &= Run(
                 "Run deck encounter flow integration",
                 BattleRuntimeRunDeckEncounterFlowValidation.Validate);
             valid &= Run(

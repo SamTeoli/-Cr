@@ -24,6 +24,7 @@ namespace HaveABreak.Cards
         private string message;
         private Vector2 scroll;
         private readonly RunDeckSelectionViewModel deckSelection = new();
+        private readonly RunNodeSelectionViewModel nodeSelection = new();
         private RunOwnedCardState runPreparationCards;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
@@ -337,28 +338,35 @@ namespace HaveABreak.Cards
         }
 
         private void DrawNodeSelection()
+{
+    GUILayout.Label("다음 노드 선택", headingStyle);
+    RunNodeSelectionOption[] options =
+        nodeSelection.CreateOptions(campaign);
+    foreach (RunNodeSelectionOption option in options)
+    {
+        if (!GUILayout.Button(
+                option.InlineLabel,
+                GUILayout.Height(46f))) continue;
+        if (!nodeSelection.TrySelect(
+                campaign,
+                option.NodeId,
+                out RunNodeSelectionOption selected,
+                out RunCampaignFailure failure))
         {
-            GUILayout.Label("다음 노드 선택", headingStyle);
-            RunNodeChoice[] choices = RunCampaignService.GetChoices(campaign).ToArray();
-            foreach (RunNodeChoice choice in choices)
-            {
-                if (!GUILayout.Button(
-                        $"{choice.DisplayName}  ·  {choice.NodeId}",
-                        GUILayout.Height(46f))) continue;
-                if (!RunCampaignService.TrySelectNode(
-                        campaign, choice.NodeId, out var failure))
-                {
-                    message = $"노드 선택 실패: {failure}";
-                }
-                else if (choice.IsBattle) BeginSelectedBattle();
-                else
-                {
-                    message = $"{choice.DisplayName} 노드에 들어왔습니다.";
-                    SaveRun(null);
-                }
-                return;
-            }
+            message = $"노드 선택 실패: {failure}";
         }
+        else if (selected.IsBattle)
+        {
+            BeginSelectedBattle();
+        }
+        else
+        {
+            message = $"{selected.DisplayName} 노드에 들어왔습니다.";
+            SaveRun(null);
+        }
+        return;
+    }
+}
 
         private void DrawNonBattleNode()
         {

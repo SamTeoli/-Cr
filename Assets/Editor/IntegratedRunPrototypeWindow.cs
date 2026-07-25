@@ -29,6 +29,7 @@ namespace HaveABreak.EditorTools
         private string message;
         private Vector2 scroll;
         private readonly RunDeckSelectionViewModel deckSelection = new();
+        private readonly RunNodeSelectionViewModel nodeSelection = new();
         private RunOwnedCardState runPreparationCards;
 
         [MenuItem("Have a Break/Play Integrated Prototype")]
@@ -345,38 +346,41 @@ namespace HaveABreak.EditorTools
         }
 
         private void DrawNodeSelection()
+{
+    EditorGUILayout.LabelField("다음 노드 선택", EditorStyles.boldLabel);
+    EditorGUILayout.BeginHorizontal();
+    RunNodeSelectionOption[] options =
+        nodeSelection.CreateOptions(campaign);
+    foreach (RunNodeSelectionOption option in options)
+    {
+        if (GUILayout.Button(
+                option.StackedLabel,
+                GUILayout.MinHeight(62f)))
         {
-            EditorGUILayout.LabelField("다음 노드 선택", EditorStyles.boldLabel);
-            EditorGUILayout.BeginHorizontal();
-            RunNodeChoice[] choices =
-                RunCampaignService.GetChoices(campaign).ToArray();
-            foreach (RunNodeChoice choice in choices)
+            if (!nodeSelection.TrySelect(
+                    campaign,
+                    option.NodeId,
+                    out RunNodeSelectionOption selected,
+                    out RunCampaignFailure failure))
             {
-                if (GUILayout.Button(
-                        $"{choice.DisplayName}\n{choice.NodeId}",
-                        GUILayout.MinHeight(62f)))
-                {
-                    if (!RunCampaignService.TrySelectNode(
-                            campaign, choice.NodeId, out RunCampaignFailure failure))
-                    {
-                        message = $"노드 선택 실패: {failure}";
-                    }
-                    else if (choice.IsBattle)
-                    {
-                        BeginSelectedBattle();
-                    }
-                    else
-                    {
-                        message = $"{choice.DisplayName} 노드에 들어왔습니다.";
-                        SaveRun(null);
-                    }
-                    EditorGUILayout.EndHorizontal();
-                    return;
-                }
+                message = $"노드 선택 실패: {failure}";
             }
-
+            else if (selected.IsBattle)
+            {
+                BeginSelectedBattle();
+            }
+            else
+            {
+                message = $"{selected.DisplayName} 노드에 들어왔습니다.";
+                SaveRun(null);
+            }
             EditorGUILayout.EndHorizontal();
+            return;
         }
+    }
+
+    EditorGUILayout.EndHorizontal();
+}
 
         private void DrawNonBattleNode()
         {
