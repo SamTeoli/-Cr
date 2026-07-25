@@ -34,9 +34,9 @@ jobs:
               return textwrap.indent(textwrap.dedent(value).strip(), "        ")
 
           def method_range(text, name):
-              start_token = f"        private void {name}("
-              start = text.index(start_token)
-              end = text.find("\n        private ", start + len(start_token))
+              token = f"        private void {name}("
+              start = text.index(token)
+              end = text.find("\n        private ", start + len(token))
               if end < 0:
                   raise RuntimeError(f"next method not found after {name}")
               return start, end
@@ -294,10 +294,10 @@ jobs:
           harness_path = Path("Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
           harness = harness_path.read_text(encoding="utf-8")
           marker = '''            valid &= Run(
-              "Run deck encounter flow integration",'''
+                "Run deck encounter flow integration",'''
           block = '''            valid &= Run(
-              "Run shop ViewModel and transaction flow",
-              RunShopViewModelValidation.Validate);
+                "Run shop ViewModel and transaction flow",
+                RunShopViewModelValidation.Validate);
           '''
           harness = replace_exact(
               harness,
