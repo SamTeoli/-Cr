@@ -75,11 +75,25 @@ namespace HaveABreak.Editor
                 second.OwnedCardId);
             if (cycled == null ||
                 cycled.OwnedCardId != first.OwnedCardId ||
-                viewModel.SelectedOwnedCardId != first.OwnedCardId ||
+                viewModel.SelectedOwnedCardId != first.OwnedCardId)
+            {
+                return false;
+            }
+
+            RunRestUpgradeCardOption[] preferredOverride =
+                viewModel.CreateCardOptions(
+                    upgradeCampaign,
+                    upgradeProgress,
+                    second.OwnedCardId);
+            if (preferredOverride.Length != 2 ||
+                preferredOverride[0].IsSelected ||
+                !preferredOverride[1].IsSelected ||
+                viewModel.SelectedOwnedCardId != second.OwnedCardId ||
                 !viewModel.SelectCard(
                     upgradeCampaign,
                     upgradeProgress,
-                    second.OwnedCardId))
+                    first.OwnedCardId) ||
+                viewModel.SelectedOwnedCardId != first.OwnedCardId)
             {
                 return false;
             }
@@ -96,6 +110,7 @@ namespace HaveABreak.Editor
                 upgradeFailure != RunCampaignFailure.None ||
                 upgraded == null ||
                 upgraded.OwnedCardId != second.OwnedCardId ||
+                first.CurrentLevel != 1 ||
                 second.CurrentLevel != previousLevel + rules.UpgradeLevelIncrease ||
                 string.IsNullOrWhiteSpace(upgradeResult) ||
                 upgradeCampaign.CompletedNodeCount != 1 ||
