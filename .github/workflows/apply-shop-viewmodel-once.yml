@@ -1,0 +1,319 @@
+name: Apply shop ViewModel once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/deck-selection-viewmodel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/deck-selection-viewmodel
+          fetch-depth: 0
+
+      - name: Connect shop ViewModel
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          def replace_exact(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          def format_methods(value):
+              return textwrap.indent(textwrap.dedent(value).strip(), "        ")
+
+          def method_range(text, name):
+              start_token = f"        private void {name}("
+              start = text.index(start_token)
+              end = text.find("\n        private ", start + len(start_token))
+              if end < 0:
+                  raise RuntimeError(f"next method not found after {name}")
+              return start, end
+
+          def replace_method(text, name, replacement):
+              start, end = method_range(text, name)
+              return text[:start] + format_methods(replacement) + "\n" + text[end:]
+
+          def remove_method(text, name):
+              start, end = method_range(text, name)
+              return text[:start] + text[end + 1:]
+
+          runtime_path = Path("Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          runtime = replace_exact(
+              runtime,
+              "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n",
+              "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n"
+              "        private readonly RunShopViewModel shop = new();\n",
+              "runtime shop field")
+          runtime = replace_method(runtime, "DrawShop", '''
+          private void DrawShop()
+          {
+              GUILayout.Label("상점", headingStyle);
+              RunShopProductOption[] options = shop.CreateOptions(
+                  campaign,
+                  progress,
+                  config.EnchantDatabase,
+                  config.ShopEconomyConfig);
+              DrawShopProducts(
+                  "소모아이템",
+                  options.Where(option =>
+                      option.ProductType == RunShopProductType.Consumable));
+              DrawShopProducts(
+                  "인첸트",
+                  options.Where(option =>
+                      option.ProductType == RunShopProductType.Enchant));
+
+              GUILayout.BeginHorizontal();
+              int rerollCost = shop.GetRerollCost(
+                  campaign,
+                  config.ShopEconomyConfig);
+              if (GUILayout.Button($"전체 리롤 · {rerollCost}G"))
+              {
+                  if (shop.TryReroll(
+                          campaign,
+                          progress.RunState,
+                          config.ShopEconomyConfig,
+                          out _,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      message = result;
+                      SaveRun(null);
+                  }
+                  else
+                  {
+                      message = $"리롤 실패: {failure}";
+                  }
+              }
+              if (GUILayout.Button("상점 나가기"))
+              {
+                  if (shop.TryLeave(
+                          campaign,
+                          progress.RunState,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      message = result;
+                      SaveRun(null);
+                  }
+                  else
+                  {
+                      message = $"상점 종료 실패: {failure}";
+                  }
+              }
+              GUILayout.EndHorizontal();
+          }
+
+          private void DrawShopProducts(
+              string sectionLabel,
+              IEnumerable<RunShopProductOption> options)
+          {
+              GUILayout.Label(sectionLabel);
+              foreach (RunShopProductOption option in options)
+              {
+                  GUILayout.BeginHorizontal(GUI.skin.box);
+                  string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
+                      ? string.Empty
+                      : $"\n장착 대상: {option.TargetLabel}";
+                  string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                      ? string.Empty
+                      : $"\n{option.BlockReason}";
+                  GUILayout.Label(
+                      option.DisplayText + targetText + blockText,
+                      wrappedStyle);
+                  bool previous = GUI.enabled;
+                  GUI.enabled = option.CanPurchase;
+                  if (GUILayout.Button(
+                          option.PurchaseButtonLabel,
+                          GUILayout.Width(80f)))
+                  {
+                      if (shop.TryBuy(
+                              campaign,
+                              progress,
+                              config.EnchantDatabase,
+                              config.ShopEconomyConfig,
+                              option.SlotId,
+                              out _,
+                              out string result,
+                              out EnchantAttachmentFailure attachmentFailure,
+                              out RunCampaignFailure failure))
+                      {
+                          message = result;
+                          SaveRun(null);
+                      }
+                      else
+                      {
+                          message = option.ProductType == RunShopProductType.Enchant
+                              ? $"인첸트 구매 실패: {failure} / {attachmentFailure}"
+                              : $"구매 실패: {failure}";
+                      }
+                  }
+                  GUI.enabled = previous;
+                  GUILayout.EndHorizontal();
+              }
+          }
+          ''')
+          runtime = remove_method(runtime, "DrawShopEnchant")
+          runtime_path.write_text(runtime, encoding="utf-8")
+
+          editor_path = Path("Assets/Editor/IntegratedRunPrototypeWindow.cs")
+          editor = editor_path.read_text(encoding="utf-8")
+          editor = replace_exact(
+              editor,
+              "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n",
+              "        private readonly RunRestUpgradeViewModel restUpgrade = new();\n"
+              "        private readonly RunShopViewModel shop = new();\n",
+              "editor shop field")
+          editor = replace_method(editor, "DrawShop", '''
+          private void DrawShop()
+          {
+              EditorGUILayout.LabelField("상점", EditorStyles.boldLabel);
+              RunShopProductOption[] options = shop.CreateOptions(
+                  campaign,
+                  progress,
+                  enchantDatabase,
+                  prototypeConfig.ShopEconomyConfig);
+              DrawShopProducts(
+                  "소모아이템",
+                  options.Where(option =>
+                      option.ProductType == RunShopProductType.Consumable));
+              EditorGUILayout.Space(5f);
+              DrawShopProducts(
+                  "인첸트",
+                  options.Where(option =>
+                      option.ProductType == RunShopProductType.Enchant));
+
+              EditorGUILayout.BeginHorizontal();
+              int rerollCost = shop.GetRerollCost(
+                  campaign,
+                  prototypeConfig.ShopEconomyConfig);
+              if (GUILayout.Button($"전체 리롤 · {rerollCost}G"))
+              {
+                  if (shop.TryReroll(
+                          campaign,
+                          progress.RunState,
+                          prototypeConfig.ShopEconomyConfig,
+                          out _,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      message = result;
+                      SaveRun(null);
+                  }
+                  else
+                  {
+                      message = $"리롤 실패: {failure}";
+                  }
+              }
+              if (GUILayout.Button("상점 나가기"))
+              {
+                  if (shop.TryLeave(
+                          campaign,
+                          progress.RunState,
+                          out string result,
+                          out RunCampaignFailure failure))
+                  {
+                      message = result;
+                      SaveRun(null);
+                  }
+                  else
+                  {
+                      message = $"상점 종료 실패: {failure}";
+                  }
+              }
+              EditorGUILayout.EndHorizontal();
+          }
+
+          private void DrawShopProducts(
+              string sectionLabel,
+              IEnumerable<RunShopProductOption> options)
+          {
+              EditorGUILayout.LabelField(
+                  sectionLabel,
+                  EditorStyles.miniBoldLabel);
+              foreach (RunShopProductOption option in options)
+              {
+                  EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+                  string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
+                      ? string.Empty
+                      : $"\n장착 대상: {option.TargetLabel}";
+                  string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                      ? string.Empty
+                      : $"\n{option.BlockReason}";
+                  EditorGUILayout.LabelField(
+                      option.DisplayText + targetText + blockText,
+                      EditorStyles.wordWrappedLabel);
+                  using (new EditorGUI.DisabledScope(!option.CanPurchase))
+                  {
+                      if (GUILayout.Button(
+                              option.PurchaseButtonLabel,
+                              GUILayout.Width(70f)))
+                      {
+                          if (shop.TryBuy(
+                                  campaign,
+                                  progress,
+                                  enchantDatabase,
+                                  prototypeConfig.ShopEconomyConfig,
+                                  option.SlotId,
+                                  out _,
+                                  out string result,
+                                  out EnchantAttachmentFailure attachmentFailure,
+                                  out RunCampaignFailure failure))
+                          {
+                              message = result;
+                              SaveRun(null);
+                          }
+                          else
+                          {
+                              message = option.ProductType ==
+                                      RunShopProductType.Enchant
+                                  ? $"인첸트 구매 실패: {failure} / {attachmentFailure}"
+                                  : $"구매 실패: {failure}";
+                          }
+                      }
+                  }
+                  EditorGUILayout.EndHorizontal();
+              }
+          }
+          ''')
+          editor = remove_method(editor, "DrawShopEnchant")
+          editor_path.write_text(editor, encoding="utf-8")
+
+          harness_path = Path("Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
+          harness = harness_path.read_text(encoding="utf-8")
+          marker = '''            valid &= Run(
+              "Run deck encounter flow integration",'''
+          block = '''            valid &= Run(
+              "Run shop ViewModel and transaction flow",
+              RunShopViewModelValidation.Validate);
+          '''
+          harness = replace_exact(
+              harness,
+              marker,
+              block + marker,
+              "full regression shop registration")
+          harness_path.write_text(harness, encoding="utf-8")
+          PY
+
+          rm -f .github/workflows/apply-shop-viewmodel-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Scripts/Prototype/RuntimePrototypeScreen.cs \
+                  Assets/Editor/IntegratedRunPrototypeWindow.cs \
+                  Assets/Editor/BattleRuntimeFullRegressionValidation.cs \
+                  .github/workflows/apply-shop-viewmodel-once.yml
+          git diff --cached --check
+          git commit -m "상점 ViewModel 화면 연결"
+          git push origin HEAD:agent/deck-selection-viewmodel
