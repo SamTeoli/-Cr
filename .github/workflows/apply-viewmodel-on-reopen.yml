@@ -1,0 +1,27 @@
+name: Apply ViewModel on reopen
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.number == 83
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/deck-selection-viewmodel
+          fetch-depth: 0
+      - run: python3 .github/apply_viewmodel.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/apply_viewmodel.py .github/viewmodel-trigger .github/workflows/apply-viewmodel-once.yml .github/workflows/apply-viewmodel-on-reopen.yml
+          git add Assets/Scripts/Prototype/RuntimePrototypeScreen.cs Assets/Editor/IntegratedRunPrototypeWindow.cs
+          git diff --cached --check
+          git commit -m "덱 선택 ViewModel을 프로토타입 화면에 연결"
+          git push origin HEAD:agent/deck-selection-viewmodel
