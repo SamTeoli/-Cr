@@ -530,11 +530,9 @@ namespace HaveABreak.Cards
             {
                 GUILayout.BeginHorizontal(GUI.skin.box);
                 string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
-                    ? string.Empty : $"
-        장착 대상: {option.TargetLabel}";
+                    ? string.Empty : $"\n장착 대상: {option.TargetLabel}";
                 string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
-                    ? string.Empty : $"
-        {option.BlockReason}";
+                    ? string.Empty : $"\n{option.BlockReason}";
                 GUILayout.Label(option.DisplayText + targetText + blockText,
                     wrappedStyle);
                 bool previous = GUI.enabled;

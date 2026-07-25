@@ -569,11 +569,9 @@ namespace HaveABreak.EditorTools
             {
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
-                    ? string.Empty : $"
-        장착 대상: {option.TargetLabel}";
+                    ? string.Empty : $"\n장착 대상: {option.TargetLabel}";
                 string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
-                    ? string.Empty : $"
-        {option.BlockReason}";
+                    ? string.Empty : $"\n{option.BlockReason}";
                 EditorGUILayout.LabelField(
                     option.DisplayText + targetText + blockText,
                     EditorStyles.wordWrappedLabel);
