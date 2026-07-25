@@ -224,12 +224,15 @@ jobs:
 
           harness_path = Path("Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
           harness = harness_path.read_text(encoding="utf-8")
-          marker = '''            valid &= Run(
-                "Run deck encounter flow integration",'''
-          block = '''            valid &= Run(
-                "Run shop ViewModel and transaction flow",
-                RunShopViewModelValidation.Validate);
-          '''
+          marker = (
+              "            valid &= Run(\n"
+              "                \"Run deck encounter flow integration\","
+          )
+          block = (
+              "            valid &= Run(\n"
+              "                \"Run shop ViewModel and transaction flow\",\n"
+              "                RunShopViewModelValidation.Validate);\n"
+          )
           harness = replace_exact(harness, marker, block + marker,
               "full regression shop registration")
           harness_path.write_text(harness, encoding="utf-8")
