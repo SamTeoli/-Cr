@@ -26,7 +26,8 @@ namespace HaveABreak.Cards
         public RunNodeSelectionOption[] CreateOptions(
             RunCampaignState campaign)
         {
-            if (campaign == null)
+            if (campaign == null ||
+                campaign.Phase != RunCampaignPhase.NodeSelection)
             {
                 return Array.Empty<RunNodeSelectionOption>();
             }
