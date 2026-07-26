@@ -1,0 +1,48 @@
+name: Apply battle player action ViewModel once
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/battle-player-action-pr-trigger'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout patch tools
+        uses: actions/checkout@v4
+        with:
+          ref: agent/battle-player-action-trigger
+          path: tools
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/battle-player-action-viewmodel
+          path: target
+
+      - name: Apply ViewModel screen wiring
+        working-directory: target
+        run: python ../tools/.github/scripts/apply_battle_player_action_viewmodel.py
+
+      - name: Validate and publish
+        working-directory: target
+        shell: bash
+        run: |
+          git diff --check
+          git status --short
+          if git diff --quiet; then
+            echo "No changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            Assets/Scripts/Prototype/RuntimePrototypeScreen.cs \
+            Assets/Editor/IntegratedRunPrototypeWindow.cs \
+            Assets/Editor/BattleRuntimeFullRegressionValidation.cs
+          git commit -m "전투 플레이어 입력 ViewModel 화면 연결"
+          git push origin HEAD:agent/battle-player-action-viewmodel
