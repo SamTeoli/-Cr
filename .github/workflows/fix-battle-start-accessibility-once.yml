@@ -1,0 +1,82 @@
+name: Fix battle start accessibility once
+
+on:
+  push:
+    branches:
+      - agent/battle-start-viewmodel
+    paths:
+      - .github/battle-start-accessibility-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/battle-start-viewmodel
+      - name: Fix public API accessibility
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          vm_path = Path('Assets/Scripts/Prototype/BattleStartViewModel.cs')
+          vm = vm_path.read_text(encoding='utf-8')
+          expected = {
+              'out RunSaveDestination destination': 2,
+              'RunSaveDestination saveDestination': 1,
+              'public RunSaveDestination SaveDestination': 1,
+          }
+          for text, count in expected.items():
+              actual = vm.count(text)
+              if actual != count:
+                  raise RuntimeError(f'{text}: expected {count}, found {actual}')
+          vm = vm.replace('out RunSaveDestination destination', 'out string destination')
+          vm = vm.replace('RunSaveDestination saveDestination', 'string saveDestination')
+          vm = vm.replace('public RunSaveDestination SaveDestination', 'public string SaveDestination')
+          old = '''                return IntegratedRunSaveService.TrySave(
+                    campaign,
+                    progress,
+                    out destination,
+                    out failure);'''
+          new = '''                bool saved = IntegratedRunSaveService.TrySave(
+                    campaign,
+                    progress,
+                    out RunSaveDestination savedDestination,
+                    out failure);
+                destination = savedDestination.ToString();
+                return saved;'''
+          if vm.count(old) != 1:
+              raise RuntimeError('Integrated checkpoint writer block not found exactly once')
+          vm = vm.replace(old, new, 1)
+          vm_path.write_text(vm, encoding='utf-8')
+
+          validation_path = Path('Assets/Editor/BattleStartCommandFlowValidation.cs')
+          validation = validation_path.read_text(encoding='utf-8')
+          if validation.count('out RunSaveDestination destination') != 1:
+              raise RuntimeError('Fake checkpoint writer signature not found exactly once')
+          validation = validation.replace(
+              'out RunSaveDestination destination',
+              'out string destination',
+              1)
+          validation = validation.replace(
+              '                destination = default;',
+              '                destination = "TestCheckpoint";',
+              1)
+          validation_path.write_text(validation, encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/fix-battle-start-accessibility-once.yml
+          rm -f .github/battle-start-accessibility-trigger
+          git diff --check
+          git grep -n 'public RunSaveDestination\|out RunSaveDestination destination' -- \
+            Assets/Scripts/Prototype/BattleStartViewModel.cs \
+            Assets/Editor/BattleStartCommandFlowValidation.cs && exit 1 || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '전투 시작 공개 API 접근성 오류 수정'
+          git push origin HEAD:agent/battle-start-viewmodel
