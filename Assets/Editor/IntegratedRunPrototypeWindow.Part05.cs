@@ -16,6 +16,21 @@ namespace HaveABreak.EditorTools
                 return;
             }
 
+            if (progress.HasActiveEncounter)
+            {
+                if (!string.IsNullOrWhiteSpace(successMessage))
+                {
+                    BattleStartCommandResult checkpoint = battleStart.TryStart(
+                        campaign,
+                        progress,
+                        prototypeConfig);
+                    message = checkpoint.Succeeded
+                        ? $"{successMessage} · {checkpoint.SaveDestination}"
+                        : checkpoint.Message;
+                }
+                return;
+            }
+
             if (IntegratedRunSaveService.TrySave(
                     campaign, progress, out RunSaveDestination destination,
                     out RunCampaignFailure failure))
