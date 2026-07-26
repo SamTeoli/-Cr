@@ -59,9 +59,9 @@ namespace HaveABreak.Editor
                 "battleScreen.TryPlayCard(",
                 "battleScreen.TryAttack(",
                 "battleScreen.TryEndPlayerTurn(",
-                "HashSet<string> attackedThisTurn",
-                "attackedThisTurn.Contains(value.BattleCardId)",
-                "attackedThisTurn.Add(attacker.BattleCardId)"
+                "HashSet<string> attemptedAttackers",
+                "attemptedAttackers.Contains(value.BattleCardId)",
+                "attemptedAttackers.Add(attacker.BattleCardId)"
             };
             foreach (string required in requiredConnections)
             {
