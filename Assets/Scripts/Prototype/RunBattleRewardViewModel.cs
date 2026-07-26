@@ -198,6 +198,7 @@ namespace HaveABreak.Cards
             claimed = null;
             result = null;
             attachmentFailure = default;
+            failure = default;
             BattleRuntimeEncounterContext context = progress?.ActiveEncounter;
             if (!IsAvailable(campaign, context) ||
                 string.IsNullOrWhiteSpace(definitionId) ||
@@ -256,6 +257,7 @@ namespace HaveABreak.Cards
         {
             claimed = null;
             result = null;
+            failure = default;
             BattleRuntimeEncounterContext context = progress?.ActiveEncounter;
             if (!IsAvailable(campaign, context) ||
                 string.IsNullOrWhiteSpace(itemId) ||
