@@ -929,7 +929,9 @@ namespace HaveABreak.EditorTools
                 using (new EditorGUI.DisabledScope(!option.CanClaim))
                 {
                     if (GUILayout.Button(
-                            option.IsSelected ? "수령 완료" : "받기",
+                            option.RewardClaimed && option.IsSelected
+                                ? "수령 완료"
+                                : "받기",
                             GUILayout.Width(90f)))
                     {
                         if (battleReward.TryClaimConsumable(

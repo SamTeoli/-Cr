@@ -264,7 +264,13 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            ConsumableData item = PrototypeConsumableCatalog.Find(itemId.Trim());
+            ConsumableData item = PrototypeConsumableCatalog.All
+                .Where(value => value != null)
+                .Take(3)
+                .FirstOrDefault(value => string.Equals(
+                    value.ItemId,
+                    itemId.Trim(),
+                    StringComparison.OrdinalIgnoreCase));
             if (item == null || context.VictoryConsumableRewards?.Claimed == true)
             {
                 failure = default;

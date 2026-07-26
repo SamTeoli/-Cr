@@ -103,6 +103,11 @@ namespace HaveABreak.Editor
 
                 int itemCountBeforeInvalid =
                     progress.RunState.ConsumableItemIds.Count;
+                ConsumableData hiddenItem =
+                    PrototypeConsumableCatalog.All
+                        .Where(item => item != null)
+                        .Skip(3)
+                        .FirstOrDefault();
                 if (viewModel.TryClaimEnchant(
                         campaign,
                         progress,
@@ -116,6 +121,14 @@ namespace HaveABreak.Editor
                         campaign,
                         progress,
                         "MISSING-REWARD-ITEM",
+                        out _,
+                        out _,
+                        out _) ||
+                    hiddenItem == null ||
+                    viewModel.TryClaimConsumable(
+                        campaign,
+                        progress,
+                        hiddenItem.ItemId,
                         out _,
                         out _,
                         out _) ||

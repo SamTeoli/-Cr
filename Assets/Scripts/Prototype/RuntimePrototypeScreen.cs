@@ -1080,7 +1080,9 @@ namespace HaveABreak.Cards
                 bool previous = GUI.enabled;
                 GUI.enabled = option.CanClaim;
                 if (GUILayout.Button(
-                        option.IsSelected ? "수령 완료" : "받기",
+                        option.RewardClaimed && option.IsSelected
+                            ? "수령 완료"
+                            : "받기",
                         GUILayout.Width(90f)))
                 {
                     if (battleReward.TryClaimConsumable(
