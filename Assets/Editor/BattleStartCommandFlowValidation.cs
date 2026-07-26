@@ -105,14 +105,16 @@ namespace HaveABreak.Editor
             {
                 BattleEncounterGrade grade = grades[index];
                 IReadOnlyList<string> pool = config.GetEncounterPool(grade, 0);
+                EncounterData encounter = null;
+                string error = null;
                 if (pool == null || pool.Count == 0 ||
                     !RunEncounterPoolService.TryResolve(
                         config.EncounterDatabase,
                         pool,
                         grade,
                         700 + index,
-                        out EncounterData encounter,
-                        out string error) ||
+                        out encounter,
+                        out error) ||
                     encounter == null || !string.IsNullOrWhiteSpace(error))
                 {
                     Debug.LogError(
