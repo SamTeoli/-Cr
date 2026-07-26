@@ -31,7 +31,8 @@ namespace HaveABreak.Editor
             bool screen = BattleScreenViewModelValidation.Validate();
             bool settlementBoundary =
                 BattleSettlementSourceBoundaryValidation.Validate();
-            bool settlement = BattleSettlementViewModelValidation.Validate();
+            bool settlement =
+                BattleSettlementCommandFlowValidation.Validate();
             bool valid = existing && screenBoundary && screen &&
                          settlementBoundary && settlement;
             if (valid)
@@ -44,7 +45,10 @@ namespace HaveABreak.Editor
             else
             {
                 Debug.LogError(
-                    "Complete test harness with battle screen failed.");
+                    "Complete test harness with battle screen failed. " +
+                    $"existing={existing}, screenBoundary={screenBoundary}, " +
+                    $"screen={screen}, settlementBoundary={settlementBoundary}, " +
+                    $"settlement={settlement}");
             }
 
             return valid;
