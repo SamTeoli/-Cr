@@ -34,6 +34,7 @@ namespace HaveABreak.EditorTools
         private readonly RunRestUpgradeViewModel restUpgrade = new();
         private readonly RunShopViewModel shop = new();
         private readonly RunBattleRewardViewModel battleReward = new();
+        private readonly RunConsumableViewModel runConsumables = new();
         private RunOwnedCardState runPreparationCards;
 
         [MenuItem("Have a Break/Play Integrated Prototype")]
@@ -269,83 +270,114 @@ namespace HaveABreak.EditorTools
 
         private void DrawRunInventory()
         {
-            EditorGUILayout.LabelField("런 소모아이템", EditorStyles.miniBoldLabel);
-            if (progress.RunState.ConsumableItemIds.Count == 0)
+            EditorGUILayout.LabelField(
+                "런 소모아이템",
+                EditorStyles.miniBoldLabel);
+            RunConsumableInventoryOption[] inventory =
+                runConsumables.CreateInventoryOptions(progress);
+            EditorGUILayout.LabelField(inventory.Length == 0
+                ? "보유 아이템 없음"
+                : string.Join(", ", inventory.Select(option =>
+                    option.DisplayLabel)));
+
+            RunEnchantHammerTargetOption[] targets =
+                runConsumables.CreateHammerTargets(
+                    progress,
+                    selectedUpgradeCardId);
+            if (targets.Length > 0)
             {
-                EditorGUILayout.LabelField("보유 아이템 없음");
-                return;
+                int selectedIndex = Mathf.Max(
+                    0,
+                    Array.FindIndex(targets, option => option.IsSelected));
+                string[] labels = targets
+                    .Select(option => string.IsNullOrWhiteSpace(option.BlockReason)
+                        ? option.DisplayLabel
+                        : $"{option.DisplayLabel} · {option.BlockReason}")
+                    .ToArray();
+                int nextIndex = EditorGUILayout.Popup(
+                    "인첸트 망치 대상",
+                    selectedIndex,
+                    labels);
+                if (nextIndex >= 0 && nextIndex < targets.Length &&
+                    runConsumables.SelectHammerTarget(
+                        progress,
+                        targets[nextIndex].OwnedCardId))
+                {
+                    selectedUpgradeCardId = targets[nextIndex].OwnedCardId;
+                }
+
+                RunEnchantHammerTargetOption selected =
+                    runConsumables.SelectedHammerTarget(
+                        progress,
+                        selectedUpgradeCardId);
+                using (new EditorGUI.DisabledScope(selected?.CanUse != true))
+                {
+                    if (GUILayout.Button("인첸트 망치 사용 · 슬롯 +1"))
+                    {
+                        if (runConsumables.TryUseEnchantHammer(
+                                progress,
+                                selectedUpgradeCardId,
+                                out RunEnchantHammerTargetOption used,
+                                out string result,
+                                out PrototypeConsumableFailure failure))
+                        {
+                            selectedUpgradeCardId = used.OwnedCardId;
+                            message = result;
+                            SaveRun(null);
+                        }
+                        else
+                        {
+                            message = $"인첸트 망치 사용 실패: {failure}";
+                        }
+                    }
+                }
             }
 
-            EditorGUILayout.LabelField(string.Join(", ",
-                progress.RunState.ConsumableItemIds.Select(itemId =>
-                    PrototypeConsumableCatalog.Find(itemId)?.DisplayName ?? itemId)));
-            if (!progress.RunState.ConsumableItemIds.Any(itemId =>
-                    string.Equals(itemId,
-                        PrototypeConsumableCatalog.EnchantHammer,
-                        StringComparison.OrdinalIgnoreCase)) ||
-                progress.OwnedCards.Count == 0)
-            {
-                DrawMutationScroll();
-                return;
-            }
-
-            string[] labels = progress.OwnedCards.Cards.Select(card =>
-                $"{card.Card.DisplayName} · 슬롯 {card.Enchants.SlotCount}/" +
-                $"{RunCardEnchantState.MaximumSlotCount}").ToArray();
-            int selected = Mathf.Max(0,
-                progress.OwnedCards.Cards.ToList().FindIndex(card =>
-                    string.Equals(card.OwnedCardId, selectedUpgradeCardId,
-                        StringComparison.OrdinalIgnoreCase)));
-            selected = EditorGUILayout.Popup(
-                "인첸트 망치 대상", selected, labels);
-            selectedUpgradeCardId =
-                progress.OwnedCards.Cards[selected].OwnedCardId;
-            if (GUILayout.Button("인첸트 망치 사용 · 슬롯 +1"))
-            {
-                if (PrototypeConsumableService.TryUseEnchantHammer(
-                        progress, selectedUpgradeCardId,
-                        out PrototypeConsumableFailure failure))
-                {
-                    message = "인첸트 슬롯을 1칸 늘렸습니다.";
-                    SaveRun(null);
-                }
-                else
-                {
-                    message = $"인첸트 망치 사용 실패: {failure}";
-                }
-            }
             DrawMutationScroll();
         }
 
         private void DrawMutationScroll()
         {
-            if (!progress.RunState.ConsumableItemIds.Any(itemId =>
-                    string.Equals(itemId,
-                        PrototypeConsumableCatalog.MutationScroll,
-                        StringComparison.OrdinalIgnoreCase))) return;
-
-            EditorGUILayout.LabelField("변이 주문서", EditorStyles.miniBoldLabel);
-            foreach (RunCardInstance card in progress.OwnedCards.Cards)
-            foreach (RunEnchantSlot slot in card.Enchants.Slots
-                         .Where(value => !value.IsEmpty))
-            foreach (EnchantData replacement in enchantDatabase.Enchants
-                         .Where(value => value != null &&
-                             !value.MatchesDefinition(slot.Enchant) &&
-                             value.IsCompatible(card.Card.CardType)))
+            RunMutationScrollOption[] options =
+                runConsumables.CreateMutationOptions(
+                    progress,
+                    enchantDatabase.Enchants);
+            if (options.Length == 0)
             {
-                if (!GUILayout.Button(
-                        $"{card.Card.DisplayName} · {slot.Enchant.DisplayName} → " +
-                        replacement.DisplayName)) continue;
-                if (PrototypeConsumableService.TryUseMutationScroll(
-                        progress, card.OwnedCardId, slot.SlotIndex, replacement,
+                return;
+            }
+
+            EditorGUILayout.LabelField(
+                "변이 주문서",
+                EditorStyles.miniBoldLabel);
+            foreach (RunMutationScrollOption option in options)
+            {
+                using (new EditorGUI.DisabledScope(!option.CanUse))
+                {
+                    if (!GUILayout.Button(option.DisplayText))
+                    {
+                        continue;
+                    }
+                }
+
+                if (runConsumables.TryUseMutationScroll(
+                        progress,
+                        enchantDatabase.Enchants,
+                        option.OwnedCardId,
+                        option.SlotIndex,
+                        option.ReplacementDefinitionId,
+                        out _,
+                        out string result,
                         out EnchantAttachmentFailure attachmentFailure,
                         out PrototypeConsumableFailure failure))
                 {
-                    message = $"{replacement.DisplayName}(으)로 변이했습니다.";
+                    message = result;
                     SaveRun(null);
                     return;
                 }
-                message = $"변이 주문서 사용 실패: {failure} / {attachmentFailure}";
+
+                message =
+                    $"변이 주문서 사용 실패: {failure} / {attachmentFailure}";
             }
         }
 

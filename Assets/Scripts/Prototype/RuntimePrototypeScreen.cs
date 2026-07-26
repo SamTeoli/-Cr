@@ -29,6 +29,7 @@ namespace HaveABreak.Cards
         private readonly RunRestUpgradeViewModel restUpgrade = new();
         private readonly RunShopViewModel shop = new();
         private readonly RunBattleRewardViewModel battleReward = new();
+        private readonly RunConsumableViewModel runConsumables = new();
         private RunOwnedCardState runPreparationCards;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
@@ -278,66 +279,101 @@ namespace HaveABreak.Cards
         private void DrawRunInventory()
         {
             GUILayout.Label("런 소모아이템", headingStyle);
-            GUILayout.Label(progress.RunState.ConsumableItemIds.Count == 0
+            RunConsumableInventoryOption[] inventory =
+                runConsumables.CreateInventoryOptions(progress);
+            GUILayout.Label(inventory.Length == 0
                 ? "보유 아이템 없음"
-                : string.Join(", ", progress.RunState.ConsumableItemIds.Select(
-                    id => PrototypeConsumableCatalog.Find(id)?.DisplayName ?? id)));
+                : string.Join(", ", inventory.Select(option =>
+                    option.DisplayLabel)));
 
-            if (!progress.RunState.ConsumableItemIds.Contains(
-                    PrototypeConsumableCatalog.EnchantHammer) ||
-                progress.OwnedCards.Count == 0)
+            RunEnchantHammerTargetOption selected =
+                runConsumables.SelectedHammerTarget(
+                    progress,
+                    selectedUpgradeCardId);
+            if (selected != null)
             {
-                DrawMutationScroll();
-                return;
-            }
-
-            RunCardInstance selected = SelectedUpgradeCard();
-            GUILayout.BeginHorizontal(GUI.skin.box);
-            GUILayout.Label($"망치 대상: {selected?.Card.DisplayName}");
-            if (GUILayout.Button("다음 카드", GUILayout.Width(100f)))
-            {
-                CycleUpgradeCard();
-            }
-            if (GUILayout.Button("인첸트 슬롯 +1", GUILayout.Width(140f)))
-            {
-                if (PrototypeConsumableService.TryUseEnchantHammer(
-                        progress, selectedUpgradeCardId, out var failure))
+                selectedUpgradeCardId = selected.OwnedCardId;
+                GUILayout.BeginHorizontal(GUI.skin.box);
+                string blockText = string.IsNullOrWhiteSpace(selected.BlockReason)
+                    ? string.Empty
+                    : $" · {selected.BlockReason}";
+                GUILayout.Label($"망치 대상: {selected.DisplayLabel}{blockText}");
+                if (GUILayout.Button("다음 카드", GUILayout.Width(100f)))
                 {
-                    message = "인첸트 슬롯을 1칸 늘렸습니다.";
-                    SaveRun(null);
+                    selected = runConsumables.CycleHammerTarget(
+                        progress,
+                        selectedUpgradeCardId);
+                    selectedUpgradeCardId = selected?.OwnedCardId;
                 }
-                else message = $"인첸트 망치 사용 실패: {failure}";
+
+                bool previous = GUI.enabled;
+                GUI.enabled = selected?.CanUse == true;
+                if (GUILayout.Button("인첸트 슬롯 +1", GUILayout.Width(140f)))
+                {
+                    if (runConsumables.TryUseEnchantHammer(
+                            progress,
+                            selectedUpgradeCardId,
+                            out RunEnchantHammerTargetOption used,
+                            out string result,
+                            out PrototypeConsumableFailure failure))
+                    {
+                        selectedUpgradeCardId = used.OwnedCardId;
+                        message = result;
+                        SaveRun(null);
+                    }
+                    else
+                    {
+                        message = $"인첸트 망치 사용 실패: {failure}";
+                    }
+                }
+                GUI.enabled = previous;
+                GUILayout.EndHorizontal();
             }
-            GUILayout.EndHorizontal();
+
             DrawMutationScroll();
         }
 
         private void DrawMutationScroll()
         {
-            if (!progress.RunState.ConsumableItemIds.Contains(
-                    PrototypeConsumableCatalog.MutationScroll)) return;
+            RunMutationScrollOption[] options =
+                runConsumables.CreateMutationOptions(
+                    progress,
+                    config.EnchantDatabase.Enchants);
+            if (options.Length == 0)
+            {
+                return;
+            }
 
             GUILayout.Label("변이 주문서", headingStyle);
-            foreach (RunCardInstance card in progress.OwnedCards.Cards)
-            foreach (RunEnchantSlot slot in card.Enchants.Slots
-                         .Where(value => !value.IsEmpty))
-            foreach (EnchantData replacement in config.EnchantDatabase.Enchants
-                         .Where(value => value != null &&
-                             !value.MatchesDefinition(slot.Enchant) &&
-                             value.IsCompatible(card.Card.CardType)))
+            foreach (RunMutationScrollOption option in options)
             {
-                if (!GUILayout.Button(
-                        $"{card.Card.DisplayName} · {slot.Enchant.DisplayName} → " +
-                        replacement.DisplayName)) continue;
-                if (PrototypeConsumableService.TryUseMutationScroll(
-                        progress, card.OwnedCardId, slot.SlotIndex, replacement,
-                        out var attachmentFailure, out var failure))
+                bool previous = GUI.enabled;
+                GUI.enabled = option.CanUse;
+                bool clicked = GUILayout.Button(option.DisplayText);
+                GUI.enabled = previous;
+                if (!clicked)
                 {
-                    message = $"{replacement.DisplayName}(으)로 변이했습니다.";
+                    continue;
+                }
+
+                if (runConsumables.TryUseMutationScroll(
+                        progress,
+                        config.EnchantDatabase.Enchants,
+                        option.OwnedCardId,
+                        option.SlotIndex,
+                        option.ReplacementDefinitionId,
+                        out _,
+                        out string result,
+                        out EnchantAttachmentFailure attachmentFailure,
+                        out PrototypeConsumableFailure failure))
+                {
+                    message = result;
                     SaveRun(null);
                     return;
                 }
-                message = $"변이 주문서 사용 실패: {failure} / {attachmentFailure}";
+
+                message =
+                    $"변이 주문서 사용 실패: {failure} / {attachmentFailure}";
             }
         }
 
