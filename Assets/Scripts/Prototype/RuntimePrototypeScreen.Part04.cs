@@ -236,7 +236,7 @@ namespace HaveABreak.Cards
                 Array.Empty<string>(), 0);
             campaign = new RunCampaignState(Environment.TickCount & int.MaxValue);
             selectedUpgradeCardId = deck.Cards.FirstOrDefault()?.OwnedCardId;
-            battleActions.Reset();
+            battleScreen.Reset();
             deckSelection.Close();
             runPreparationCards = null;
             scroll = Vector2.zero;
@@ -257,17 +257,16 @@ namespace HaveABreak.Cards
             {
                 campaign = null;
                 progress = null;
+                battleScreen.Reset();
                 message = $"이어하기 실패: {failure}";
                 return;
             }
             selectedUpgradeCardId =
                 progress.OwnedCards.Cards.FirstOrDefault()?.OwnedCardId;
-            battleActions.Reset();
+            battleScreen.Reset();
             deckSelection.Close();
             scroll = Vector2.zero;
-            battleActions.Refresh(progress?.ActiveEncounter);
             message = $"이어하기 완료: {source}";
         }
-
     }
 }
