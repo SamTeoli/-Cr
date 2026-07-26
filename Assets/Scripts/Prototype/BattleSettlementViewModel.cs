@@ -241,7 +241,7 @@ namespace HaveABreak.Cards
             bool permanentRewardClaimed,
             string message)
         {
-            BattleVictoryRewardService rewards = context?.VictoryRewards;
+            var rewards = context?.VictoryRewards;
             return new BattleSettlementCommandResult(
                 true,
                 BattleSettlementCommandFailure.None,
@@ -278,7 +278,7 @@ namespace HaveABreak.Cards
             BattleVictoryPermanentRewardFailure permanentFailure =
                 BattleVictoryPermanentRewardFailure.None)
         {
-            BattleVictoryRewardService rewards = context?.VictoryRewards;
+            var rewards = context?.VictoryRewards;
             return new BattleSettlementCommandResult(
                 false,
                 failure,
