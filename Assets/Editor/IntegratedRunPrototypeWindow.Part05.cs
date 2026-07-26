@@ -18,7 +18,8 @@ namespace HaveABreak.EditorTools
 
             if (progress.HasActiveEncounter)
             {
-                if (!string.IsNullOrWhiteSpace(successMessage))
+                if (campaign.Phase == RunCampaignPhase.Battle &&
+                    !string.IsNullOrWhiteSpace(successMessage))
                 {
                     BattleStartCommandResult checkpoint = battleStart.TryStart(
                         campaign,
@@ -27,6 +28,11 @@ namespace HaveABreak.EditorTools
                     message = checkpoint.Succeeded
                         ? $"{successMessage} · {checkpoint.SaveDestination}"
                         : checkpoint.Message;
+                }
+                else if (!string.IsNullOrWhiteSpace(successMessage))
+                {
+                    message = "활성 조우가 완료되기 전에는 현재 진행을 " +
+                              "별도 저장하지 않습니다.";
                 }
                 return;
             }
