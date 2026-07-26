@@ -35,6 +35,7 @@ namespace HaveABreak.EditorTools
         private readonly RunShopViewModel shop = new();
         private readonly RunBattleRewardViewModel battleReward = new();
         private readonly RunConsumableViewModel runConsumables = new();
+        private readonly RunConsumableViewModel runConsumables = new();
         private RunOwnedCardState runPreparationCards;
 
         [MenuItem("Have a Break/Play Integrated Prototype")]

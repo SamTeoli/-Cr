@@ -282,6 +282,9 @@ namespace HaveABreak.Editor
                 "Run consumable ViewModel and mutation flow",
                 RunConsumableViewModelValidation.Validate);
             valid &= Run(
+                "Run consumable ViewModel and mutation flow",
+                RunConsumableViewModelValidation.Validate);
+            valid &= Run(
                 "Run shop ViewModel and transaction flow",
                 RunShopViewModelValidation.Validate);
             valid &= Run(

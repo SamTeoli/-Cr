@@ -30,6 +30,7 @@ namespace HaveABreak.Cards
         private readonly RunShopViewModel shop = new();
         private readonly RunBattleRewardViewModel battleReward = new();
         private readonly RunConsumableViewModel runConsumables = new();
+        private readonly RunConsumableViewModel runConsumables = new();
         private RunOwnedCardState runPreparationCards;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
