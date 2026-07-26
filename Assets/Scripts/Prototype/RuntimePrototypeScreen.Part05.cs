@@ -53,51 +53,6 @@ namespace HaveABreak.Cards
             SaveRun(null, true);
         }
 
-        private void SettleBattle()
-        {
-            BattleRuntimeEncounterContext context = progress.ActiveEncounter;
-            if (!RunEncounterProgressService.TrySettleActive(
-                    progress, out var progressFailure, out var flowFailure,
-                    out var sessionFailure, out var settlementFailure))
-            {
-                message = $"정산 실패: {progressFailure} / {flowFailure} / " +
-                          $"{sessionFailure} / {settlementFailure}";
-                return;
-            }
-            if (context.Settlement.SettledOutcome == BattleOutcome.Defeat)
-            {
-                RunEncounterProgressService.TryCompleteActive(progress, out _);
-                RunCampaignService.MarkBattleReward(campaign, BattleOutcome.Defeat);
-                message = "패배 정산 완료 · 런 종료";
-                SaveRun(null);
-                return;
-            }
-            if (!context.VictoryRewards.TryClaimGold(out var rewardFailure))
-            {
-                message = $"골드 보상 실패: {rewardFailure}";
-                return;
-            }
-            if (context.VictoryRewards.GrantsFinalBossPermanentReward)
-            {
-                if (!BattleVictoryPermanentRewardService.TryCreate(
-                        progress, out var permanent, out var createFailure))
-                {
-                    message = $"영구 보상 생성 실패: {createFailure}";
-                    return;
-                }
-                if (!permanent.TryClaim(
-                        "PERMANENT-FIRST-RUN-CLEAR", out var claimFailure))
-                {
-                    message = $"영구 보상 수령 실패: {claimFailure}";
-                    return;
-                }
-            }
-            RunCampaignService.MarkBattleReward(campaign, BattleOutcome.Victory);
-            message =
-                $"승리 정산 완료 · 골드 {context.VictoryRewards.GoldReward} 획득";
-            SaveRun(null);
-        }
-
         private RunCardInstance SelectedUpgradeCard()
         {
             RunCardInstance selected = progress?.OwnedCards?.Cards.FirstOrDefault(card =>
