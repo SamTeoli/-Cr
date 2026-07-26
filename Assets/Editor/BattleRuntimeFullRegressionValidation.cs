@@ -95,6 +95,9 @@ namespace HaveABreak.Editor
                 "Unified player card actions C01-C12",
                 BattleRuntimePlayerCardActionValidation.Validate);
             valid &= Run(
+                "Battle player action ViewModel and command flow",
+                BattlePlayerActionViewModelValidation.Validate);
+            valid &= Run(
                 "Player monster attacks",
                 BattleRuntimePlayerAttackValidation.Validate);
             valid &= Run(
