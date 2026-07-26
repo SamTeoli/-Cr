@@ -36,16 +36,20 @@ namespace HaveABreak.Editor
             bool startBoundary =
                 BattleStartSourceBoundaryValidation.Validate();
             bool start = BattleStartCommandFlowValidation.Validate();
+            bool lifecycleBoundary =
+                RunLifecycleSourceBoundaryValidation.Validate();
+            bool lifecycle = RunLifecycleViewModelValidation.Validate();
             bool valid = existing && screenBoundary && screen &&
                          settlementBoundary && settlement &&
-                         startBoundary && start;
+                         startBoundary && start &&
+                         lifecycleBoundary && lifecycle;
             if (valid)
             {
                 Debug.Log(
                     "Complete test harness with battle screen passed: " +
                     "existing runtime, source boundaries, value-type comparison " +
-                    "guard, display snapshot flow, settlement command flow, and " +
-                    "battle start checkpoint flow.");
+                    "guard, display snapshot flow, settlement command flow, " +
+                    "battle start checkpoint flow, and run lifecycle flow.");
             }
             else
             {
@@ -54,7 +58,8 @@ namespace HaveABreak.Editor
                     $"existing={existing}, screenBoundary={screenBoundary}, " +
                     $"screen={screen}, settlementBoundary={settlementBoundary}, " +
                     $"settlement={settlement}, startBoundary={startBoundary}, " +
-                    $"start={start}");
+                    $"start={start}, lifecycleBoundary={lifecycleBoundary}, " +
+                    $"lifecycle={lifecycle}");
             }
 
             return valid;
