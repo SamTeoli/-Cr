@@ -26,16 +26,25 @@ namespace HaveABreak.Editor
             "Assets/Editor/IntegratedRunPrototypeWindow.BattleStart.cs"
         };
 
-        private static readonly string[] CheckpointSavePaths =
+        private static readonly string[] ScreenSavePaths =
         {
             "Assets/Scripts/Prototype/RuntimePrototypeScreen.Part05.cs",
             "Assets/Editor/IntegratedRunPrototypeWindow.Part05.cs"
         };
 
+        private const string LifecyclePath =
+            "Assets/Scripts/Prototype/RunLifecycleViewModel.cs";
+
         private static readonly string[] ForbiddenConnectionDependencies =
         {
             "RunEncounterPoolService.TryResolve",
             "RunEncounterProgressService.TryBegin",
+            "IntegratedRunSaveService.TrySave"
+        };
+
+        private static readonly string[] ForbiddenScreenSaveDependencies =
+        {
+            "battleStart.TryStart(",
             "IntegratedRunSaveService.TrySave"
         };
 
@@ -110,28 +119,59 @@ namespace HaveABreak.Editor
                 }
             }
 
-            foreach (string path in CheckpointSavePaths)
+            if (!File.Exists(LifecyclePath))
+            {
+                Debug.LogError(
+                    $"Battle checkpoint lifecycle source is missing: {LifecyclePath}");
+                return false;
+            }
+
+            string lifecycleSource = File.ReadAllText(LifecyclePath);
+            if (!lifecycleSource.Contains(
+                    "progress.HasActiveEncounter",
+                    StringComparison.Ordinal) ||
+                !lifecycleSource.Contains(
+                    "battleStart.TryStart(",
+                    StringComparison.Ordinal) ||
+                !lifecycleSource.Contains(
+                    "string.IsNullOrWhiteSpace(successMessage)",
+                    StringComparison.Ordinal))
+            {
+                Debug.LogError(
+                    "Manual battle checkpoint retry is not connected through " +
+                    LifecyclePath);
+                return false;
+            }
+
+            foreach (string path in ScreenSavePaths)
             {
                 if (!File.Exists(path))
                 {
                     Debug.LogError(
-                        $"Battle checkpoint save source is missing: {path}");
+                        $"Battle checkpoint screen save source is missing: {path}");
                     return false;
                 }
 
                 string source = File.ReadAllText(path);
                 if (!source.Contains(
-                        "progress.HasActiveEncounter",
-                        StringComparison.Ordinal) ||
-                    !source.Contains(
-                        "battleStart.TryStart(",
-                        StringComparison.Ordinal) ||
-                    !source.Contains(
-                        "string.IsNullOrWhiteSpace(successMessage)",
+                        "runLifecycle.Save(",
                         StringComparison.Ordinal))
                 {
                     Debug.LogError(
-                        $"Manual battle checkpoint retry is not connected: {path}");
+                        $"Run lifecycle save connection is missing: {path}");
+                    return false;
+                }
+
+                foreach (string forbidden in ForbiddenScreenSaveDependencies)
+                {
+                    if (!source.Contains(forbidden, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    Debug.LogError(
+                        $"Direct checkpoint save dependency remains in {path}: " +
+                        forbidden);
                     return false;
                 }
             }
