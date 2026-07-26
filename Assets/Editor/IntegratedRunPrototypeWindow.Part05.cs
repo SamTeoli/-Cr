@@ -9,65 +9,6 @@ namespace HaveABreak.EditorTools
 {
     public sealed partial class IntegratedRunPrototypeWindow : EditorWindow
     {
-        private void SettleBattle()
-        {
-            BattleRuntimeEncounterContext context = progress.ActiveEncounter;
-            if (!RunEncounterProgressService.TrySettleActive(
-                    progress,
-                    out RunEncounterProgressFailure progressFailure,
-                    out BattleRuntimeEncounterFlowFailure flowFailure,
-                    out BattleRuntimeSessionFailure sessionFailure,
-                    out BattleSettlementFailure settlementFailure))
-            {
-                message =
-                    $"정산 실패: {progressFailure} / {flowFailure} / " +
-                    $"{sessionFailure} / {settlementFailure}";
-                return;
-            }
-
-            if (context.Settlement.SettledOutcome == BattleOutcome.Defeat)
-            {
-                RunEncounterProgressService.TryCompleteActive(progress, out _);
-                RunCampaignService.MarkBattleReward(
-                    campaign, BattleOutcome.Defeat);
-                message = "패배 정산 완료 · 런 종료";
-                SaveRun(null);
-                return;
-            }
-
-            if (!context.VictoryRewards.TryClaimGold(
-                    out BattleRewardFailure rewardFailure))
-            {
-                message = $"골드 보상 실패: {rewardFailure}";
-                return;
-            }
-
-            if (context.VictoryRewards.GrantsFinalBossPermanentReward)
-            {
-                if (!BattleVictoryPermanentRewardService.TryCreate(
-                        progress,
-                        out BattleVictoryPermanentRewardService permanent,
-                        out BattleVictoryPermanentRewardFailure createFailure))
-                {
-                    message = $"영구 보상 생성 실패: {createFailure}";
-                    return;
-                }
-
-                if (!permanent.TryClaim(
-                        "PERMANENT-FIRST-RUN-CLEAR",
-                        out BattleVictoryPermanentRewardFailure claimFailure))
-                {
-                    message = $"영구 보상 수령 실패: {claimFailure}";
-                    return;
-                }
-            }
-
-            RunCampaignService.MarkBattleReward(
-                campaign, BattleOutcome.Victory);
-            message =
-                $"승리 정산 완료 · 골드 {context.VictoryRewards.GoldReward} 획득";
-        }
-
         private void SaveRun(string successMessage)
         {
             if (campaign == null || progress == null)
