@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace HaveABreak.Cards
@@ -46,52 +45,36 @@ namespace HaveABreak.Cards
 
         private void DrawBattle()
         {
-            BattleRuntimeEncounterContext context = progress.ActiveEncounter;
-            BattleRuntimeSessionState session = context?.Session;
-            if (session?.Runtime == null)
+            BattleScreenSnapshot snapshot =
+                battleScreen.CreateSnapshot(progress, campaign);
+            if (!snapshot.Available)
             {
-                Notice("활성 전투를 찾을 수 없습니다.");
+                Notice(snapshot.ErrorText ?? "활성 전투를 찾을 수 없습니다.");
                 if (GUILayout.Button("전투 다시 시작")) BeginSelectedBattle();
                 return;
             }
 
-            battleActions.Refresh(context);
-            BattleRuntimeState runtime = session.Runtime;
-            GUILayout.Label(
-                $"{context.Encounter.DisplayName} · 턴 {runtime.Turn.PlayerTurnNumber}",
-                headingStyle);
-            GUILayout.Label(
-                $"HP {runtime.Player.CurrentHealth}/{runtime.Player.MaximumHealth}   " +
-                $"마력 {runtime.CardPlay.Mana.CurrentMana}/" +
-                $"{runtime.CardPlay.Mana.MaximumMana}   " +
-                $"단계 {runtime.Turn.Phase}   결과 {session.Outcome}");
-            GUILayout.Label(
-                $"드로우 {runtime.Deck.Zones.Count(CardZone.DrawPile)} · " +
-                $"묘지 {runtime.Deck.Zones.Count(CardZone.Graveyard)} · " +
-                $"소멸 {runtime.Deck.Zones.Count(CardZone.Banished)} · " +
-                $"설치 {runtime.Deck.Zones.Count(CardZone.SkillField)}/" +
-                $"{BattleCardZoneState.MaximumSkillFieldSize}");
-            string playerStatus = DescribeCommonStatus(runtime.Player.Status);
-            if (!string.IsNullOrWhiteSpace(playerStatus))
-                GUILayout.Label($"플레이어 {playerStatus}", wrappedStyle);
-            GUILayout.Label(
-                "전투 중 이어하기는 현재 전투의 시작 체크포인트에서 재개됩니다.",
-                wrappedStyle);
-            DrawBattleConsumables();
-            DrawEnemies(context);
-            DrawMonsters(context);
-            DrawInstalledCards(runtime);
-            DrawHand(context);
-            DrawRecentEvents(runtime);
+            GUILayout.Label(snapshot.TitleText, headingStyle);
+            GUILayout.Label(snapshot.PlayerSummaryText);
+            GUILayout.Label(snapshot.ZoneSummaryText);
+            if (!string.IsNullOrWhiteSpace(snapshot.PlayerStatusText))
+            {
+                GUILayout.Label(snapshot.PlayerStatusText, wrappedStyle);
+            }
+            GUILayout.Label(snapshot.CheckpointNoticeText, wrappedStyle);
+            DrawBattleConsumables(snapshot);
+            DrawEnemies(snapshot);
+            DrawMonsters(snapshot);
+            DrawInstalledCards(snapshot);
+            DrawHand(snapshot);
+            DrawRecentEvents(snapshot);
 
             bool previous = GUI.enabled;
-            GUI.enabled = !session.IsFinished;
+            GUI.enabled = snapshot.CanEndTurn;
             if (GUILayout.Button("턴 종료", GUILayout.Height(42f)))
             {
-                int tieBreaker = campaign.Seed +
-                                 context.Session.CompletedRoundCount * 10;
                 BattleEndTurnCommandResult command =
-                    battleActions.TryEndPlayerTurn(context, tieBreaker);
+                    battleScreen.TryEndPlayerTurn(progress, campaign);
                 message = command.Message;
                 if (command.Succeeded)
                 {
@@ -99,19 +82,18 @@ namespace HaveABreak.Cards
                 }
             }
             GUI.enabled = previous;
-            if (session.IsFinished &&
+            if (snapshot.CanSettle &&
                 GUILayout.Button("전투 정산", GUILayout.Height(44f)))
             {
                 SettleBattle();
             }
         }
 
-        private void DrawBattleConsumables()
+        private void DrawBattleConsumables(BattleScreenSnapshot snapshot)
         {
             GUILayout.Label("소모아이템");
             GUILayout.BeginHorizontal();
-            foreach (BattleConsumableActionOption option in
-                     battleActions.CreateConsumableOptions(progress))
+            foreach (BattleConsumableActionOption option in snapshot.Consumables)
             {
                 bool previous = GUI.enabled;
                 GUI.enabled = option.CanUse;
@@ -123,7 +105,7 @@ namespace HaveABreak.Cards
                 }
 
                 BattleConsumableCommandResult command =
-                    battleActions.TryUseConsumable(progress, option.ItemId);
+                    battleScreen.TryUseConsumable(progress, option.ItemId);
                 message = command.Message;
                 if (command.Succeeded)
                 {
@@ -133,76 +115,49 @@ namespace HaveABreak.Cards
             GUILayout.EndHorizontal();
         }
 
-        private void DrawInstalledCards(BattleRuntimeState runtime)
+        private void DrawInstalledCards(BattleScreenSnapshot snapshot)
         {
-            List<BattleCardInstance> installed =
-                runtime.Deck.Zones.GetCards(CardZone.SkillField);
-            GUILayout.Label($"설치 카드 ({installed.Count})", headingStyle);
-            if (installed.Count == 0)
+            GUILayout.Label(
+                $"설치 카드 ({snapshot.InstalledCards.Length})",
+                headingStyle);
+            if (snapshot.InstalledCards.Length == 0)
             {
                 GUILayout.Label("설치된 스킬·트랩·결계가 없습니다.");
                 return;
             }
 
             GUILayout.BeginHorizontal();
-            foreach (BattleCardInstance card in installed)
+            foreach (BattleInstalledCardDisplayOption option in
+                     snapshot.InstalledCards)
             {
-                bool isRegisteredTrap = runtime.TrapInstallations.Find(
-                    card.Ids.BattleCardId) != null;
                 GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(160f));
-                GUILayout.Label(
-                    $"{card.SourceCard.DisplayName}\n{card.SourceCard.CardType}" +
-                    (isRegisteredTrap ? " · 대기 중" : string.Empty),
-                    wrappedStyle);
+                GUILayout.Label(option.DisplayText, wrappedStyle);
                 GUILayout.EndVertical();
             }
             GUILayout.EndHorizontal();
         }
 
-        private void DrawEnemies(BattleRuntimeEncounterContext context)
+        private void DrawEnemies(BattleScreenSnapshot snapshot)
         {
-            Dictionary<string, string> intents = BuildEnemyIntentLabels(context);
-            BattleEnemyTargetOption[] targets =
-                battleActions.CreateEnemyTargets(context);
             GUILayout.Label("적 필드");
             GUILayout.BeginHorizontal();
-            foreach (EnemyFieldPosition position in
-                     Enum.GetValues(typeof(EnemyFieldPosition)))
+            foreach (BattleEnemyDisplayOption option in snapshot.Enemies)
             {
-                BattleEnemyTargetOption option = targets.FirstOrDefault(value =>
-                    value.Position == position);
                 GUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true));
-                if (option?.IsOccupied != true)
+                GUILayout.Label(option.DisplayText, wrappedStyle);
+                if (!string.IsNullOrWhiteSpace(option.StatusText))
                 {
-                    GUILayout.Label("빈 칸");
+                    GUILayout.Label(option.StatusText, wrappedStyle);
                 }
-                else
-                {
-                    BattleEnemyRuntimeState enemy = option.Enemy;
-                    string selection = option.IsSelected ? "▶ " : string.Empty;
-                    string nextIntent = intents.TryGetValue(
-                            option.EnemyId,
-                            out string intent)
-                        ? intent
-                        : "없음";
-                    GUILayout.Label(
-                        $"{selection}{option.DisplayName}\n" +
-                        $"HP {enemy.Vital.CurrentHealth}/{option.MaximumHealth} · " +
-                        $"공격 {enemy.Attack}\n" +
-                        $"다음 행동: {nextIntent}",
-                        wrappedStyle);
-                    string statusText = DescribeEnemyStatus(option.Status);
-                    if (!string.IsNullOrWhiteSpace(statusText))
-                    {
-                        GUILayout.Label(statusText, wrappedStyle);
-                    }
 
+                if (option.IsOccupied)
+                {
                     bool previous = GUI.enabled;
                     GUI.enabled = option.CanSelect;
                     if (GUILayout.Button(
                             option.IsSelected ? "선택됨" : "대상 선택"))
                     {
-                        battleActions.SelectEnemy(context, option.EnemyId);
+                        battleScreen.SelectEnemy(progress, option.EnemyId);
                     }
                     GUI.enabled = previous;
                 }
@@ -210,47 +165,5 @@ namespace HaveABreak.Cards
             }
             GUILayout.EndHorizontal();
         }
-
-        private Dictionary<string, string> BuildEnemyIntentLabels(
-            BattleRuntimeEncounterContext context)
-        {
-            Dictionary<string, List<string>> actions = new(
-                StringComparer.OrdinalIgnoreCase);
-            int tieBreaker = campaign.Seed +
-                             context.Session.CompletedRoundCount * 10;
-            if (!BattleRuntimeEnemyPatternService.TryCreateCommands(
-                    context.Session,
-                    context.Encounter,
-                    tieBreaker,
-                    out List<BattleRuntimeEnemyTurnCommand> commands,
-                    out _))
-            {
-                return new Dictionary<string, string>(
-                    StringComparer.OrdinalIgnoreCase);
-            }
-
-            foreach (BattleRuntimeEnemyTurnCommand command in commands)
-            {
-                if (command == null ||
-                    string.IsNullOrWhiteSpace(command.EnemyId))
-                {
-                    continue;
-                }
-
-                if (!actions.TryGetValue(command.EnemyId, out List<string> labels))
-                {
-                    labels = new List<string>();
-                    actions.Add(command.EnemyId, labels);
-                }
-
-                labels.Add(DescribeEnemyCommand(command));
-            }
-
-            return actions.ToDictionary(
-                pair => pair.Key,
-                pair => string.Join(" → ", pair.Value),
-                StringComparer.OrdinalIgnoreCase);
-        }
-
     }
 }
