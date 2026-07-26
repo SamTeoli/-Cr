@@ -172,10 +172,13 @@ namespace HaveABreak.Editor
                 IReadOnlyList<RunNodeChoice> choices =
                     RunCampaignService.GetChoices(campaign);
                 RunNodeChoice selected = SelectChoice(choices, visited);
-                if (selected == null || !RunCampaignService.TrySelectNode(
-                        campaign,
-                        selected.NodeId,
-                        out RunCampaignFailure selectFailure))
+                RunCampaignFailure selectFailure = RunCampaignFailure.None;
+                bool selectedNode = selected != null &&
+                                    RunCampaignService.TrySelectNode(
+                                        campaign,
+                                        selected.NodeId,
+                                        out selectFailure);
+                if (!selectedNode)
                 {
                     failure = $"planning node selection failed: {selectFailure}";
                     return false;
@@ -261,11 +264,14 @@ namespace HaveABreak.Editor
                         choice.NodeId,
                         planned.NodeId,
                         StringComparison.OrdinalIgnoreCase));
-                if (selected == null || selected.NodeType != planned.NodeType ||
-                    !RunCampaignService.TrySelectNode(
-                        campaign,
-                        selected.NodeId,
-                        out RunCampaignFailure selectFailure))
+                RunCampaignFailure selectFailure = RunCampaignFailure.None;
+                bool selectedNode = selected != null &&
+                                    selected.NodeType == planned.NodeType &&
+                                    RunCampaignService.TrySelectNode(
+                                        campaign,
+                                        selected.NodeId,
+                                        out selectFailure);
+                if (!selectedNode)
                 {
                     failure =
                         $"actual node selection failed at {planned.NodeId}: " +
@@ -656,15 +662,20 @@ namespace HaveABreak.Editor
                     RunBattleEnchantRewardOption option =
                         snapshot.EnchantOptions.FirstOrDefault(value =>
                             value != null && value.CanClaim);
-                    if (option == null || !rewards.TryClaimEnchant(
-                            campaign,
-                            progress,
-                            enchantDatabase,
-                            option.DefinitionId,
-                            out _,
-                            out _,
-                            out EnchantAttachmentFailure attachmentFailure,
-                            out BattleVictoryEnchantRewardFailure enchantFailure) ||
+                    EnchantAttachmentFailure attachmentFailure =
+                        EnchantAttachmentFailure.None;
+                    BattleVictoryEnchantRewardFailure enchantFailure =
+                        BattleVictoryEnchantRewardFailure.None;
+                    bool claimed = option != null && rewards.TryClaimEnchant(
+                        campaign,
+                        progress,
+                        enchantDatabase,
+                        option.DefinitionId,
+                        out _,
+                        out _,
+                        out attachmentFailure,
+                        out enchantFailure);
+                    if (!claimed ||
                         attachmentFailure != EnchantAttachmentFailure.None ||
                         enchantFailure !=
                             BattleVictoryEnchantRewardFailure.None)
@@ -684,15 +695,18 @@ namespace HaveABreak.Editor
                     RunBattleConsumableRewardOption option =
                         snapshot.ConsumableOptions.FirstOrDefault(value =>
                             value != null && value.CanClaim);
-                    if (option == null || !rewards.TryClaimConsumable(
-                            campaign,
-                            progress,
-                            option.ItemId,
-                            out _,
-                            out _,
-                            out BattleVictoryConsumableRewardFailure itemFailure) ||
-                        itemFailure !=
-                            BattleVictoryConsumableRewardFailure.None)
+                    BattleVictoryConsumableRewardFailure itemFailure =
+                        BattleVictoryConsumableRewardFailure.None;
+                    bool claimed = option != null &&
+                                   rewards.TryClaimConsumable(
+                                       campaign,
+                                       progress,
+                                       option.ItemId,
+                                       out _,
+                                       out _,
+                                       out itemFailure);
+                    if (!claimed || itemFailure !=
+                        BattleVictoryConsumableRewardFailure.None)
                     {
                         failure =
                             $"consumable reward claim failed: {itemFailure}";
@@ -703,16 +717,19 @@ namespace HaveABreak.Editor
                     continue;
                 }
 
-                if (!snapshot.CanComplete || !rewards.TryComplete(
-                        campaign,
-                        progress,
-                        out _,
-                        out RunEncounterProgressFailure completeFailure) ||
+                RunEncounterProgressFailure completeFailure =
+                    RunEncounterProgressFailure.None;
+                bool completed = snapshot.CanComplete && rewards.TryComplete(
+                    campaign,
+                    progress,
+                    out _,
+                    out completeFailure);
+                if (!completed ||
                     completeFailure != RunEncounterProgressFailure.None ||
                     progress.HasActiveEncounter ||
                     campaign.ActiveNode != null ||
-                    campaign.Phase != RunCampaignPhase.NodeSelection &&
-                    campaign.Phase != RunCampaignPhase.Completed)
+                    (campaign.Phase != RunCampaignPhase.NodeSelection &&
+                     campaign.Phase != RunCampaignPhase.Completed))
                 {
                     failure =
                         $"reward completion failed: canComplete=" +
@@ -738,6 +755,12 @@ namespace HaveABreak.Editor
             failure = null;
             IReadOnlyList<RunSituationEventChoice> choices =
                 RunCampaignService.GetSituationEventChoices(campaign);
+            if (choices == null || choices.Count == 0)
+            {
+                failure = $"{stage} event has no choices";
+                return false;
+            }
+
             RunCampaignFailure lastFailure = RunCampaignFailure.None;
             foreach (RunSituationEventChoice choice in choices
                          .Where(value => value != null)
