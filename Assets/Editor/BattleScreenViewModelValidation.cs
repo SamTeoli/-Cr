@@ -181,24 +181,37 @@ namespace HaveABreak.Editor
                     return false;
                 }
 
-                BattleConsumableActionOption item = afterAttack.Consumables
-                    .FirstOrDefault(option => option.CanUse);
-                if (item == null)
+                BattleConsumableCommandResult itemResult = null;
+                BattleConsumableActionOption usedItem = null;
+                foreach (BattleConsumableActionOption option in
+                         afterAttack.Consumables.Where(option => option.CanUse))
+                {
+                    BattleConsumableCommandResult attempt =
+                        viewModel.TryUseConsumable(progress, option.ItemId);
+                    if (!attempt.Succeeded)
+                    {
+                        continue;
+                    }
+
+                    itemResult = attempt;
+                    usedItem = option;
+                    break;
+                }
+
+                if (itemResult == null || usedItem == null)
                 {
                     return false;
                 }
 
-                BattleConsumableCommandResult itemResult =
-                    viewModel.TryUseConsumable(progress, item.ItemId);
                 BattleScreenSnapshot afterItem =
                     viewModel.CreateSnapshot(progress, campaign);
                 BattleConsumableActionOption consumed = afterItem.Consumables
                     .FirstOrDefault(option => string.Equals(
                         option.ItemId,
-                        item.ItemId,
+                        usedItem.ItemId,
                         StringComparison.OrdinalIgnoreCase));
-                if (!itemResult.Succeeded || consumed == null ||
-                    consumed.RemainingCount != 0 || consumed.CanUse)
+                if (consumed == null || consumed.RemainingCount != 0 ||
+                    consumed.CanUse)
                 {
                     return false;
                 }
