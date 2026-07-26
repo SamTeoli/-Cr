@@ -11,44 +11,14 @@ namespace HaveABreak.EditorTools
     {
         private void SaveRun(string successMessage)
         {
-            if (campaign == null || progress == null)
+            RunSaveCommandResult result = runLifecycle.Save(
+                campaign,
+                progress,
+                prototypeConfig,
+                successMessage);
+            if (!string.IsNullOrWhiteSpace(result.Message))
             {
-                return;
-            }
-
-            if (progress.HasActiveEncounter)
-            {
-                if (campaign.Phase == RunCampaignPhase.Battle &&
-                    !string.IsNullOrWhiteSpace(successMessage))
-                {
-                    BattleStartCommandResult checkpoint = battleStart.TryStart(
-                        campaign,
-                        progress,
-                        prototypeConfig);
-                    message = checkpoint.Succeeded
-                        ? $"{successMessage} · {checkpoint.SaveDestination}"
-                        : checkpoint.Message;
-                }
-                else if (!string.IsNullOrWhiteSpace(successMessage))
-                {
-                    message = "활성 조우가 완료되기 전에는 현재 진행을 " +
-                              "별도 저장하지 않습니다.";
-                }
-                return;
-            }
-
-            if (IntegratedRunSaveService.TrySave(
-                    campaign, progress, out RunSaveDestination destination,
-                    out RunCampaignFailure failure))
-            {
-                if (!string.IsNullOrWhiteSpace(successMessage))
-                {
-                    message = $"{successMessage} · {destination}";
-                }
-            }
-            else if (!string.IsNullOrWhiteSpace(successMessage))
-            {
-                message = $"저장 실패: {failure}";
+                message = result.Message;
             }
         }
 
@@ -70,16 +40,8 @@ namespace HaveABreak.EditorTools
 
         private void LoadPermanentRewards()
         {
-            if (PlayerPermanentRewardSaveService.TryLoadDefault(
-                    out PlayerPermanentRewardState loaded,
-                    out _, out _))
-            {
-                permanentRewards = loaded;
-            }
-            else
-            {
-                permanentRewards ??= new PlayerPermanentRewardState();
-            }
+            permanentRewards = runLifecycle.LoadPermanentRewards(
+                permanentRewards);
         }
 
         private bool DatabasesReady()
