@@ -282,6 +282,9 @@ namespace HaveABreak.Editor
                 "Run shop ViewModel and transaction flow",
                 RunShopViewModelValidation.Validate);
             valid &= Run(
+                "Run battle reward ViewModel and claim flow",
+                RunBattleRewardViewModelValidation.Validate);
+            valid &= Run(
                 "Run deck encounter flow integration",
                 BattleRuntimeRunDeckEncounterFlowValidation.Validate);
             valid &= Run(

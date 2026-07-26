@@ -317,20 +317,30 @@ namespace HaveABreak.Cards
             EnchantData enchant,
             BattleVictoryEnchantRewardService rewards)
         {
+            bool selected = rewards?.Claimed == true &&
+                            rewards.ClaimedEnchant != null &&
+                            rewards.ClaimedEnchant.MatchesDefinition(enchant);
+            if (rewards?.Claimed == true)
+            {
+                return new RunBattleEnchantRewardOption(
+                    enchant,
+                    null,
+                    -1,
+                    true,
+                    selected);
+            }
+
             TryFindEnchantTarget(
                 progress,
                 enchant,
                 out RunCardInstance target,
                 out int slotIndex);
-            bool selected = rewards?.Claimed == true &&
-                            rewards.ClaimedEnchant != null &&
-                            rewards.ClaimedEnchant.MatchesDefinition(enchant);
             return new RunBattleEnchantRewardOption(
                 enchant,
                 target,
                 slotIndex,
-                rewards?.Claimed == true,
-                selected);
+                false,
+                false);
         }
 
         private static bool EnsureEnchantRewards(

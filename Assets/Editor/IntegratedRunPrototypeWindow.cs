@@ -33,6 +33,7 @@ namespace HaveABreak.EditorTools
         private readonly RunSituationEventViewModel situationEvent = new();
         private readonly RunRestUpgradeViewModel restUpgrade = new();
         private readonly RunShopViewModel shop = new();
+        private readonly RunBattleRewardViewModel battleReward = new();
         private RunOwnedCardState runPreparationCards;
 
         [MenuItem("Have a Break/Play Integrated Prototype")]
@@ -797,74 +798,158 @@ namespace HaveABreak.EditorTools
 
         private void DrawRewards()
         {
-            BattleRuntimeEncounterContext context = progress.ActiveEncounter;
-            if (context == null || !context.Settlement.IsSettled)
+            RunBattleRewardSnapshot snapshot = battleReward.CreateSnapshot(
+                campaign,
+                progress,
+                enchantDatabase);
+            if (!snapshot.Available)
             {
-                EditorGUILayout.HelpBox("정산된 전투가 없습니다.", MessageType.Error);
+                EditorGUILayout.HelpBox(
+                    snapshot.ErrorText ?? "정산된 승리 전투가 없습니다.",
+                    MessageType.Error);
                 return;
             }
 
             EditorGUILayout.LabelField("전투 보상", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(snapshot.GoldLabel);
+            if (!string.IsNullOrWhiteSpace(snapshot.ErrorText))
+            {
+                EditorGUILayout.HelpBox(snapshot.ErrorText, MessageType.Error);
+            }
+            DrawEnchantRewardOptions(snapshot.EnchantOptions);
+            DrawConsumableRewardOptions(snapshot.ConsumableOptions);
+
+            using (new EditorGUI.DisabledScope(!snapshot.CanComplete))
+            {
+                if (GUILayout.Button(
+                        "보상 완료 · 다음 노드",
+                        GUILayout.Height(40f)))
+                {
+                    if (battleReward.TryComplete(
+                            campaign,
+                            progress,
+                            out string result,
+                            out RunEncounterProgressFailure failure))
+                    {
+                        message = result;
+                        SaveRun(null);
+                    }
+                    else
+                    {
+                        message = $"보상 미완료: {failure}";
+                    }
+                }
+            }
+            if (!snapshot.CanComplete &&
+                string.IsNullOrWhiteSpace(snapshot.ErrorText))
+            {
+                EditorGUILayout.HelpBox(
+                    "필수 보상을 모두 선택하면 다음 노드로 이동할 수 있습니다.",
+                    MessageType.Info);
+            }
+        }
+
+        private void DrawEnchantRewardOptions(
+            IEnumerable<RunBattleEnchantRewardOption> options)
+        {
+            RunBattleEnchantRewardOption[] snapshot = options?.ToArray() ??
+                Array.Empty<RunBattleEnchantRewardOption>();
+            if (snapshot.Length == 0)
+            {
+                return;
+            }
+
             EditorGUILayout.LabelField(
-                context.VictoryRewards.GoldClaimed
-                    ? $"골드 {context.VictoryRewards.GoldReward} 수령 완료"
-                    : $"골드 {context.VictoryRewards.GoldReward} 대기 중");
-
-            if (context.VictoryRewards.EnchantChoiceCount > 0)
+                "인첸트 보상",
+                EditorStyles.miniBoldLabel);
+            foreach (RunBattleEnchantRewardOption option in snapshot)
             {
-                EnsureEnchantRewards(context);
-                BattleVictoryEnchantRewardService rewards =
-                    context.VictoryEnchantRewards;
-                if (rewards != null && !rewards.Claimed)
+                EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+                string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
+                    ? string.Empty
+                    : $"\n장착 대상: {option.TargetLabel}";
+                string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                    ? string.Empty
+                    : $"\n{option.BlockReason}";
+                EditorGUILayout.LabelField(
+                    option.DisplayText + targetText + blockText,
+                    EditorStyles.wordWrappedLabel);
+                using (new EditorGUI.DisabledScope(!option.CanClaim))
                 {
-                    foreach (EnchantData enchant in rewards.OfferedChoices)
+                    if (GUILayout.Button(
+                            option.IsSelected ? "선택 완료" : "선택",
+                            GUILayout.Width(90f)))
                     {
-                        if (GUILayout.Button(
-                                $"{enchant.DisplayName} [{enchant.Rarity}]\n" +
-                                enchant.RulesText,
-                                GUILayout.MinHeight(42f)))
+                        if (battleReward.TryClaimEnchant(
+                                campaign,
+                                progress,
+                                enchantDatabase,
+                                option.DefinitionId,
+                                out _,
+                                out string result,
+                                out EnchantAttachmentFailure attachmentFailure,
+                                out BattleVictoryEnchantRewardFailure failure))
                         {
-                            ClaimEnchantReward(rewards, enchant);
+                            message = result;
+                            SaveRun(null);
+                        }
+                        else
+                        {
+                            message =
+                                $"보상 선택 실패: {failure} / {attachmentFailure}";
                         }
                     }
                 }
-                else if (rewards?.Claimed == true)
-                {
-                    EditorGUILayout.HelpBox(
-                        $"{rewards.ClaimedEnchant.DisplayName} 선택 완료",
-                        MessageType.Info);
-                }
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawConsumableRewardOptions(
+            IEnumerable<RunBattleConsumableRewardOption> options)
+        {
+            RunBattleConsumableRewardOption[] snapshot = options?.ToArray() ??
+                Array.Empty<RunBattleConsumableRewardOption>();
+            if (snapshot.Length == 0)
+            {
+                return;
             }
 
-            if (context.VictoryRewards.ConsumableItemRewardCount > 0)
+            EditorGUILayout.LabelField(
+                "소모아이템 보상",
+                EditorStyles.miniBoldLabel);
+            foreach (RunBattleConsumableRewardOption option in snapshot)
             {
-                EnsureConsumableRewards(context);
-                if (context.VictoryConsumableRewards != null &&
-                    !context.VictoryConsumableRewards.Claimed)
+                EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+                string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                    ? string.Empty
+                    : $"\n{option.BlockReason}";
+                EditorGUILayout.LabelField(
+                    option.DisplayText + blockText,
+                    EditorStyles.wordWrappedLabel);
+                using (new EditorGUI.DisabledScope(!option.CanClaim))
                 {
-                    foreach (ConsumableData item in
-                             PrototypeConsumableCatalog.All.Take(3))
+                    if (GUILayout.Button(
+                            option.IsSelected ? "수령 완료" : "받기",
+                            GUILayout.Width(90f)))
                     {
-                        if (GUILayout.Button($"{item.DisplayName} · {item.RulesText}"))
+                        if (battleReward.TryClaimConsumable(
+                                campaign,
+                                progress,
+                                option.ItemId,
+                                out _,
+                                out string result,
+                                out BattleVictoryConsumableRewardFailure failure))
                         {
-                            if (context.VictoryConsumableRewards.TryClaim(
-                                    item.ItemId,
-                                    out BattleVictoryConsumableRewardFailure failure))
-                            {
-                                message = $"{item.DisplayName} 보상 수령 완료.";
-                            }
-                            else
-                            {
-                                message = $"소모아이템 보상 실패: {failure}";
-                            }
+                            message = result;
+                            SaveRun(null);
+                        }
+                        else
+                        {
+                            message = $"소모아이템 보상 실패: {failure}";
                         }
                     }
                 }
-            }
-
-            if (GUILayout.Button("보상 완료 · 다음 노드", GUILayout.Height(40f)))
-            {
-                CompleteRewards();
+                EditorGUILayout.EndHorizontal();
             }
         }
 
@@ -1191,109 +1276,6 @@ namespace HaveABreak.EditorTools
                 campaign, BattleOutcome.Victory);
             message =
                 $"승리 정산 완료 · 골드 {context.VictoryRewards.GoldReward} 획득";
-        }
-
-        private void EnsureEnchantRewards(BattleRuntimeEncounterContext context)
-        {
-            if (context.VictoryEnchantRewards != null)
-            {
-                return;
-            }
-
-            List<EnchantData> choices = enchantDatabase.Enchants
-                .Where(enchant => enchant != null &&
-                    TryFindEnchantTarget(enchant, out _, out _))
-                .OrderByDescending(enchant =>
-                    (int)enchant.Rarity >=
-                    (int)context.VictoryRewards.MinimumGuaranteedEnchantRarity)
-                .ThenBy(enchant => enchant.DefinitionId)
-                .Take(context.VictoryRewards.EnchantChoiceCount)
-                .ToList();
-            if (!BattleVictoryEnchantRewardService.TryCreate(
-                    context, progress.RunDeck, choices,
-                    out _, out BattleVictoryEnchantRewardFailure failure))
-            {
-                message = $"인첸트 보상 생성 실패: {failure}";
-            }
-        }
-
-        private void ClaimEnchantReward(
-            BattleVictoryEnchantRewardService rewards,
-            EnchantData enchant)
-        {
-            if (!TryFindEnchantTarget(enchant,
-                    out RunCardInstance target, out int slot))
-            {
-                message = "장착 가능한 카드가 없습니다.";
-                return;
-            }
-
-            if (rewards.TryClaim(
-                    enchant.DefinitionId, target.OwnedCardId, slot,
-                    out EnchantAttachmentFailure attachmentFailure,
-                    out BattleVictoryEnchantRewardFailure failure))
-            {
-                message =
-                    $"{target.Card.DisplayName}에 {enchant.DisplayName} 장착.";
-            }
-            else
-            {
-                message = $"보상 선택 실패: {failure} / {attachmentFailure}";
-            }
-        }
-
-        private void EnsureConsumableRewards(
-            BattleRuntimeEncounterContext context)
-        {
-            if (context.VictoryConsumableRewards == null &&
-                !BattleVictoryConsumableRewardService.TryCreate(
-                    context, out _,
-                    out BattleVictoryConsumableRewardFailure failure))
-            {
-                message = $"소모아이템 보상 생성 실패: {failure}";
-            }
-        }
-
-        private void CompleteRewards()
-        {
-            if (!RunEncounterProgressService.TryCompleteActive(
-                    progress, out RunEncounterProgressFailure failure))
-            {
-                message = $"보상 미완료: {failure}";
-                return;
-            }
-
-            RunCampaignService.CompleteBattleReward(campaign);
-            message = "보상 완료 · 다음 노드를 선택하세요.";
-            SaveRun(null);
-        }
-
-        private bool TryFindEnchantTarget(
-            EnchantData enchant,
-            out RunCardInstance target,
-            out int slotIndex)
-        {
-            target = null;
-            slotIndex = -1;
-            if (enchant == null || progress?.OwnedCards == null)
-            {
-                return false;
-            }
-
-            foreach (RunCardInstance card in progress.OwnedCards.Cards)
-            {
-                for (int i = 0; i < card.Enchants.SlotCount; i++)
-                {
-                    if (card.Enchants.CanAttach(enchant, i, out _))
-                    {
-                        target = card;
-                        slotIndex = i;
-                        return true;
-                    }
-                }
-            }
-
-            return false;
         }
 
         private void SelectFirstEnemy()
