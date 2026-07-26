@@ -30,59 +30,32 @@ namespace HaveABreak.Cards
 
         private void SaveRun(string successMessage)
         {
-            if (campaign == null || progress == null) return;
-            if (progress.HasActiveEncounter)
+            RunSaveCommandResult result = runLifecycle.Save(
+                campaign,
+                progress,
+                config,
+                successMessage);
+            if (string.IsNullOrWhiteSpace(result.Message))
             {
-                if (campaign.Phase == RunCampaignPhase.Battle &&
-                    !string.IsNullOrWhiteSpace(successMessage))
-                {
-                    BattleStartCommandResult checkpoint = battleStart.TryStart(
-                        campaign,
-                        progress,
-                        config);
-                    message = checkpoint.Succeeded
-                        ? $"{successMessage} · {checkpoint.SaveDestination}"
-                        : checkpoint.Message;
-                }
-                else if (!string.IsNullOrWhiteSpace(successMessage))
-                {
-                    message = "활성 조우가 완료되기 전에는 현재 진행을 " +
-                              "별도 저장하지 않습니다.";
-                }
                 return;
             }
 
-            if (IntegratedRunSaveService.TrySave(
-                    campaign, progress, out var destination, out var failure))
+            if (!result.Succeeded &&
+                string.IsNullOrWhiteSpace(successMessage) &&
+                !string.IsNullOrWhiteSpace(message))
             {
-                if (!string.IsNullOrWhiteSpace(successMessage))
-                {
-                    message = $"{successMessage} · {destination}";
-                }
+                message += "\n" + result.Message;
             }
             else
             {
-                string prefix = string.IsNullOrWhiteSpace(message)
-                    ? string.Empty
-                    : message + "\n";
-                string label = string.IsNullOrWhiteSpace(successMessage)
-                    ? "자동 저장 실패"
-                    : "저장 실패";
-                message = $"{prefix}{label}: {failure}";
+                message = result.Message;
             }
         }
 
         private void LoadPermanentRewards()
         {
-            if (PlayerPermanentRewardSaveService.TryLoadDefault(
-                    out var loaded, out _, out _))
-            {
-                permanentRewards = loaded;
-            }
-            else
-            {
-                permanentRewards ??= new PlayerPermanentRewardState();
-            }
+            permanentRewards = runLifecycle.LoadPermanentRewards(
+                permanentRewards);
         }
 
         private void DrawMessage()
