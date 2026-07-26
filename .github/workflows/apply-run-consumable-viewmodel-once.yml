@@ -2,7 +2,7 @@ name: Apply run consumable ViewModel once
 
 on:
   pull_request:
-    types: [reopened]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: write
