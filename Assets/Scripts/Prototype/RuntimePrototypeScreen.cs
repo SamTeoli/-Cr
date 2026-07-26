@@ -7,13 +7,6 @@ namespace HaveABreak.Cards
 {
     public sealed partial class RuntimePrototypeScreen : MonoBehaviour
     {
-        private enum PendingRunAction
-        {
-            None,
-            StartNewRun,
-            ContinueRun
-        }
-
         private RuntimePrototypeConfig config;
         private RunCampaignState campaign;
         private RunEncounterProgressState progress;
@@ -29,16 +22,18 @@ namespace HaveABreak.Cards
         private readonly RunBattleRewardViewModel battleReward = new();
         private readonly RunConsumableViewModel runConsumables = new();
         private readonly BattleScreenViewModel battleScreen = new();
+        private readonly RunLifecycleViewModel runLifecycle = new();
         private RunOwnedCardState runPreparationCards;
         private GUIStyle titleStyle;
         private GUIStyle headingStyle;
         private GUIStyle wrappedStyle;
-        private PendingRunAction pendingRunAction;
+        private RunLifecycleRequest pendingRunRequest;
 
         public void Initialize(RuntimePrototypeConfig value)
         {
             config = value;
-            LoadPermanentRewards();
+            permanentRewards = runLifecycle.LoadPermanentRewards(
+                permanentRewards);
         }
 
         private void OnGUI()
@@ -54,7 +49,7 @@ namespace HaveABreak.Cards
             GUILayout.BeginArea(new Rect(
                 panel.x + 12f, panel.y + 10f,
                 panel.width - 24f, panel.height - 20f));
-            if (pendingRunAction != PendingRunAction.None)
+            if (pendingRunRequest?.ConfirmationRequired == true)
             {
                 DrawRunActionConfirmation();
                 GUILayout.EndArea();
