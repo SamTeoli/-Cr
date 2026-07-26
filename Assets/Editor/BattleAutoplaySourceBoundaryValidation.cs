@@ -53,20 +53,30 @@ namespace HaveABreak.Editor
             }
 
             string autoplay = File.ReadAllText(Paths[0]);
+            string[] requiredConnections =
+            {
+                "BattleScreenViewModel battleScreen",
+                "battleScreen.TryPlayCard(",
+                "battleScreen.TryAttack(",
+                "battleScreen.TryEndPlayerTurn(",
+                "HashSet<string> attackedThisTurn",
+                "attackedThisTurn.Contains(value.BattleCardId)",
+                "attackedThisTurn.Add(attacker.BattleCardId)"
+            };
+            foreach (string required in requiredConnections)
+            {
+                if (autoplay.Contains(required, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                Debug.LogError(
+                    $"Battle autoplay command connection is missing: {required}");
+                return false;
+            }
+
             string fullRun = File.ReadAllText(Paths[1]);
-            if (!autoplay.Contains(
-                    "BattleScreenViewModel battleScreen",
-                    StringComparison.Ordinal) ||
-                !autoplay.Contains(
-                    "battleScreen.TryPlayCard(",
-                    StringComparison.Ordinal) ||
-                !autoplay.Contains(
-                    "battleScreen.TryAttack(",
-                    StringComparison.Ordinal) ||
-                !autoplay.Contains(
-                    "battleScreen.TryEndPlayerTurn(",
-                    StringComparison.Ordinal) ||
-                !fullRun.Contains(
+            if (!fullRun.Contains(
                     "BattleAutoplayViewModel autoplay",
                     StringComparison.Ordinal) ||
                 !fullRun.Contains(
@@ -74,7 +84,7 @@ namespace HaveABreak.Editor
                     StringComparison.Ordinal))
             {
                 Debug.LogError(
-                    "Battle autoplay player-action command connection is invalid.");
+                    "Player-action full run is not connected to battle autoplay.");
                 return false;
             }
 
