@@ -28,15 +28,20 @@ namespace HaveABreak.Cards
                 cards[(index + 1 + cards.Count) % cards.Count].OwnedCardId;
         }
 
-        private void SaveRun(string successMessage, bool forceActive = false)
+        private void SaveRun(string successMessage)
         {
             if (campaign == null || progress == null) return;
-            if (progress.HasActiveEncounter && !forceActive)
+            if (progress.HasActiveEncounter)
             {
                 if (!string.IsNullOrWhiteSpace(successMessage))
                 {
-                    message = "전투 시작 체크포인트가 이미 저장되어 있습니다. " +
-                              "이어하기 시 현재 전투를 처음부터 다시 시작합니다.";
+                    BattleStartCommandResult checkpoint = battleStart.TryStart(
+                        campaign,
+                        progress,
+                        config);
+                    message = checkpoint.Succeeded
+                        ? $"{successMessage} · {checkpoint.SaveDestination}"
+                        : checkpoint.Message;
                 }
                 return;
             }
