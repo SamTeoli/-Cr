@@ -88,12 +88,13 @@ namespace HaveABreak.EditorTools
 
         private void DrawBattle()
         {
-            BattleRuntimeEncounterContext context = progress.ActiveEncounter;
-            BattleRuntimeSessionState session = context?.Session;
-            if (session?.Runtime == null)
+            BattleScreenSnapshot snapshot =
+                battleScreen.CreateSnapshot(progress, campaign);
+            if (!snapshot.Available)
             {
                 EditorGUILayout.HelpBox(
-                    "활성 전투를 찾을 수 없습니다.", MessageType.Error);
+                    snapshot.ErrorText ?? "활성 전투를 찾을 수 없습니다.",
+                    MessageType.Error);
                 if (GUILayout.Button("전투 다시 시작"))
                 {
                     BeginSelectedBattle();
@@ -101,28 +102,31 @@ namespace HaveABreak.EditorTools
                 return;
             }
 
-            battleActions.Refresh(context);
-            BattleRuntimeState runtime = session.Runtime;
             EditorGUILayout.LabelField(
-                $"{context.Encounter.DisplayName} · 턴 {runtime.Turn.PlayerTurnNumber}",
+                snapshot.TitleText,
                 EditorStyles.boldLabel);
-            EditorGUILayout.LabelField(
-                $"HP {runtime.Player.CurrentHealth}/{runtime.Player.MaximumHealth}    " +
-                $"마력 {runtime.CardPlay.Mana.CurrentMana}/" +
-                $"{runtime.CardPlay.Mana.MaximumMana}    결과 {session.Outcome}");
-            DrawBattleConsumables();
-            DrawBattleEnemies(context);
-            DrawBattleMonsters(context);
-            DrawBattleHand(context);
+            EditorGUILayout.LabelField(snapshot.PlayerSummaryText);
+            EditorGUILayout.LabelField(snapshot.ZoneSummaryText);
+            if (!string.IsNullOrWhiteSpace(snapshot.PlayerStatusText))
+            {
+                EditorGUILayout.LabelField(
+                    snapshot.PlayerStatusText,
+                    EditorStyles.wordWrappedLabel);
+            }
+            EditorGUILayout.HelpBox(
+                snapshot.CheckpointNoticeText,
+                MessageType.Info);
+            DrawBattleConsumables(snapshot);
+            DrawBattleEnemies(snapshot);
+            DrawBattleMonsters(snapshot);
+            DrawBattleHand(snapshot);
 
-            using (new EditorGUI.DisabledScope(session.IsFinished))
+            using (new EditorGUI.DisabledScope(!snapshot.CanEndTurn))
             {
                 if (GUILayout.Button("턴 종료", GUILayout.Height(36f)))
                 {
-                    int tieBreaker = campaign.Seed +
-                                     context.Session.CompletedRoundCount * 10;
                     BattleEndTurnCommandResult command =
-                        battleActions.TryEndPlayerTurn(context, tieBreaker);
+                        battleScreen.TryEndPlayerTurn(progress, campaign);
                     message = command.Message;
                     if (command.Succeeded)
                     {
@@ -131,11 +135,11 @@ namespace HaveABreak.EditorTools
                 }
             }
 
-            if (session.IsFinished)
+            if (snapshot.CanSettle)
             {
                 EditorGUILayout.HelpBox(
-                    $"전투 종료: {session.Outcome}. 정산을 진행하세요.",
-                    session.Outcome == BattleOutcome.Victory
+                    snapshot.FinishedText,
+                    snapshot.Outcome == BattleOutcome.Victory
                         ? MessageType.Info
                         : MessageType.Error);
                 if (GUILayout.Button("전투 정산", GUILayout.Height(38f)))
@@ -145,21 +149,20 @@ namespace HaveABreak.EditorTools
             }
         }
 
-        private void DrawBattleConsumables()
+        private void DrawBattleConsumables(BattleScreenSnapshot snapshot)
         {
             EditorGUILayout.LabelField(
                 "소모아이템",
                 EditorStyles.miniBoldLabel);
             EditorGUILayout.BeginHorizontal();
-            foreach (BattleConsumableActionOption option in
-                     battleActions.CreateConsumableOptions(progress))
+            foreach (BattleConsumableActionOption option in snapshot.Consumables)
             {
                 using (new EditorGUI.DisabledScope(!option.CanUse))
                 {
                     if (GUILayout.Button(option.DisplayLabel))
                     {
                         BattleConsumableCommandResult command =
-                            battleActions.TryUseConsumable(
+                            battleScreen.TryUseConsumable(
                                 progress,
                                 option.ItemId);
                         message = command.Message;
@@ -173,43 +176,33 @@ namespace HaveABreak.EditorTools
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawBattleEnemies(BattleRuntimeEncounterContext context)
+        private void DrawBattleEnemies(BattleScreenSnapshot snapshot)
         {
-            BattleEnemyTargetOption[] targets =
-                battleActions.CreateEnemyTargets(context);
             EditorGUILayout.LabelField(
                 "적 필드",
                 EditorStyles.miniBoldLabel);
             EditorGUILayout.BeginHorizontal();
-            foreach (EnemyFieldPosition position in
-                     Enum.GetValues(typeof(EnemyFieldPosition)))
+            foreach (BattleEnemyDisplayOption option in snapshot.Enemies)
             {
-                BattleEnemyTargetOption option = targets.FirstOrDefault(value =>
-                    value.Position == position);
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                if (option?.IsOccupied != true)
+                EditorGUILayout.LabelField(
+                    option.DisplayText,
+                    EditorStyles.wordWrappedLabel);
+                if (!string.IsNullOrWhiteSpace(option.StatusText))
                 {
-                    EditorGUILayout.LabelField("빈 칸");
-                }
-                else
-                {
-                    BattleEnemyRuntimeState enemy = option.Enemy;
-                    BattleEnemyStatusState status = option.Status;
                     EditorGUILayout.LabelField(
-                        $"{option.DisplayName}\n" +
-                        $"HP {enemy.Vital.CurrentHealth}/{option.MaximumHealth} · " +
-                        $"공격 {enemy.Attack}\n" +
-                        $"부상 {status?.Injury ?? 0} 약화 {status?.Weaken ?? 0} " +
-                        $"취약 {status?.Vulnerable ?? 0} 속박 {status?.Bind ?? 0} " +
-                        $"기절 {status?.Stun ?? 0}",
+                        option.StatusText,
                         EditorStyles.wordWrappedLabel);
+                }
+                if (option.IsOccupied)
+                {
                     using (new EditorGUI.DisabledScope(!option.CanSelect))
                     {
                         if (GUILayout.Button(
                                 option.IsSelected ? "선택됨" : "대상 선택"))
                         {
-                            battleActions.SelectEnemy(
-                                context,
+                            battleScreen.SelectEnemy(
+                                progress,
                                 option.EnemyId);
                         }
                     }
@@ -218,6 +211,5 @@ namespace HaveABreak.EditorTools
             }
             EditorGUILayout.EndHorizontal();
         }
-
     }
 }
