@@ -187,59 +187,5 @@ namespace HaveABreak.EditorTools
             battleScreen.Reset();
             message = $"이어하기 완료: {source}";
         }
-
-        private void BeginSelectedBattle()
-        {
-            BattleEncounterGrade grade = campaign.ActiveNode.NodeType switch
-            {
-                RunNodeType.EliteBattle => BattleEncounterGrade.Elite,
-                RunNodeType.MidBoss => BattleEncounterGrade.MidBoss,
-                RunNodeType.FinalBoss => BattleEncounterGrade.FinalBoss,
-                _ => BattleEncounterGrade.Normal
-            };
-            int selectionSeed = campaign.Seed +
-                                campaign.CompletedNodeCount * 1009;
-            if (!RunEncounterPoolService.TryResolve(
-                    encounterDatabase, prototypeConfig.GetEncounterPool(
-                        grade, campaign.CompletedNodeCount),
-                    grade, selectionSeed, out EncounterData encounter,
-                    out string poolError))
-            {
-                message = $"조우 선택 실패: {poolError}";
-                return;
-            }
-
-            string battleId =
-                $"RUN-{campaign.Seed}-NODE-{campaign.CompletedNodeCount + 1:00}";
-            int seed = campaign.Seed + campaign.CompletedNodeCount * 101;
-            if (!RunEncounterProgressService.TryBegin(
-                    progress, battleId, encounter, seed,
-                    prototypeConfig.RunStartProgressionConfig.BattleMaximumMana,
-                    Array.Empty<string>(), (uint)Mathf.Abs(seed),
-                    prototypeConfig.BattleRewardConfig,
-                    out _,
-                    out RunEncounterProgressFailure failure,
-                    out BattleRuntimeEncounterFlowFailure flowFailure,
-                    out RunDeckFailure deckFailure,
-                    out BattleRuntimeBootstrapFailure bootstrapFailure,
-                    out BattleRuntimeSessionFailure sessionFailure,
-                    out StartingHandRedrawFailure redrawFailure,
-                    out BattleTurnFailure turnFailure,
-                    out List<string> validationErrors))
-            {
-                message =
-                    $"전투 시작 실패: {failure} / {flowFailure} / {deckFailure} / " +
-                    $"{bootstrapFailure} / {sessionFailure} / {redrawFailure} / " +
-                    $"{turnFailure}" +
-                    (validationErrors.Count == 0
-                        ? string.Empty
-                        : $"\n{string.Join("\n", validationErrors)}");
-                return;
-            }
-
-            battleScreen.Reset();
-            message = $"{campaign.ActiveNode.DisplayName} 전투 시작.";
-            SaveRun(null);
-        }
     }
 }
