@@ -1,15 +1,18 @@
 name: Apply run consumable ViewModel once
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.head_ref == 'agent/deck-selection-viewmodel'
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.issue.number == 83 &&
+      github.event.comment.body == '/apply-run-consumable-viewmodel'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
