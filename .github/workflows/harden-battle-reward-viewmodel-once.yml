@@ -22,12 +22,29 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           def replace_exact(text, old, new, label):
               count = text.count(old)
               if count != 1:
                   raise RuntimeError(f"{label}: expected one match, found {count}")
               return text.replace(old, new, 1)
+
+          def replace_consumable_button(text, label):
+              pattern = re.compile(
+                  r'^(\s*)option\.IsSelected \? "수령 완료" : "받기",$',
+                  re.MULTILINE)
+              matches = list(pattern.finditer(text))
+              if len(matches) != 1:
+                  raise RuntimeError(
+                      f"{label}: expected one match, found {len(matches)}")
+              match = matches[0]
+              indent = match.group(1)
+              replacement = (
+                  f'{indent}option.RewardClaimed && option.IsSelected\n'
+                  f'{indent}    ? "수령 완료"\n'
+                  f'{indent}    : "받기",')
+              return text[:match.start()] + replacement + text[match.end():]
 
           view_model_path = Path(
               "Assets/Scripts/Prototype/RunBattleRewardViewModel.cs")
@@ -48,24 +65,16 @@ jobs:
           runtime_path = Path(
               "Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
           runtime = runtime_path.read_text(encoding="utf-8")
-          runtime = replace_exact(
+          runtime = replace_consumable_button(
               runtime,
-              '                        option.IsSelected ? "수령 완료" : "받기",\n',
-              '                        option.RewardClaimed && option.IsSelected\n'
-              '                            ? "수령 완료"\n'
-              '                            : "받기",\n',
               "runtime consumable button state")
           runtime_path.write_text(runtime, encoding="utf-8")
 
           editor_path = Path(
               "Assets/Editor/IntegratedRunPrototypeWindow.cs")
           editor = editor_path.read_text(encoding="utf-8")
-          editor = replace_exact(
+          editor = replace_consumable_button(
               editor,
-              '                              option.IsSelected ? "수령 완료" : "받기",\n',
-              '                              option.RewardClaimed && option.IsSelected\n'
-              '                                  ? "수령 완료"\n'
-              '                                  : "받기",\n',
               "editor consumable button state")
           editor_path.write_text(editor, encoding="utf-8")
 
