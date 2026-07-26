@@ -95,6 +95,9 @@ namespace HaveABreak.Editor
                 "Unified player card actions C01-C12",
                 BattleRuntimePlayerCardActionValidation.Validate);
             valid &= Run(
+                "Battle player action ViewModel and command flow",
+                BattlePlayerActionViewModelValidation.Validate);
+            valid &= Run(
                 "Player monster attacks",
                 BattleRuntimePlayerAttackValidation.Validate);
             valid &= Run(
@@ -269,6 +272,24 @@ namespace HaveABreak.Editor
             valid &= Run(
                 "New run deck preparation and atomic editing rules",
                 RunDeckEditingValidation.Validate);
+            valid &= Run(
+                "Run node selection ViewModel and command flow",
+                RunNodeSelectionViewModelValidation.Validate);
+            valid &= Run(
+                "Run situation event ViewModel and resolution flow",
+                RunSituationEventViewModelValidation.Validate);
+            valid &= Run(
+                "Run rest upgrade ViewModel and command flow",
+                RunRestUpgradeViewModelValidation.Validate);
+            valid &= Run(
+                "Run consumable ViewModel and mutation flow",
+                RunConsumableViewModelValidation.Validate);
+            valid &= Run(
+                "Run shop ViewModel and transaction flow",
+                RunShopViewModelValidation.Validate);
+            valid &= Run(
+                "Run battle reward ViewModel and claim flow",
+                RunBattleRewardViewModelValidation.Validate);
             valid &= Run(
                 "Run deck encounter flow integration",
                 BattleRuntimeRunDeckEncounterFlowValidation.Validate);
