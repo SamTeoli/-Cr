@@ -1,0 +1,471 @@
+name: Apply battle reward ViewModel once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/deck-selection-viewmodel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/deck-selection-viewmodel
+          fetch-depth: 0
+
+      - name: Connect battle reward ViewModel
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import textwrap
+
+          def replace_exact(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          def format_methods(value):
+              return textwrap.indent(textwrap.dedent(value).strip(), "        ")
+
+          def method_range(text, name):
+              pattern = re.compile(
+                  rf"^        private (?:static )?[^\n]+\s{name}\(",
+                  re.MULTILINE)
+              match = pattern.search(text)
+              if match is None:
+                  raise RuntimeError(f"method not found: {name}")
+              next_match = re.search(
+                  r"^        private ",
+                  text[match.end():],
+                  re.MULTILINE)
+              end = len(text) if next_match is None else match.end() + next_match.start()
+              return match.start(), end
+
+          def replace_method(text, name, replacement):
+              start, end = method_range(text, name)
+              return text[:start] + format_methods(replacement) + "\n\n" + text[end:]
+
+          def remove_method(text, name):
+              start, end = method_range(text, name)
+              return text[:start] + text[end:]
+
+          view_model_path = Path(
+              "Assets/Scripts/Prototype/RunBattleRewardViewModel.cs")
+          view_model = view_model_path.read_text(encoding="utf-8")
+          view_model = replace_method(view_model, "CreateEnchantOption", r'''
+          private static RunBattleEnchantRewardOption CreateEnchantOption(
+              RunEncounterProgressState progress,
+              EnchantData enchant,
+              BattleVictoryEnchantRewardService rewards)
+          {
+              bool selected = rewards?.Claimed == true &&
+                              rewards.ClaimedEnchant != null &&
+                              rewards.ClaimedEnchant.MatchesDefinition(enchant);
+              if (rewards?.Claimed == true)
+              {
+                  return new RunBattleEnchantRewardOption(
+                      enchant,
+                      null,
+                      -1,
+                      true,
+                      selected);
+              }
+
+              TryFindEnchantTarget(
+                  progress,
+                  enchant,
+                  out RunCardInstance target,
+                  out int slotIndex);
+              return new RunBattleEnchantRewardOption(
+                  enchant,
+                  target,
+                  slotIndex,
+                  false,
+                  false);
+          }
+          ''')
+          view_model_path.write_text(view_model, encoding="utf-8")
+
+          runtime_path = Path(
+              "Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          runtime = replace_exact(
+              runtime,
+              "        private readonly RunShopViewModel shop = new();\n",
+              "        private readonly RunShopViewModel shop = new();\n"
+              "        private readonly RunBattleRewardViewModel battleReward = new();\n",
+              "runtime reward field")
+          runtime = replace_method(runtime, "DrawRewards", r'''
+          private void DrawRewards()
+          {
+              RunBattleRewardSnapshot snapshot = battleReward.CreateSnapshot(
+                  campaign,
+                  progress,
+                  config.EnchantDatabase);
+              if (!snapshot.Available)
+              {
+                  Notice(snapshot.ErrorText ?? "정산된 승리 전투가 없습니다.");
+                  return;
+              }
+
+              GUILayout.Label("전투 보상", headingStyle);
+              GUILayout.Label(snapshot.GoldLabel);
+              if (!string.IsNullOrWhiteSpace(snapshot.ErrorText))
+              {
+                  Notice(snapshot.ErrorText);
+              }
+              DrawEnchantRewardOptions(snapshot.EnchantOptions);
+              DrawConsumableRewardOptions(snapshot.ConsumableOptions);
+
+              bool previous = GUI.enabled;
+              GUI.enabled = snapshot.CanComplete;
+              if (GUILayout.Button(
+                      "보상 완료 · 다음 노드",
+                      GUILayout.Height(46f)))
+              {
+                  if (battleReward.TryComplete(
+                          campaign,
+                          progress,
+                          out string result,
+                          out RunEncounterProgressFailure failure))
+                  {
+                      message = result;
+                      SaveRun(null);
+                  }
+                  else
+                  {
+                      message = $"보상 미완료: {failure}";
+                  }
+              }
+              GUI.enabled = previous;
+              if (!snapshot.CanComplete &&
+                  string.IsNullOrWhiteSpace(snapshot.ErrorText))
+              {
+                  GUILayout.Label(
+                      "필수 보상을 모두 선택하면 다음 노드로 이동할 수 있습니다.",
+                      wrappedStyle);
+              }
+          }
+
+          private void DrawEnchantRewardOptions(
+              IEnumerable<RunBattleEnchantRewardOption> options)
+          {
+              RunBattleEnchantRewardOption[] snapshot = options?.ToArray() ??
+                  Array.Empty<RunBattleEnchantRewardOption>();
+              if (snapshot.Length == 0)
+              {
+                  return;
+              }
+
+              GUILayout.Label("인첸트 보상", headingStyle);
+              foreach (RunBattleEnchantRewardOption option in snapshot)
+              {
+                  GUILayout.BeginHorizontal(GUI.skin.box);
+                  string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
+                      ? string.Empty
+                      : $"\n장착 대상: {option.TargetLabel}";
+                  string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                      ? string.Empty
+                      : $"\n{option.BlockReason}";
+                  GUILayout.Label(
+                      option.DisplayText + targetText + blockText,
+                      wrappedStyle);
+                  bool previous = GUI.enabled;
+                  GUI.enabled = option.CanClaim;
+                  if (GUILayout.Button(
+                          option.IsSelected ? "선택 완료" : "선택",
+                          GUILayout.Width(90f)))
+                  {
+                      if (battleReward.TryClaimEnchant(
+                              campaign,
+                              progress,
+                              config.EnchantDatabase,
+                              option.DefinitionId,
+                              out _,
+                              out string result,
+                              out EnchantAttachmentFailure attachmentFailure,
+                              out BattleVictoryEnchantRewardFailure failure))
+                      {
+                          message = result;
+                          SaveRun(null);
+                      }
+                      else
+                      {
+                          message =
+                              $"보상 선택 실패: {failure} / {attachmentFailure}";
+                      }
+                  }
+                  GUI.enabled = previous;
+                  GUILayout.EndHorizontal();
+              }
+          }
+
+          private void DrawConsumableRewardOptions(
+              IEnumerable<RunBattleConsumableRewardOption> options)
+          {
+              RunBattleConsumableRewardOption[] snapshot = options?.ToArray() ??
+                  Array.Empty<RunBattleConsumableRewardOption>();
+              if (snapshot.Length == 0)
+              {
+                  return;
+              }
+
+              GUILayout.Label("소모아이템 보상", headingStyle);
+              foreach (RunBattleConsumableRewardOption option in snapshot)
+              {
+                  GUILayout.BeginHorizontal(GUI.skin.box);
+                  string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                      ? string.Empty
+                      : $"\n{option.BlockReason}";
+                  GUILayout.Label(
+                      option.DisplayText + blockText,
+                      wrappedStyle);
+                  bool previous = GUI.enabled;
+                  GUI.enabled = option.CanClaim;
+                  if (GUILayout.Button(
+                          option.IsSelected ? "수령 완료" : "받기",
+                          GUILayout.Width(90f)))
+                  {
+                      if (battleReward.TryClaimConsumable(
+                              campaign,
+                              progress,
+                              option.ItemId,
+                              out _,
+                              out string result,
+                              out BattleVictoryConsumableRewardFailure failure))
+                      {
+                          message = result;
+                          SaveRun(null);
+                      }
+                      else
+                      {
+                          message = $"소모아이템 보상 실패: {failure}";
+                      }
+                  }
+                  GUI.enabled = previous;
+                  GUILayout.EndHorizontal();
+              }
+          }
+          ''')
+          for name in (
+              "EnsureEnchantRewards",
+              "ClaimEnchantReward",
+              "EnsureConsumableRewards",
+              "CompleteRewards",
+              "TryFindEnchantTarget"):
+              runtime = remove_method(runtime, name)
+          runtime_path.write_text(runtime, encoding="utf-8")
+
+          editor_path = Path(
+              "Assets/Editor/IntegratedRunPrototypeWindow.cs")
+          editor = editor_path.read_text(encoding="utf-8")
+          editor = replace_exact(
+              editor,
+              "        private readonly RunShopViewModel shop = new();\n",
+              "        private readonly RunShopViewModel shop = new();\n"
+              "        private readonly RunBattleRewardViewModel battleReward = new();\n",
+              "editor reward field")
+          editor = replace_method(editor, "DrawRewards", r'''
+          private void DrawRewards()
+          {
+              RunBattleRewardSnapshot snapshot = battleReward.CreateSnapshot(
+                  campaign,
+                  progress,
+                  enchantDatabase);
+              if (!snapshot.Available)
+              {
+                  EditorGUILayout.HelpBox(
+                      snapshot.ErrorText ?? "정산된 승리 전투가 없습니다.",
+                      MessageType.Error);
+                  return;
+              }
+
+              EditorGUILayout.LabelField("전투 보상", EditorStyles.boldLabel);
+              EditorGUILayout.LabelField(snapshot.GoldLabel);
+              if (!string.IsNullOrWhiteSpace(snapshot.ErrorText))
+              {
+                  EditorGUILayout.HelpBox(snapshot.ErrorText, MessageType.Error);
+              }
+              DrawEnchantRewardOptions(snapshot.EnchantOptions);
+              DrawConsumableRewardOptions(snapshot.ConsumableOptions);
+
+              using (new EditorGUI.DisabledScope(!snapshot.CanComplete))
+              {
+                  if (GUILayout.Button(
+                          "보상 완료 · 다음 노드",
+                          GUILayout.Height(40f)))
+                  {
+                      if (battleReward.TryComplete(
+                              campaign,
+                              progress,
+                              out string result,
+                              out RunEncounterProgressFailure failure))
+                      {
+                          message = result;
+                          SaveRun(null);
+                      }
+                      else
+                      {
+                          message = $"보상 미완료: {failure}";
+                      }
+                  }
+              }
+              if (!snapshot.CanComplete &&
+                  string.IsNullOrWhiteSpace(snapshot.ErrorText))
+              {
+                  EditorGUILayout.HelpBox(
+                      "필수 보상을 모두 선택하면 다음 노드로 이동할 수 있습니다.",
+                      MessageType.Info);
+              }
+          }
+
+          private void DrawEnchantRewardOptions(
+              IEnumerable<RunBattleEnchantRewardOption> options)
+          {
+              RunBattleEnchantRewardOption[] snapshot = options?.ToArray() ??
+                  Array.Empty<RunBattleEnchantRewardOption>();
+              if (snapshot.Length == 0)
+              {
+                  return;
+              }
+
+              EditorGUILayout.LabelField(
+                  "인첸트 보상",
+                  EditorStyles.miniBoldLabel);
+              foreach (RunBattleEnchantRewardOption option in snapshot)
+              {
+                  EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+                  string targetText = string.IsNullOrWhiteSpace(option.TargetLabel)
+                      ? string.Empty
+                      : $"\n장착 대상: {option.TargetLabel}";
+                  string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                      ? string.Empty
+                      : $"\n{option.BlockReason}";
+                  EditorGUILayout.LabelField(
+                      option.DisplayText + targetText + blockText,
+                      EditorStyles.wordWrappedLabel);
+                  using (new EditorGUI.DisabledScope(!option.CanClaim))
+                  {
+                      if (GUILayout.Button(
+                              option.IsSelected ? "선택 완료" : "선택",
+                              GUILayout.Width(90f)))
+                      {
+                          if (battleReward.TryClaimEnchant(
+                                  campaign,
+                                  progress,
+                                  enchantDatabase,
+                                  option.DefinitionId,
+                                  out _,
+                                  out string result,
+                                  out EnchantAttachmentFailure attachmentFailure,
+                                  out BattleVictoryEnchantRewardFailure failure))
+                          {
+                              message = result;
+                              SaveRun(null);
+                          }
+                          else
+                          {
+                              message =
+                                  $"보상 선택 실패: {failure} / {attachmentFailure}";
+                          }
+                      }
+                  }
+                  EditorGUILayout.EndHorizontal();
+              }
+          }
+
+          private void DrawConsumableRewardOptions(
+              IEnumerable<RunBattleConsumableRewardOption> options)
+          {
+              RunBattleConsumableRewardOption[] snapshot = options?.ToArray() ??
+                  Array.Empty<RunBattleConsumableRewardOption>();
+              if (snapshot.Length == 0)
+              {
+                  return;
+              }
+
+              EditorGUILayout.LabelField(
+                  "소모아이템 보상",
+                  EditorStyles.miniBoldLabel);
+              foreach (RunBattleConsumableRewardOption option in snapshot)
+              {
+                  EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+                  string blockText = string.IsNullOrWhiteSpace(option.BlockReason)
+                      ? string.Empty
+                      : $"\n{option.BlockReason}";
+                  EditorGUILayout.LabelField(
+                      option.DisplayText + blockText,
+                      EditorStyles.wordWrappedLabel);
+                  using (new EditorGUI.DisabledScope(!option.CanClaim))
+                  {
+                      if (GUILayout.Button(
+                              option.IsSelected ? "수령 완료" : "받기",
+                              GUILayout.Width(90f)))
+                      {
+                          if (battleReward.TryClaimConsumable(
+                                  campaign,
+                                  progress,
+                                  option.ItemId,
+                                  out _,
+                                  out string result,
+                                  out BattleVictoryConsumableRewardFailure failure))
+                          {
+                              message = result;
+                              SaveRun(null);
+                          }
+                          else
+                          {
+                              message = $"소모아이템 보상 실패: {failure}";
+                          }
+                      }
+                  }
+                  EditorGUILayout.EndHorizontal();
+              }
+          }
+          ''')
+          for name in (
+              "EnsureEnchantRewards",
+              "ClaimEnchantReward",
+              "EnsureConsumableRewards",
+              "CompleteRewards",
+              "TryFindEnchantTarget"):
+              editor = remove_method(editor, name)
+          editor_path.write_text(editor, encoding="utf-8")
+
+          harness_path = Path(
+              "Assets/Editor/BattleRuntimeFullRegressionValidation.cs")
+          harness = harness_path.read_text(encoding="utf-8")
+          marker = (
+              '            valid &= Run(\n'
+              '                "Run deck encounter flow integration",\n'
+              '                BattleRuntimeRunDeckEncounterFlowValidation.Validate);')
+          block = (
+              '            valid &= Run(\n'
+              '                "Run battle reward ViewModel and claim flow",\n'
+              '                RunBattleRewardViewModelValidation.Validate);\n')
+          harness = replace_exact(
+              harness,
+              marker,
+              block + marker,
+              "full regression reward registration")
+          harness_path.write_text(harness, encoding="utf-8")
+          PY
+
+          rm -f .github/workflows/apply-battle-reward-viewmodel-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Scripts/Prototype/RunBattleRewardViewModel.cs \
+                  Assets/Scripts/Prototype/RuntimePrototypeScreen.cs \
+                  Assets/Editor/IntegratedRunPrototypeWindow.cs \
+                  Assets/Editor/BattleRuntimeFullRegressionValidation.cs \
+                  .github/workflows/apply-battle-reward-viewmodel-once.yml
+          git diff --cached --check
+          git commit -m "전투 보상 ViewModel 화면 연결"
+          git push origin HEAD:agent/deck-selection-viewmodel
