@@ -35,19 +35,20 @@ namespace HaveABreak.Cards
                     Array.Empty<string>(),
                     (uint)Mathf.Abs(seed), config.BattleRewardConfig,
                     out _, out var failure, out var flowFailure,
-                    out var deckFailure, out var bootstrapFailure, out var sessionFailure,
-                    out var redrawFailure, out var turnFailure,
+                    out var deckFailure, out var bootstrapFailure,
+                    out var sessionFailure, out var redrawFailure,
+                    out var turnFailure,
                     out List<string> validationErrors))
             {
                 message = $"전투 시작 실패: {failure} / {flowFailure} / " +
                           $"{deckFailure} / {bootstrapFailure} / {sessionFailure} / " +
                           $"{redrawFailure} / {turnFailure}" +
-                          (validationErrors.Count == 0 ? string.Empty :
-                              $"\n{string.Join("\n", validationErrors)}");
+                          (validationErrors.Count == 0
+                              ? string.Empty
+                              : $"\n{string.Join("\n", validationErrors)}");
                 return;
             }
-            battleActions.Reset();
-            battleActions.Refresh(progress?.ActiveEncounter);
+            battleScreen.Reset();
             message = $"{campaign.ActiveNode.DisplayName} 전투 시작.";
             SaveRun(null, true);
         }
@@ -92,7 +93,8 @@ namespace HaveABreak.Cards
                 }
             }
             RunCampaignService.MarkBattleReward(campaign, BattleOutcome.Victory);
-            message = $"승리 정산 완료 · 골드 {context.VictoryRewards.GoldReward} 획득";
+            message =
+                $"승리 정산 완료 · 골드 {context.VictoryRewards.GoldReward} 획득";
             SaveRun(null);
         }
 
@@ -106,10 +108,15 @@ namespace HaveABreak.Cards
 
         private void CycleUpgradeCard()
         {
-            if (progress?.OwnedCards == null || progress.OwnedCards.Count == 0) return;
+            if (progress?.OwnedCards == null || progress.OwnedCards.Count == 0)
+            {
+                return;
+            }
             List<RunCardInstance> cards = progress.OwnedCards.Cards.ToList();
-            int index = cards.FindIndex(card => card.OwnedCardId == selectedUpgradeCardId);
-            selectedUpgradeCardId = cards[(index + 1 + cards.Count) % cards.Count].OwnedCardId;
+            int index = cards.FindIndex(card =>
+                card.OwnedCardId == selectedUpgradeCardId);
+            selectedUpgradeCardId =
+                cards[(index + 1 + cards.Count) % cards.Count].OwnedCardId;
         }
 
         private void SaveRun(string successMessage, bool forceActive = false)
@@ -129,7 +136,9 @@ namespace HaveABreak.Cards
                     campaign, progress, out var destination, out var failure))
             {
                 if (!string.IsNullOrWhiteSpace(successMessage))
+                {
                     message = $"{successMessage} · {destination}";
+                }
             }
             else
             {
@@ -143,32 +152,17 @@ namespace HaveABreak.Cards
             }
         }
 
-        private static string DescribeCardBlock(
-            BattleRuntimePlayerCardActionFailure actionFailure,
-            BattleRuntimeCardPlayFailure playFailure,
-            CardPlayFailure cardFailure)
-        {
-            if (actionFailure == BattleRuntimePlayerCardActionFailure.MissingTarget)
-                return "적 대상 필요";
-            if (actionFailure ==
-                BattleRuntimePlayerCardActionFailure.InvalidBanishSelection)
-                return "소멸 대상 필요";
-            return cardFailure switch
-            {
-                CardPlayFailure.NotEnoughMana => "마력 부족",
-                CardPlayFailure.DestinationFull => "필드 포화",
-                CardPlayFailure.DuplicateBarrier => "동일 결계 설치됨",
-                _ when playFailure ==
-                    BattleRuntimeCardPlayFailure.InvalidTurnPhase => "행동 불가 단계",
-                _ => actionFailure.ToString()
-            };
-        }
-
         private void LoadPermanentRewards()
         {
             if (PlayerPermanentRewardSaveService.TryLoadDefault(
-                    out var loaded, out _, out _)) permanentRewards = loaded;
-            else permanentRewards ??= new PlayerPermanentRewardState();
+                    out var loaded, out _, out _))
+            {
+                permanentRewards = loaded;
+            }
+            else
+            {
+                permanentRewards ??= new PlayerPermanentRewardState();
+            }
         }
 
         private void DrawMessage()
@@ -183,12 +177,16 @@ namespace HaveABreak.Cards
             GUILayout.EndVertical();
         }
 
-        private static IEnumerable<T> Rotate<T>(IReadOnlyList<T> values, int seed)
+        private static IEnumerable<T> Rotate<T>(
+            IReadOnlyList<T> values,
+            int seed)
         {
             if (values == null || values.Count == 0) yield break;
             int start = Mathf.Abs(seed % values.Count);
             for (int i = 0; i < values.Count; i++)
+            {
                 yield return values[(start + i) % values.Count];
+            }
         }
     }
 }
