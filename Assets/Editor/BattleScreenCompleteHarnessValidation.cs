@@ -26,8 +26,10 @@ namespace HaveABreak.Editor
         {
             bool existing =
                 BattleRuntimeFullRegressionValidation.RunCompleteTestHarness();
+            bool sourceBoundary =
+                BattleScreenSourceBoundaryValidation.Validate();
             bool screen = BattleScreenViewModelValidation.Validate();
-            bool valid = existing && screen;
+            bool valid = existing && sourceBoundary && screen;
             if (valid)
             {
                 Debug.Log(
