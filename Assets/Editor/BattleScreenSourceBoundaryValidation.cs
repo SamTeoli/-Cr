@@ -32,6 +32,14 @@ namespace HaveABreak.Editor
             "battleActions"
         };
 
+        private static readonly string[] ForbiddenFormattingComparisons =
+        {
+            "ability == null",
+            "ability != null",
+            "command.Ability == null",
+            "command.Ability != null"
+        };
+
         [MenuItem("Have a Break/Validate Battle Screen Source Boundary")]
         private static void ValidateFromMenu()
         {
@@ -85,7 +93,8 @@ namespace HaveABreak.Editor
             return ValidateOwner(
                        "Assets/Scripts/Prototype/RuntimePrototypeScreen.cs") &&
                    ValidateOwner(
-                       "Assets/Editor/IntegratedRunPrototypeWindow.cs");
+                       "Assets/Editor/IntegratedRunPrototypeWindow.cs") &&
+                   ValidateFormattingComparisons();
         }
 
         private static bool ValidateOwner(string path)
@@ -110,6 +119,32 @@ namespace HaveABreak.Editor
             }
 
             return valid;
+        }
+
+        private static bool ValidateFormattingComparisons()
+        {
+            const string path =
+                "Assets/Scripts/Prototype/BattleScreenViewModel.Formatting.cs";
+            if (!File.Exists(path))
+            {
+                Debug.LogError($"Battle screen formatting source is missing: {path}");
+                return false;
+            }
+
+            string source = File.ReadAllText(path);
+            foreach (string forbidden in ForbiddenFormattingComparisons)
+            {
+                if (!source.Contains(forbidden, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                Debug.LogError(
+                    $"Value-type null comparison remains in {path}: {forbidden}");
+                return false;
+            }
+
+            return true;
         }
     }
 }
