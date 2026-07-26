@@ -155,7 +155,7 @@ namespace HaveABreak.EditorTools
                 run, runPreparationCards, deck, permanentRewards,
                 Array.Empty<string>(), 0);
             campaign = new RunCampaignState(20260722);
-            battleActions.Reset();
+            battleScreen.Reset();
             selectedUpgradeCardId = deck.Cards.FirstOrDefault()?.OwnedCardId;
             deckSelection.Close();
             runPreparationCards = null;
@@ -176,6 +176,7 @@ namespace HaveABreak.EditorTools
             {
                 campaign = null;
                 progress = null;
+                battleScreen.Reset();
                 message = $"이어하기 실패: {failure}";
                 return;
             }
@@ -183,8 +184,7 @@ namespace HaveABreak.EditorTools
             selectedUpgradeCardId =
                 progress.OwnedCards.Cards.FirstOrDefault()?.OwnedCardId;
             deckSelection.Close();
-            battleActions.Reset();
-            battleActions.Refresh(progress?.ActiveEncounter);
+            battleScreen.Reset();
             message = $"이어하기 완료: {source}";
         }
 
@@ -237,11 +237,9 @@ namespace HaveABreak.EditorTools
                 return;
             }
 
-            battleActions.Reset();
-            battleActions.Refresh(progress?.ActiveEncounter);
+            battleScreen.Reset();
             message = $"{campaign.ActiveNode.DisplayName} 전투 시작.";
             SaveRun(null);
         }
-
     }
 }
