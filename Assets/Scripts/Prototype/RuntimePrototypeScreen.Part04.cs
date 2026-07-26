@@ -111,25 +111,19 @@ namespace HaveABreak.Cards
 
         private void RequestStartNewRun()
         {
-            if (config == null || !config.IsReady)
+            RunLifecycleRequest request = runLifecycle.CreateNewRunRequest(
+                campaign != null || progress != null,
+                config,
+                permanentRewards);
+            if (!request.CanProceed)
             {
-                message = "게임 데이터베이스를 불러올 수 없습니다.";
+                message = request.Message;
                 return;
             }
 
-            bool hasCurrentRun = campaign != null || progress != null;
-            bool inspected = RunSaveSlotService.TryInspectDefault(
-                config.CardDatabase,
-                config.EnchantDatabase,
-                config.EncounterDatabase,
-                permanentRewards,
-                out RunSaveSlotInfo slot,
-                out _);
-            RunSaveSlotState slotState = slot?.State ?? RunSaveSlotState.Empty;
-            if (RunActionConfirmationPolicy.ShouldConfirmNewRun(
-                    hasCurrentRun, inspected, slotState))
+            if (request.ConfirmationRequired)
             {
-                pendingRunAction = PendingRunAction.StartNewRun;
+                pendingRunRequest = request;
                 return;
             }
 
@@ -138,13 +132,18 @@ namespace HaveABreak.Cards
 
         private void RequestContinueRun()
         {
-            bool hasCurrentRun = campaign != null && progress != null;
-            RunCampaignPhase phase = campaign?.Phase ??
-                                     RunCampaignPhase.NodeSelection;
-            if (RunActionConfirmationPolicy.ShouldConfirmContinue(
-                    hasCurrentRun, phase))
+            RunLifecycleRequest request = runLifecycle.CreateContinueRequest(
+                campaign,
+                progress);
+            if (!request.CanProceed)
             {
-                pendingRunAction = PendingRunAction.ContinueRun;
+                message = request.Message;
+                return;
+            }
+
+            if (request.ConfirmationRequired)
+            {
+                pendingRunRequest = request;
                 return;
             }
 
@@ -153,39 +152,34 @@ namespace HaveABreak.Cards
 
         private void DrawRunActionConfirmation()
         {
-            bool startsNewRun = pendingRunAction == PendingRunAction.StartNewRun;
+            RunLifecycleRequest request = pendingRunRequest;
+            if (request == null)
+            {
+                return;
+            }
+
             GUILayout.FlexibleSpace();
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label(
-                startsNewRun
-                    ? "새 런을 시작할까요?"
-                    : "전투를 처음부터 다시 시작할까요?",
-                titleStyle);
+            GUILayout.Label(request.Title, titleStyle);
             GUILayout.Space(12f);
-            GUILayout.Label(
-                startsNewRun
-                    ? "현재 진행과 저장된 런이 새 런으로 교체됩니다. " +
-                      "이 작업은 되돌릴 수 없습니다."
-                    : "이어하기를 선택하면 현재 전투 진행을 버리고 " +
-                      "전투 시작 체크포인트에서 다시 시작합니다.",
-                wrappedStyle);
+            GUILayout.Label(request.Body, wrappedStyle);
             GUILayout.Space(18f);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("취소", GUILayout.Height(44f)))
             {
-                pendingRunAction = PendingRunAction.None;
+                pendingRunRequest = null;
             }
             if (GUILayout.Button(
-                    startsNewRun ? "새 런 시작" : "전투 다시 시작",
+                    request.ConfirmLabel,
                     GUILayout.Height(44f)))
             {
-                PendingRunAction confirmedAction = pendingRunAction;
-                pendingRunAction = PendingRunAction.None;
-                if (confirmedAction == PendingRunAction.StartNewRun)
+                RunLifecycleRequestKind kind = request.Kind;
+                pendingRunRequest = null;
+                if (kind == RunLifecycleRequestKind.StartNewRun)
                 {
                     BeginRunPreparation();
                 }
-                else
+                else if (kind == RunLifecycleRequestKind.ContinueRun)
                 {
                     ContinueRun();
                 }
@@ -197,17 +191,18 @@ namespace HaveABreak.Cards
 
         private void BeginRunPreparation()
         {
-            runPreparationCards = new RunOwnedCardState();
-            int index = 0;
-            foreach (CardData card in config.CardDatabase.Cards.Where(card => card != null))
+            RunPreparationCommandResult result =
+                runLifecycle.BeginPreparation(config?.CardDatabase);
+            if (!result.Succeeded)
             {
-                RunCardInstance ownedCard = new(
-                    card, $"OWNED-RUN-{++index:00}-{card.CatalogCardId}", 1);
-                if (!runPreparationCards.TryAdd(ownedCard, out _)) continue;
+                message = result.Message;
+                return;
             }
+
+            runPreparationCards = result.OwnedCards;
             deckSelection.OpenWithAllOwnedCards(runPreparationCards);
             scroll = Vector2.zero;
-            message = "런에 사용할 덱을 선택한 뒤 확정하세요.";
+            message = result.Message;
         }
 
         private void CancelRunPreparation()
@@ -220,53 +215,55 @@ namespace HaveABreak.Cards
 
         private void ConfirmRunPreparation()
         {
-            if (!deckSelection.TryCreateDeck(
+            permanentRewards = runLifecycle.LoadPermanentRewards(
+                permanentRewards);
+            RunCreationCommandResult result =
+                runLifecycle.TryConfirmPreparation(
+                    config,
+                    deckSelection,
                     runPreparationCards,
-                    out RunDeckState deck, out RunDeckFailure failure))
+                    permanentRewards,
+                    Environment.TickCount & int.MaxValue);
+            message = result.Message;
+            if (!result.Succeeded)
             {
-                message = $"새 런 덱 확정 실패: {failure}";
                 return;
             }
 
-            RunBattleState run =
-                config.RunStartProgressionConfig.CreateInitialRunState();
-            LoadPermanentRewards();
-            progress = new RunEncounterProgressState(
-                run, runPreparationCards, deck, permanentRewards,
-                Array.Empty<string>(), 0);
-            campaign = new RunCampaignState(Environment.TickCount & int.MaxValue);
-            selectedUpgradeCardId = deck.Cards.FirstOrDefault()?.OwnedCardId;
+            campaign = result.Campaign;
+            progress = result.Progress;
+            selectedUpgradeCardId = result.SelectedOwnedCardId;
             battleScreen.Reset();
             deckSelection.Close();
             runPreparationCards = null;
             scroll = Vector2.zero;
-            message = "새 런을 시작했습니다.";
-            SaveRun(null);
         }
 
         private void ContinueRun()
         {
             runPreparationCards = null;
             deckSelection.Close();
-            LoadPermanentRewards();
-            if (!IntegratedRunSaveService.TryLoad(
-                    config.CardDatabase, config.EnchantDatabase,
-                    config.EncounterDatabase, permanentRewards,
-                    out campaign, out progress, out _, out RunResumeSource source,
-                    out RunCampaignFailure failure))
+            permanentRewards = runLifecycle.LoadPermanentRewards(
+                permanentRewards);
+            RunContinueCommandResult result = runLifecycle.TryContinue(
+                config?.CardDatabase,
+                config?.EnchantDatabase,
+                config?.EncounterDatabase,
+                permanentRewards);
+            message = result.Message;
+            if (!result.Succeeded)
             {
                 campaign = null;
                 progress = null;
                 battleScreen.Reset();
-                message = $"이어하기 실패: {failure}";
                 return;
             }
-            selectedUpgradeCardId =
-                progress.OwnedCards.Cards.FirstOrDefault()?.OwnedCardId;
+
+            campaign = result.Campaign;
+            progress = result.Progress;
+            selectedUpgradeCardId = result.SelectedOwnedCardId;
             battleScreen.Reset();
-            deckSelection.Close();
             scroll = Vector2.zero;
-            message = $"이어하기 완료: {source}";
         }
     }
 }
