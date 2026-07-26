@@ -9,38 +9,33 @@ namespace HaveABreak.EditorTools
 {
     public sealed partial class IntegratedRunPrototypeWindow : EditorWindow
     {
-        private void DrawBattleMonsters(BattleRuntimeEncounterContext context)
+        private void DrawBattleMonsters(BattleScreenSnapshot snapshot)
         {
-            BattleMonsterAttackActionOption[] options =
-                battleActions.CreateMonsterAttackOptions(context);
             EditorGUILayout.LabelField(
                 "아군 몬스터",
                 EditorStyles.miniBoldLabel);
             EditorGUILayout.BeginHorizontal();
-            foreach (PlayerMonsterFieldPosition position in
-                     Enum.GetValues(typeof(PlayerMonsterFieldPosition)))
+            foreach (BattleMonsterDisplayOption option in snapshot.Monsters)
             {
-                BattleMonsterAttackActionOption option = options
-                    .FirstOrDefault(value => value.Position == position);
-                BattleMonsterState monster = option?.Monster;
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                if (monster == null)
-                {
-                    EditorGUILayout.LabelField("빈 칸");
-                }
-                else
+                EditorGUILayout.LabelField(
+                    option.DisplayText,
+                    EditorStyles.wordWrappedLabel);
+                if (!string.IsNullOrWhiteSpace(option.StatusText))
                 {
                     EditorGUILayout.LabelField(
-                        $"{monster.Card.SourceCard.DisplayName}\n" +
-                        $"공격 {monster.Attack} · HP {monster.CurrentHealth}/" +
-                        $"{monster.MaximumHealth}");
+                        option.StatusText,
+                        EditorStyles.wordWrappedLabel);
+                }
+                if (option.IsOccupied)
+                {
                     using (new EditorGUI.DisabledScope(!option.CanAttack))
                     {
                         if (GUILayout.Button("선택한 적 공격"))
                         {
                             BattleMonsterAttackCommandResult command =
-                                battleActions.TryAttack(
-                                    context,
+                                battleScreen.TryAttack(
+                                    progress,
                                     option.BattleCardId);
                             message = command.Message;
                             if (command.Succeeded)
@@ -61,14 +56,12 @@ namespace HaveABreak.EditorTools
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawBattleHand(BattleRuntimeEncounterContext context)
+        private void DrawBattleHand(BattleScreenSnapshot snapshot)
         {
-            BattleHandCardActionOption[] options =
-                battleActions.CreateHandOptions(context);
             EditorGUILayout.LabelField(
-                $"패 ({options.Length})",
+                $"패 ({snapshot.Hand.Length})",
                 EditorStyles.miniBoldLabel);
-            foreach (BattleHandCardActionOption option in options)
+            foreach (BattleHandCardActionOption option in snapshot.Hand)
             {
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 EditorGUILayout.LabelField(
@@ -90,8 +83,8 @@ namespace HaveABreak.EditorTools
                     if (nextIndex >= 0 &&
                         nextIndex < option.BanishTargets.Length)
                     {
-                        battleActions.SelectBanishTarget(
-                            context,
+                        battleScreen.SelectBanishTarget(
+                            progress,
                             option.BattleCardId,
                             option.BanishTargets[nextIndex].BattleCardId);
                     }
@@ -102,8 +95,8 @@ namespace HaveABreak.EditorTools
                     if (GUILayout.Button("사용", GUILayout.Width(65f)))
                     {
                         BattleCardPlayCommandResult command =
-                            battleActions.TryPlayCard(
-                                context,
+                            battleScreen.TryPlayCard(
+                                progress,
                                 option.BattleCardId);
                         message = command.Message;
                         if (command.Succeeded)
@@ -229,6 +222,5 @@ namespace HaveABreak.EditorTools
                 EditorGUILayout.EndHorizontal();
             }
         }
-
     }
 }
