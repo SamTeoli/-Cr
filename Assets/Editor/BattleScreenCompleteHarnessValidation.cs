@@ -26,15 +26,20 @@ namespace HaveABreak.Editor
         {
             bool existing =
                 BattleRuntimeFullRegressionValidation.RunCompleteTestHarness();
-            bool boundary = BattleScreenSourceBoundaryValidation.Validate();
+            bool screenBoundary =
+                BattleScreenSourceBoundaryValidation.Validate();
             bool screen = BattleScreenViewModelValidation.Validate();
-            bool valid = existing && boundary && screen;
+            bool settlementBoundary =
+                BattleSettlementSourceBoundaryValidation.Validate();
+            bool settlement = BattleSettlementViewModelValidation.Validate();
+            bool valid = existing && screenBoundary && screen &&
+                         settlementBoundary && settlement;
             if (valid)
             {
                 Debug.Log(
                     "Complete test harness with battle screen passed: " +
-                    "existing runtime, source boundary, value-type comparison " +
-                    "guard, and display snapshot flow.");
+                    "existing runtime, source boundaries, value-type comparison " +
+                    "guard, display snapshot flow, and settlement command flow.");
             }
             else
             {
