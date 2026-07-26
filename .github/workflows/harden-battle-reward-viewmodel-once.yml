@@ -1,0 +1,136 @@
+name: Harden battle reward ViewModel once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.head_ref == 'agent/deck-selection-viewmodel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/deck-selection-viewmodel
+          fetch-depth: 0
+
+      - name: Restrict claims to displayed rewards
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          view_model_path = Path(
+              "Assets/Scripts/Prototype/RunBattleRewardViewModel.cs")
+          view_model = view_model_path.read_text(encoding="utf-8")
+          view_model = replace_exact(
+              view_model,
+              "            ConsumableData item = PrototypeConsumableCatalog.Find(itemId.Trim());\n",
+              "            ConsumableData item = PrototypeConsumableCatalog.All\n"
+              "                .Where(value => value != null)\n"
+              "                .Take(3)\n"
+              "                .FirstOrDefault(value => string.Equals(\n"
+              "                    value.ItemId,\n"
+              "                    itemId.Trim(),\n"
+              "                    StringComparison.OrdinalIgnoreCase));\n",
+              "displayed consumable boundary")
+          view_model_path.write_text(view_model, encoding="utf-8")
+
+          runtime_path = Path(
+              "Assets/Scripts/Prototype/RuntimePrototypeScreen.cs")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          runtime = replace_exact(
+              runtime,
+              '                        option.IsSelected ? "수령 완료" : "받기",\n',
+              '                        option.RewardClaimed && option.IsSelected\n'
+              '                            ? "수령 완료"\n'
+              '                            : "받기",\n',
+              "runtime consumable button state")
+          runtime_path.write_text(runtime, encoding="utf-8")
+
+          editor_path = Path(
+              "Assets/Editor/IntegratedRunPrototypeWindow.cs")
+          editor = editor_path.read_text(encoding="utf-8")
+          editor = replace_exact(
+              editor,
+              '                              option.IsSelected ? "수령 완료" : "받기",\n',
+              '                              option.RewardClaimed && option.IsSelected\n'
+              '                                  ? "수령 완료"\n'
+              '                                  : "받기",\n',
+              "editor consumable button state")
+          editor_path.write_text(editor, encoding="utf-8")
+
+          validation_path = Path(
+              "Assets/Editor/RunBattleRewardViewModelValidation.cs")
+          validation = validation_path.read_text(encoding="utf-8")
+          marker = (
+              '                int itemCountBeforeInvalid =\n'
+              '                    progress.RunState.ConsumableItemIds.Count;\n')
+          replacement = (
+              marker +
+              '                ConsumableData hiddenItem =\n'
+              '                    PrototypeConsumableCatalog.All\n'
+              '                        .Where(item => item != null)\n'
+              '                        .Skip(3)\n'
+              '                        .FirstOrDefault();\n')
+          validation = replace_exact(
+              validation,
+              marker,
+              replacement,
+              "hidden reward item setup")
+          old_condition = (
+              '                    viewModel.TryClaimConsumable(\n'
+              '                        campaign,\n'
+              '                        progress,\n'
+              '                        "MISSING-REWARD-ITEM",\n'
+              '                        out _,\n'
+              '                        out _,\n'
+              '                        out _) ||\n'
+              '                    progress.RunState.ConsumableItemIds.Count !=\n'
+              '                        itemCountBeforeInvalid)')
+          new_condition = (
+              '                    viewModel.TryClaimConsumable(\n'
+              '                        campaign,\n'
+              '                        progress,\n'
+              '                        "MISSING-REWARD-ITEM",\n'
+              '                        out _,\n'
+              '                        out _,\n'
+              '                        out _) ||\n'
+              '                    hiddenItem == null ||\n'
+              '                    viewModel.TryClaimConsumable(\n'
+              '                        campaign,\n'
+              '                        progress,\n'
+              '                        hiddenItem.ItemId,\n'
+              '                        out _,\n'
+              '                        out _,\n'
+              '                        out _) ||\n'
+              '                    progress.RunState.ConsumableItemIds.Count !=\n'
+              '                        itemCountBeforeInvalid)')
+          validation = replace_exact(
+              validation,
+              old_condition,
+              new_condition,
+              "hidden reward item rejection")
+          validation_path.write_text(validation, encoding="utf-8")
+          PY
+
+          rm -f .github/workflows/harden-battle-reward-viewmodel-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Assets/Scripts/Prototype/RunBattleRewardViewModel.cs \
+                  Assets/Scripts/Prototype/RuntimePrototypeScreen.cs \
+                  Assets/Editor/IntegratedRunPrototypeWindow.cs \
+                  Assets/Editor/RunBattleRewardViewModelValidation.cs \
+                  .github/workflows/harden-battle-reward-viewmodel-once.yml
+          git diff --cached --check
+          git commit -m "전투 보상 선택 경계 보강"
+          git push origin HEAD:agent/deck-selection-viewmodel
