@@ -394,6 +394,8 @@ namespace HaveABreak.Cards
             int cardsPlayed,
             int consumablesUsed)
         {
+            HashSet<string> attemptedAttackers =
+                new(StringComparer.OrdinalIgnoreCase);
             for (int index = 0; index < limit; index++)
             {
                 BattleScreenSnapshot snapshot =
@@ -412,7 +414,8 @@ namespace HaveABreak.Cards
                 }
 
                 BattleMonsterDisplayOption attacker = snapshot.Monsters
-                    .Where(value => value != null && value.CanAttack)
+                    .Where(value => value != null && value.CanAttack &&
+                        !attemptedAttackers.Contains(value.BattleCardId))
                     .OrderBy(value => value.Position)
                     .FirstOrDefault();
                 if (attacker == null)
@@ -420,6 +423,7 @@ namespace HaveABreak.Cards
                     return null;
                 }
 
+                attemptedAttackers.Add(attacker.BattleCardId);
                 BattleMonsterAttackCommandResult command =
                     battleScreen.TryAttack(progress, attacker.BattleCardId);
                 if (command == null || !command.Succeeded)
