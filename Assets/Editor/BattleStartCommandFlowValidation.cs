@@ -27,12 +27,12 @@ namespace HaveABreak.Editor
             public bool TrySave(
                 RunCampaignState campaign,
                 RunEncounterProgressState progress,
-                out RunSaveDestination destination,
+                out string destination,
                 out RunCampaignFailure failure)
             {
                 CallCount++;
                 bool succeeds = outcomes.Count == 0 || outcomes.Dequeue();
-                destination = default;
+                destination = "TestCheckpoint";
                 failure = succeeds
                     ? RunCampaignFailure.None
                     : (RunCampaignFailure)999;
