@@ -120,14 +120,19 @@ namespace HaveABreak.Editor
         {
             BattleSettlementCommandResult result =
                 viewModel.TrySettle(null, null);
-            return result != null &&
-                   !result.Succeeded &&
-                   result.Failure ==
-                       BattleSettlementCommandFailure.InvalidState &&
-                   result.Outcome == BattleOutcome.Ongoing &&
-                   !result.GoldClaimed &&
-                   !result.ActiveEncounterCompleted &&
-                   !string.IsNullOrWhiteSpace(result.Message);
+            bool passed = result != null &&
+                          !result.Succeeded &&
+                          result.Failure ==
+                              BattleSettlementCommandFailure.InvalidState &&
+                          result.Outcome == BattleOutcome.Ongoing &&
+                          !result.GoldClaimed &&
+                          !result.ActiveEncounterCompleted &&
+                          !string.IsNullOrWhiteSpace(result.Message);
+            if (!passed)
+            {
+                Debug.LogError($"Invalid state details: {Describe(result)}");
+            }
+            return passed;
         }
 
         private static bool ValidateOngoing(
@@ -150,20 +155,31 @@ namespace HaveABreak.Editor
                     620,
                     out BattleRuntimeEncounterContext context))
             {
+                Debug.LogError("Ongoing setup failed.");
                 return false;
             }
 
             int goldBefore = progress.RunState.Gold;
             BattleSettlementCommandResult result =
                 viewModel.TrySettle(campaign, progress);
-            return result != null &&
-                   !result.Succeeded &&
-                   result.Failure ==
-                       BattleSettlementCommandFailure.InvalidState &&
-                   !context.Settlement.IsSettled &&
-                   progress.HasActiveEncounter &&
-                   progress.RunState.Gold == goldBefore &&
-                   campaign.Phase == RunCampaignPhase.Battle;
+            bool passed = result != null &&
+                          !result.Succeeded &&
+                          result.Failure ==
+                              BattleSettlementCommandFailure.InvalidState &&
+                          !context.Settlement.IsSettled &&
+                          progress.HasActiveEncounter &&
+                          progress.RunState.Gold == goldBefore &&
+                          campaign.Phase == RunCampaignPhase.Battle;
+            if (!passed)
+            {
+                Debug.LogError(
+                    $"Ongoing details: {Describe(result)}, " +
+                    $"settled={context.Settlement.IsSettled}, " +
+                    $"active={progress.HasActiveEncounter}, " +
+                    $"gold={progress.RunState.Gold}/{goldBefore}, " +
+                    $"phase={campaign.Phase}");
+            }
+            return passed;
         }
 
         private static bool ValidateVictory(
@@ -189,6 +205,7 @@ namespace HaveABreak.Editor
                     context,
                     "TEST-ENEMY-SETTLEMENT-COMMAND-V-A"))
             {
+                Debug.LogError("Victory setup failed.");
                 return false;
             }
 
@@ -198,23 +215,36 @@ namespace HaveABreak.Editor
             int goldAfterFirst = progress.RunState.Gold;
             BattleSettlementCommandResult duplicate =
                 viewModel.TrySettle(campaign, progress);
-            return result != null && result.Succeeded &&
-                   result.Failure == BattleSettlementCommandFailure.None &&
-                   result.Outcome == BattleOutcome.Victory &&
-                   result.GoldClaimed && result.GoldReward >= 0 &&
-                   !result.PermanentRewardRequired &&
-                   !result.ActiveEncounterCompleted &&
-                   result.CampaignPhase == RunCampaignPhase.Reward &&
-                   context.Settlement.IsSettled &&
-                   context.VictoryRewards.GoldClaimed &&
-                   progress.RunState.Gold == goldBefore + result.GoldReward &&
-                   progress.HasActiveEncounter &&
-                   campaign.Phase == RunCampaignPhase.Reward &&
-                   !string.IsNullOrWhiteSpace(result.Message) &&
-                   duplicate != null && !duplicate.Succeeded &&
-                   duplicate.Failure ==
-                       BattleSettlementCommandFailure.InvalidState &&
-                   progress.RunState.Gold == goldAfterFirst;
+            bool passed = result != null && result.Succeeded &&
+                          result.Failure ==
+                              BattleSettlementCommandFailure.None &&
+                          result.Outcome == BattleOutcome.Victory &&
+                          result.GoldClaimed && result.GoldReward >= 0 &&
+                          !result.PermanentRewardRequired &&
+                          !result.ActiveEncounterCompleted &&
+                          result.CampaignPhase == RunCampaignPhase.Reward &&
+                          context.Settlement.IsSettled &&
+                          context.VictoryRewards.GoldClaimed &&
+                          progress.RunState.Gold ==
+                              goldBefore + result.GoldReward &&
+                          progress.HasActiveEncounter &&
+                          campaign.Phase == RunCampaignPhase.Reward &&
+                          !string.IsNullOrWhiteSpace(result.Message) &&
+                          duplicate != null && !duplicate.Succeeded &&
+                          duplicate.Failure ==
+                              BattleSettlementCommandFailure.InvalidState &&
+                          progress.RunState.Gold == goldAfterFirst;
+            if (!passed)
+            {
+                Debug.LogError(
+                    $"Victory details: first=({Describe(result)}), " +
+                    $"duplicate=({Describe(duplicate)}), gold=" +
+                    $"{progress.RunState.Gold}, before={goldBefore}, " +
+                    $"afterFirst={goldAfterFirst}, settled=" +
+                    $"{context.Settlement.IsSettled}, active=" +
+                    $"{progress.HasActiveEncounter}, phase={campaign.Phase}");
+            }
+            return passed;
         }
 
         private static bool ValidateDefeat(
@@ -240,26 +270,40 @@ namespace HaveABreak.Editor
                     context,
                     "TEST-ENEMY-SETTLEMENT-COMMAND-D-A"))
             {
+                Debug.LogError("Defeat setup failed.");
                 return false;
             }
 
             int goldBefore = progress.RunState.Gold;
             BattleSettlementCommandResult result =
                 viewModel.TrySettle(campaign, progress);
-            return result != null && result.Succeeded &&
-                   result.Failure == BattleSettlementCommandFailure.None &&
-                   result.Outcome == BattleOutcome.Defeat &&
-                   !result.GoldClaimed &&
-                   !result.PermanentRewardRequired &&
-                   result.ActiveEncounterCompleted &&
-                   result.CampaignPhase == RunCampaignPhase.Defeated &&
-                   !progress.HasActiveEncounter &&
-                   progress.CompletedEncounterCount == 1 &&
-                   progress.RunState.RunEnded &&
-                   progress.RunState.CurrentHealth == 0 &&
-                   progress.RunState.Gold == goldBefore &&
-                   campaign.Phase == RunCampaignPhase.Defeated &&
-                   !string.IsNullOrWhiteSpace(result.Message);
+            bool passed = result != null && result.Succeeded &&
+                          result.Failure ==
+                              BattleSettlementCommandFailure.None &&
+                          result.Outcome == BattleOutcome.Defeat &&
+                          !result.GoldClaimed &&
+                          !result.PermanentRewardRequired &&
+                          result.ActiveEncounterCompleted &&
+                          result.CampaignPhase == RunCampaignPhase.Defeated &&
+                          !progress.HasActiveEncounter &&
+                          progress.CompletedEncounterCount == 1 &&
+                          progress.RunState.RunEnded &&
+                          progress.RunState.CurrentHealth == 0 &&
+                          progress.RunState.Gold == goldBefore &&
+                          campaign.Phase == RunCampaignPhase.Defeated &&
+                          !string.IsNullOrWhiteSpace(result.Message);
+            if (!passed)
+            {
+                Debug.LogError(
+                    $"Defeat details: {Describe(result)}, active=" +
+                    $"{progress.HasActiveEncounter}, completed=" +
+                    $"{progress.CompletedEncounterCount}, runEnded=" +
+                    $"{progress.RunState.RunEnded}, hp=" +
+                    $"{progress.RunState.CurrentHealth}, gold=" +
+                    $"{progress.RunState.Gold}/{goldBefore}, phase=" +
+                    $"{campaign.Phase}");
+            }
+            return passed;
         }
 
         private static bool ValidateFinalBossResume(
@@ -296,6 +340,7 @@ namespace HaveABreak.Editor
                 permanent == null || permanent.Claimed ||
                 createFailure != BattleVictoryPermanentRewardFailure.None)
             {
+                Debug.LogError("Final boss resume setup failed.");
                 return false;
             }
 
@@ -303,23 +348,57 @@ namespace HaveABreak.Editor
             int goldBeforeRetry = progress.RunState.Gold;
             BattleSettlementCommandResult result =
                 viewModel.TrySettle(campaign, progress);
-            return result != null && result.Succeeded &&
-                   result.Outcome == BattleOutcome.Victory &&
-                   result.GoldClaimed &&
-                   result.GoldReward == expectedGoldReward &&
-                   result.PermanentRewardRequired &&
-                   result.PermanentRewardClaimed &&
-                   !result.ActiveEncounterCompleted &&
-                   result.CampaignPhase == RunCampaignPhase.Reward &&
-                   progress.RunState.Gold == goldBeforeRetry &&
-                   permanent.Claimed &&
-                   permanent.ClaimedRewardId ==
-                       BattleSettlementViewModel.FinalBossPermanentRewardId &&
-                   permanentRewards.Contains(
-                       BattleSettlementViewModel.FinalBossPermanentRewardId) &&
-                   permanentRewards.RewardIds.Count == 1 &&
-                   campaign.Phase == RunCampaignPhase.Reward &&
-                   progress.HasActiveEncounter;
+            bool passed = result != null && result.Succeeded &&
+                          result.Outcome == BattleOutcome.Victory &&
+                          result.GoldClaimed &&
+                          result.GoldReward == expectedGoldReward &&
+                          result.PermanentRewardRequired &&
+                          result.PermanentRewardClaimed &&
+                          !result.ActiveEncounterCompleted &&
+                          result.CampaignPhase == RunCampaignPhase.Reward &&
+                          progress.RunState.Gold == goldBeforeRetry &&
+                          permanent.Claimed &&
+                          permanent.ClaimedRewardId ==
+                              BattleSettlementViewModel
+                                  .FinalBossPermanentRewardId &&
+                          permanentRewards.Contains(
+                              BattleSettlementViewModel
+                                  .FinalBossPermanentRewardId) &&
+                          permanentRewards.RewardIds.Count == 1 &&
+                          campaign.Phase == RunCampaignPhase.Reward &&
+                          progress.HasActiveEncounter;
+            if (!passed)
+            {
+                Debug.LogError(
+                    $"Final boss details: {Describe(result)}, expectedGold=" +
+                    $"{expectedGoldReward}, gold={progress.RunState.Gold}/" +
+                    $"{goldBeforeRetry}, permanentClaimed={permanent.Claimed}, " +
+                    $"rewardId={permanent.ClaimedRewardId}, count=" +
+                    $"{permanentRewards.RewardIds.Count}, active=" +
+                    $"{progress.HasActiveEncounter}, phase={campaign.Phase}");
+            }
+            return passed;
+        }
+
+        private static string Describe(BattleSettlementCommandResult result)
+        {
+            if (result == null)
+            {
+                return "result=null";
+            }
+
+            return $"success={result.Succeeded}, failure={result.Failure}, " +
+                   $"outcome={result.Outcome}, gold={result.GoldReward}, " +
+                   $"goldClaimed={result.GoldClaimed}, permanentRequired=" +
+                   $"{result.PermanentRewardRequired}, permanentClaimed=" +
+                   $"{result.PermanentRewardClaimed}, encounterCompleted=" +
+                   $"{result.ActiveEncounterCompleted}, phase=" +
+                   $"{result.CampaignPhase}, progressFailure=" +
+                   $"{result.ProgressFailure}, flowFailure={result.FlowFailure}, " +
+                   $"sessionFailure={result.SessionFailure}, settlementFailure=" +
+                   $"{result.SettlementFailure}, rewardFailure=" +
+                   $"{result.RewardFailure}, permanentFailure=" +
+                   $"{result.PermanentRewardFailure}, message={result.Message}";
         }
 
         private static bool RunCase(string label, Func<bool> validation)
