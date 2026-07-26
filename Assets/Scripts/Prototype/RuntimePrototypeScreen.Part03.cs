@@ -7,115 +7,28 @@ namespace HaveABreak.Cards
 {
     public sealed partial class RuntimePrototypeScreen : MonoBehaviour
     {
-        private static string DescribeEnemyCommand(
-            BattleRuntimeEnemyTurnCommand command)
+        private void DrawMonsters(BattleScreenSnapshot snapshot)
         {
-            switch (command.ActionType)
-            {
-                case BattleRuntimeEnemyTurnActionType.Move:
-                    string direction = command.MoveDirection ==
-                        EnemyMoveDirection.Left ? "왼쪽" : "오른쪽";
-                    return $"{direction} 이동 {command.MoveSteps}";
-                case BattleRuntimeEnemyTurnActionType.Attack:
-                    int count = Mathf.Max(1, command.AutomaticAttackCount);
-                    return count == 1 ? "공격" : $"공격 ×{count}";
-                case BattleRuntimeEnemyTurnActionType.Ability:
-                    EnemyAbilityResolutionContext ability = command.Ability;
-                    string range = ability.IsAreaAbility ? "광역" : "단일";
-                    string effect = ability.HasStatusEffect
-                        ? $" · {DescribeStatusKeyword(ability.StatusKeyword)} " +
-                          $"{ability.StatusAmount}"
-                        : string.Empty;
-                    return $"능력 {ability.AbilityId} ({range}{effect})";
-                default:
-                    return command.ActionType.ToString();
-            }
-        }
-
-        private static string DescribeEnemyStatus(BattleEnemyStatusState status)
-        {
-            if (status == null) return string.Empty;
-            List<string> values = new();
-            AddStatus(values, "부상", status.Injury);
-            AddStatus(values, "약화", status.Weaken);
-            AddStatus(values, "취약", status.Vulnerable);
-            AddStatus(values, "속박", status.Bind);
-            AddStatus(values, "기절", status.Stun);
-            return values.Count == 0
-                ? string.Empty
-                : "상태: " + string.Join(" · ", values);
-        }
-
-        private static string DescribeCommonStatus(BattleCommonStatusState status)
-        {
-            if (status == null) return string.Empty;
-            List<string> values = new();
-            AddStatus(values, "부상", status.Injury);
-            AddStatus(values, "약화", status.Weaken);
-            AddStatus(values, "취약", status.Vulnerable);
-            AddStatus(values, "속박", status.Bind);
-            AddStatus(values, "기절", status.Stun);
-            return values.Count == 0
-                ? string.Empty
-                : "상태: " + string.Join(" · ", values);
-        }
-
-        private static void AddStatus(
-            ICollection<string> values,
-            string label,
-            int amount)
-        {
-            if (amount > 0) values.Add($"{label} {amount}");
-        }
-
-        private static string DescribeStatusKeyword(StatusKeyword keyword)
-        {
-            return keyword switch
-            {
-                StatusKeyword.Injury => "부상",
-                StatusKeyword.Bind => "속박",
-                StatusKeyword.Stun => "기절",
-                StatusKeyword.Weaken => "약화",
-                StatusKeyword.Vulnerable => "취약",
-                _ => keyword.ToString()
-            };
-        }
-
-        private void DrawMonsters(BattleRuntimeEncounterContext context)
-        {
-            BattleMonsterAttackActionOption[] options =
-                battleActions.CreateMonsterAttackOptions(context);
             GUILayout.Label("아군 몬스터");
             GUILayout.BeginHorizontal();
-            foreach (PlayerMonsterFieldPosition position in
-                     Enum.GetValues(typeof(PlayerMonsterFieldPosition)))
+            foreach (BattleMonsterDisplayOption option in snapshot.Monsters)
             {
-                BattleMonsterAttackActionOption option = options
-                    .FirstOrDefault(value => value.Position == position);
-                BattleMonsterState monster = option?.Monster;
                 GUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true));
-                if (monster == null)
+                GUILayout.Label(option.DisplayText, wrappedStyle);
+                if (!string.IsNullOrWhiteSpace(option.StatusText))
                 {
-                    GUILayout.Label("빈 칸");
+                    GUILayout.Label(option.StatusText, wrappedStyle);
                 }
-                else
-                {
-                    GUILayout.Label(
-                        $"{monster.Card.SourceCard.DisplayName}\n공격 {monster.Attack} · " +
-                        $"HP {monster.CurrentHealth}/{monster.MaximumHealth}");
-                    string statusText = DescribeCommonStatus(monster.Status);
-                    if (!string.IsNullOrWhiteSpace(statusText))
-                    {
-                        GUILayout.Label(statusText, wrappedStyle);
-                    }
 
+                if (option.IsOccupied)
+                {
                     bool previous = GUI.enabled;
                     GUI.enabled = option.CanAttack;
                     if (GUILayout.Button("선택한 적 공격"))
                     {
                         BattleMonsterAttackCommandResult command =
-                            battleActions.TryAttack(
-                                context,
+                            battleScreen.TryAttack(
+                                progress,
                                 option.BattleCardId);
                         message = command.Message;
                         if (command.Succeeded)
@@ -134,12 +47,10 @@ namespace HaveABreak.Cards
             GUILayout.EndHorizontal();
         }
 
-        private void DrawHand(BattleRuntimeEncounterContext context)
+        private void DrawHand(BattleScreenSnapshot snapshot)
         {
-            BattleHandCardActionOption[] options =
-                battleActions.CreateHandOptions(context);
-            GUILayout.Label($"패 ({options.Length})", headingStyle);
-            foreach (BattleHandCardActionOption option in options)
+            GUILayout.Label($"패 ({snapshot.Hand.Length})", headingStyle);
+            foreach (BattleHandCardActionOption option in snapshot.Hand)
             {
                 GUILayout.BeginHorizontal(GUI.skin.box);
                 GUILayout.Label(option.DisplayText, wrappedStyle);
@@ -152,8 +63,8 @@ namespace HaveABreak.Cards
                             banishLabel,
                             GUILayout.Width(170f)))
                     {
-                        battleActions.CycleBanishTarget(
-                            context,
+                        battleScreen.CycleBanishTarget(
+                            progress,
                             option.BattleCardId);
                     }
                 }
@@ -165,8 +76,8 @@ namespace HaveABreak.Cards
                 if (clicked)
                 {
                     BattleCardPlayCommandResult command =
-                        battleActions.TryPlayCard(
-                            context,
+                        battleScreen.TryPlayCard(
+                            progress,
                             option.BattleCardId);
                     message = command.Message;
                     if (command.Succeeded)
@@ -184,24 +95,18 @@ namespace HaveABreak.Cards
             }
         }
 
-        private void DrawRecentEvents(BattleRuntimeState runtime)
+        private void DrawRecentEvents(BattleScreenSnapshot snapshot)
         {
-            IReadOnlyList<BattleEventRecord> events = runtime.EventLog.Events;
             GUILayout.Label("최근 전투 기록", headingStyle);
-            if (events.Count == 0)
+            if (snapshot.RecentEvents.Length == 0)
             {
                 GUILayout.Label("기록 없음");
                 return;
             }
 
-            foreach (BattleEventRecord record in events
-                         .Skip(Mathf.Max(0, events.Count - 6)))
+            foreach (BattleEventDisplayOption option in snapshot.RecentEvents)
             {
-                if (record == null) continue;
-                GUILayout.Label(
-                    $"{record.EventType} · {record.Cause} · " +
-                    $"{record.ActorId} → {record.TargetId}",
-                    wrappedStyle);
+                GUILayout.Label(option.DisplayText, wrappedStyle);
             }
         }
 
@@ -255,6 +160,5 @@ namespace HaveABreak.Cards
                     wrappedStyle);
             }
         }
-
     }
 }
