@@ -33,14 +33,19 @@ namespace HaveABreak.Editor
                 BattleSettlementSourceBoundaryValidation.Validate();
             bool settlement =
                 BattleSettlementCommandFlowValidation.Validate();
+            bool startBoundary =
+                BattleStartSourceBoundaryValidation.Validate();
+            bool start = BattleStartCommandFlowValidation.Validate();
             bool valid = existing && screenBoundary && screen &&
-                         settlementBoundary && settlement;
+                         settlementBoundary && settlement &&
+                         startBoundary && start;
             if (valid)
             {
                 Debug.Log(
                     "Complete test harness with battle screen passed: " +
                     "existing runtime, source boundaries, value-type comparison " +
-                    "guard, display snapshot flow, and settlement command flow.");
+                    "guard, display snapshot flow, settlement command flow, and " +
+                    "battle start checkpoint flow.");
             }
             else
             {
@@ -48,7 +53,8 @@ namespace HaveABreak.Editor
                     "Complete test harness with battle screen failed. " +
                     $"existing={existing}, screenBoundary={screenBoundary}, " +
                     $"screen={screen}, settlementBoundary={settlementBoundary}, " +
-                    $"settlement={settlement}");
+                    $"settlement={settlement}, startBoundary={startBoundary}, " +
+                    $"start={start}");
             }
 
             return valid;
