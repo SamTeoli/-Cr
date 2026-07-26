@@ -26,6 +26,12 @@ namespace HaveABreak.Editor
             "Assets/Editor/IntegratedRunPrototypeWindow.BattleStart.cs"
         };
 
+        private static readonly string[] CheckpointSavePaths =
+        {
+            "Assets/Scripts/Prototype/RuntimePrototypeScreen.Part05.cs",
+            "Assets/Editor/IntegratedRunPrototypeWindow.Part05.cs"
+        };
+
         private static readonly string[] ForbiddenConnectionDependencies =
         {
             "RunEncounterPoolService.TryResolve",
@@ -100,6 +106,32 @@ namespace HaveABreak.Editor
                     Debug.LogError(
                         $"Direct battle start service remains in {path}: " +
                         forbidden);
+                    return false;
+                }
+            }
+
+            foreach (string path in CheckpointSavePaths)
+            {
+                if (!File.Exists(path))
+                {
+                    Debug.LogError(
+                        $"Battle checkpoint save source is missing: {path}");
+                    return false;
+                }
+
+                string source = File.ReadAllText(path);
+                if (!source.Contains(
+                        "progress.HasActiveEncounter",
+                        StringComparison.Ordinal) ||
+                    !source.Contains(
+                        "battleStart.TryStart(",
+                        StringComparison.Ordinal) ||
+                    !source.Contains(
+                        "string.IsNullOrWhiteSpace(successMessage)",
+                        StringComparison.Ordinal))
+                {
+                    Debug.LogError(
+                        $"Manual battle checkpoint retry is not connected: {path}");
                     return false;
                 }
             }
