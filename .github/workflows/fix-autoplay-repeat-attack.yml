@@ -1,0 +1,71 @@
+name: Fix autoplay repeat attack
+on:
+  pull_request:
+    types: [synchronize]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.event.pull_request.head.ref == 'agent/battle-autoplay-e2e'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/battle-autoplay-e2e
+          fetch-depth: 0
+      - name: Apply fix
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('Assets/Scripts/Prototype/BattleAutoplayViewModel.cs')
+          text = path.read_text(encoding='utf-8')
+          old = '''        {
+            for (int index = 0; index < limit; index++)
+            {
+                BattleScreenSnapshot snapshot =
+                    battleScreen.CreateSnapshot(progress, campaign);'''
+          new = '''        {
+            HashSet<string> attemptedAttackers =
+                new(StringComparer.OrdinalIgnoreCase);
+            for (int index = 0; index < limit; index++)
+            {
+                BattleScreenSnapshot snapshot =
+                    battleScreen.CreateSnapshot(progress, campaign);'''
+          marker = '        private BattleAutoplayCommandResult ResolveAttacks('
+          start = text.index(marker)
+          prefix = text[:start]
+          suffix = text[start:]
+          if old not in suffix:
+              raise SystemExit('ResolveAttacks opening block not found')
+          suffix = suffix.replace(old, new, 1)
+          old_filter = '''                BattleMonsterDisplayOption attacker = snapshot.Monsters
+                    .Where(value => value != null && value.CanAttack)
+                    .OrderBy(value => value.Position)
+                    .FirstOrDefault();'''
+          new_filter = '''                BattleMonsterDisplayOption attacker = snapshot.Monsters
+                    .Where(value => value != null && value.CanAttack &&
+                        !attemptedAttackers.Contains(value.BattleCardId))
+                    .OrderBy(value => value.Position)
+                    .FirstOrDefault();'''
+          if old_filter not in suffix:
+              raise SystemExit('ResolveAttacks attacker filter not found')
+          suffix = suffix.replace(old_filter, new_filter, 1)
+          old_command = '''                BattleMonsterAttackCommandResult command =
+                    battleScreen.TryAttack(progress, attacker.BattleCardId);'''
+          new_command = '''                attemptedAttackers.Add(attacker.BattleCardId);
+                BattleMonsterAttackCommandResult command =
+                    battleScreen.TryAttack(progress, attacker.BattleCardId);'''
+          if old_command not in suffix:
+              raise SystemExit('ResolveAttacks command block not found')
+          suffix = suffix.replace(old_command, new_command, 1)
+          path.write_text(prefix + suffix, encoding='utf-8')
+      - name: Remove workflow
+        run: rm .github/workflows/fix-autoplay-repeat-attack.yml
+      - name: Validate and commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "자동 진행 중복 몬스터 공격 방지"
+          git push origin HEAD:agent/battle-autoplay-e2e
