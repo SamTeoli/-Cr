@@ -19,7 +19,7 @@ namespace HaveABreak.Cards
         bool TrySave(
             RunCampaignState campaign,
             RunEncounterProgressState progress,
-            out RunSaveDestination destination,
+            out string destination,
             out RunCampaignFailure failure);
     }
 
@@ -36,7 +36,7 @@ namespace HaveABreak.Cards
             string battleId,
             int selectionSeed,
             int battleSeed,
-            RunSaveDestination saveDestination,
+            string saveDestination,
             RunCampaignFailure saveFailure,
             RunEncounterProgressFailure progressFailure,
             BattleRuntimeEncounterFlowFailure flowFailure,
@@ -81,7 +81,7 @@ namespace HaveABreak.Cards
         public string BattleId { get; }
         public int SelectionSeed { get; }
         public int BattleSeed { get; }
-        public RunSaveDestination SaveDestination { get; }
+        public string SaveDestination { get; }
         public RunCampaignFailure SaveFailure { get; }
         public RunEncounterProgressFailure ProgressFailure { get; }
         public BattleRuntimeEncounterFlowFailure FlowFailure { get; }
@@ -102,14 +102,16 @@ namespace HaveABreak.Cards
             public bool TrySave(
                 RunCampaignState campaign,
                 RunEncounterProgressState progress,
-                out RunSaveDestination destination,
+                out string destination,
                 out RunCampaignFailure failure)
             {
-                return IntegratedRunSaveService.TrySave(
+                bool saved = IntegratedRunSaveService.TrySave(
                     campaign,
                     progress,
-                    out destination,
+                    out RunSaveDestination savedDestination,
                     out failure);
+                destination = savedDestination.ToString();
+                return saved;
             }
         }
 
@@ -351,7 +353,7 @@ namespace HaveABreak.Cards
             if (!checkpointWriter.TrySave(
                     campaign,
                     progress,
-                    out RunSaveDestination destination,
+                    out string destination,
                     out RunCampaignFailure saveFailure))
             {
                 return new BattleStartCommandResult(
