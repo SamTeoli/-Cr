@@ -7,6 +7,23 @@ using UnityEngine.UI;
 
 namespace HaveABreak.Cards
 {
+    public sealed class RuntimeGameCommandOption
+    {
+        public RuntimeGameCommandOption(
+            string commandId,
+            string label,
+            bool interactable = true)
+        {
+            CommandId = commandId;
+            Label = label;
+            Interactable = interactable;
+        }
+
+        public string CommandId { get; }
+        public string Label { get; }
+        public bool Interactable { get; }
+    }
+
     public sealed class RuntimeGameUiRoot : MonoBehaviour
     {
         private static readonly Color BackgroundColor =
@@ -20,6 +37,8 @@ namespace HaveABreak.Cards
 
         private GameObject startScreen;
         private GameObject runPreparationScreen;
+        private GameObject nodeSelectionScreen;
+        private GameObject nodeResolutionScreen;
         public Canvas RootCanvas { get; private set; }
         public Button NewRunButton { get; private set; }
         public Button ContinueButton { get; private set; }
@@ -28,6 +47,13 @@ namespace HaveABreak.Cards
         public RectTransform RunPreparationCardList { get; private set; }
         public Button CancelRunPreparationButton { get; private set; }
         public Button ConfirmRunPreparationButton { get; private set; }
+        public Text NodeSelectionSummaryText { get; private set; }
+        public Text NodeSelectionMessageText { get; private set; }
+        public RectTransform NodeSelectionCommandList { get; private set; }
+        public Text NodeResolutionTitleText { get; private set; }
+        public Text NodeResolutionSummaryText { get; private set; }
+        public Text NodeResolutionMessageText { get; private set; }
+        public RectTransform NodeResolutionCommandList { get; private set; }
         public RuntimeGameScreen CurrentScreen { get; private set; }
 
         public event Action NewRunRequested;
@@ -35,6 +61,8 @@ namespace HaveABreak.Cards
         public event Action<string> RunPreparationCardToggleRequested;
         public event Action RunPreparationCancelled;
         public event Action RunPreparationConfirmed;
+        public event Action<string> NodeSelectionRequested;
+        public event Action<string> NodeResolutionCommandRequested;
 
         public void Initialize()
         {
@@ -47,6 +75,8 @@ namespace HaveABreak.Cards
             BuildCanvas();
             BuildStartScreen();
             BuildRunPreparationScreen();
+            BuildNodeSelectionScreen();
+            BuildNodeResolutionScreen();
             ShowScreen(RuntimeGameScreen.Start);
         }
 
@@ -61,6 +91,16 @@ namespace HaveABreak.Cards
             {
                 runPreparationScreen.SetActive(
                     screen == RuntimeGameScreen.RunPreparation);
+            }
+            if (nodeSelectionScreen != null)
+            {
+                nodeSelectionScreen.SetActive(
+                    screen == RuntimeGameScreen.NodeSelection);
+            }
+            if (nodeResolutionScreen != null)
+            {
+                nodeResolutionScreen.SetActive(
+                    screen == RuntimeGameScreen.NodeResolution);
             }
         }
 
@@ -117,6 +157,35 @@ namespace HaveABreak.Cards
                     option.IsSelected ? PrimaryColor : SecondaryColor,
                     () => RunPreparationCardToggleRequested?.Invoke(ownedCardId));
             }
+        }
+
+        public void BindNodeSelection(
+            IReadOnlyList<RuntimeGameCommandOption> options,
+            string summary,
+            string message)
+        {
+            BindCommandList(
+                NodeSelectionCommandList,
+                options,
+                commandId => NodeSelectionRequested?.Invoke(commandId));
+            NodeSelectionSummaryText.text = summary ?? string.Empty;
+            NodeSelectionMessageText.text = message ?? string.Empty;
+        }
+
+        public void BindNodeResolution(
+            string title,
+            IReadOnlyList<RuntimeGameCommandOption> options,
+            string summary,
+            string message)
+        {
+            BindCommandList(
+                NodeResolutionCommandList,
+                options,
+                commandId =>
+                    NodeResolutionCommandRequested?.Invoke(commandId));
+            NodeResolutionTitleText.text = title ?? "노드 진행";
+            NodeResolutionSummaryText.text = summary ?? string.Empty;
+            NodeResolutionMessageText.text = message ?? string.Empty;
         }
 
         private void EnsureEventSystem()
@@ -369,6 +438,198 @@ namespace HaveABreak.Cards
             scroll.horizontal = false;
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
+        }
+
+        private void BuildNodeSelectionScreen()
+        {
+            Text summaryText;
+            RectTransform commandList;
+            Text messageText;
+            nodeSelectionScreen = BuildCommandScreen(
+                "NodeSelectionScreen",
+                "다음 노드 선택",
+                out Text title,
+                out summaryText,
+                out commandList,
+                out messageText);
+            title.text = "다음 노드 선택";
+            NodeSelectionSummaryText = summaryText;
+            NodeSelectionCommandList = commandList;
+            NodeSelectionMessageText = messageText;
+        }
+
+        private void BuildNodeResolutionScreen()
+        {
+            Text titleText;
+            Text summaryText;
+            RectTransform commandList;
+            Text messageText;
+            nodeResolutionScreen = BuildCommandScreen(
+                "NodeResolutionScreen",
+                "노드 진행",
+                out titleText,
+                out summaryText,
+                out commandList,
+                out messageText);
+            NodeResolutionTitleText = titleText;
+            NodeResolutionSummaryText = summaryText;
+            NodeResolutionCommandList = commandList;
+            NodeResolutionMessageText = messageText;
+        }
+
+        private GameObject BuildCommandScreen(
+            string screenName,
+            string title,
+            out Text titleText,
+            out Text summaryText,
+            out RectTransform commandList,
+            out Text messageText)
+        {
+            GameObject screen = new(
+                screenName,
+                typeof(RectTransform));
+            RectTransform screenRect = screen.GetComponent<RectTransform>();
+            screenRect.SetParent(RootCanvas.transform, false);
+            Stretch(screenRect);
+
+            Image panel = CreateImage(
+                $"{screenName}Panel",
+                screenRect,
+                PanelColor);
+            RectTransform panelRect = panel.rectTransform;
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.sizeDelta = new Vector2(1120f, 860f);
+
+            VerticalLayoutGroup layout =
+                panel.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(64, 64, 48, 48);
+            layout.spacing = 16f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            titleText = CreateText(
+                "Title",
+                panelRect,
+                title,
+                42,
+                FontStyle.Bold,
+                68f);
+            summaryText = CreateText(
+                "Summary",
+                panelRect,
+                string.Empty,
+                22,
+                FontStyle.Normal,
+                64f);
+            commandList = BuildCommandScroll(panelRect);
+            messageText = CreateText(
+                "Message",
+                panelRect,
+                string.Empty,
+                18,
+                FontStyle.Normal,
+                58f);
+            return screen;
+        }
+
+        private static RectTransform BuildCommandScroll(Transform parent)
+        {
+            GameObject scrollObject = new(
+                "CommandScroll",
+                typeof(RectTransform),
+                typeof(ScrollRect),
+                typeof(LayoutElement));
+            scrollObject.transform.SetParent(parent, false);
+            scrollObject.GetComponent<LayoutElement>().preferredHeight = 560f;
+
+            Image viewport = CreateImage(
+                "Viewport",
+                scrollObject.transform,
+                new Color(0.025f, 0.04f, 0.07f, 0.75f));
+            viewport.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            Stretch(viewport.rectTransform);
+
+            GameObject contentObject = new(
+                "Content",
+                typeof(RectTransform),
+                typeof(VerticalLayoutGroup),
+                typeof(ContentSizeFitter));
+            RectTransform content =
+                contentObject.GetComponent<RectTransform>();
+            content.SetParent(viewport.transform, false);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.offsetMin = new Vector2(18f, 0f);
+            content.offsetMax = new Vector2(-18f, 0f);
+
+            VerticalLayoutGroup commandLayout =
+                contentObject.GetComponent<VerticalLayoutGroup>();
+            commandLayout.padding = new RectOffset(8, 8, 12, 12);
+            commandLayout.spacing = 10f;
+            commandLayout.childControlWidth = true;
+            commandLayout.childControlHeight = true;
+            commandLayout.childForceExpandWidth = true;
+            commandLayout.childForceExpandHeight = false;
+            ContentSizeFitter fitter =
+                contentObject.GetComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            ScrollRect scroll = scrollObject.GetComponent<ScrollRect>();
+            scroll.viewport = viewport.rectTransform;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            return content;
+        }
+
+        private static void BindCommandList(
+            RectTransform commandList,
+            IReadOnlyList<RuntimeGameCommandOption> options,
+            Action<string> command)
+        {
+            ClearChildren(commandList);
+            int optionCount = options?.Count ?? 0;
+            for (int index = 0; index < optionCount; index++)
+            {
+                RuntimeGameCommandOption option = options[index];
+                if (option == null)
+                {
+                    continue;
+                }
+
+                string commandId = option.CommandId;
+                Button button = CreateButton(
+                    $"Command_{index}",
+                    commandList,
+                    option.Label,
+                    option.Interactable ? PrimaryColor : SecondaryColor,
+                    () => command?.Invoke(commandId));
+                button.interactable = option.Interactable;
+            }
+        }
+
+        private static void ClearChildren(RectTransform parent)
+        {
+            for (int index = parent.childCount - 1; index >= 0; index--)
+            {
+                GameObject child = parent.GetChild(index).gameObject;
+                if (Application.isPlaying)
+                {
+                    child.transform.SetParent(null, false);
+                    Destroy(child);
+                }
+                else
+                {
+                    DestroyImmediate(child);
+                }
+            }
         }
 
         private static Image CreateImage(

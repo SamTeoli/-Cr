@@ -27,6 +27,8 @@ namespace HaveABreak.Editor
             string toggledCardId = null;
             bool preparationCancelled = false;
             bool preparationConfirmed = false;
+            string selectedNodeId = null;
+            string resolutionCommandId = null;
             CardData validationCard = null;
 
             try
@@ -41,6 +43,10 @@ namespace HaveABreak.Editor
                     () => preparationCancelled = true;
                 root.RunPreparationConfirmed +=
                     () => preparationConfirmed = true;
+                root.NodeSelectionRequested +=
+                    nodeId => selectedNodeId = nodeId;
+                root.NodeResolutionCommandRequested +=
+                    commandId => resolutionCommandId = commandId;
                 root.Initialize();
 
                 CanvasScaler scaler =
@@ -91,6 +97,42 @@ namespace HaveABreak.Editor
                     !root.NewRunButton.gameObject
                         .transform.parent.parent.gameObject.activeSelf;
 
+                RuntimeGameCommandOption[] nodeOptions =
+                {
+                    new("NODE-VALIDATION", "검증 노드")
+                };
+                root.BindNodeSelection(
+                    nodeOptions,
+                    "노드 선택 요약",
+                    "노드 선택 메시지");
+                root.ShowScreen(RuntimeGameScreen.NodeSelection);
+                root.NodeSelectionCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool nodeSelection =
+                    root.CurrentScreen == RuntimeGameScreen.NodeSelection &&
+                    root.NodeSelectionSummaryText.text == "노드 선택 요약" &&
+                    root.NodeSelectionMessageText.text == "노드 선택 메시지" &&
+                    selectedNodeId == "NODE-VALIDATION";
+
+                RuntimeGameCommandOption[] resolutionOptions =
+                {
+                    new("leave", "노드 나가기")
+                };
+                root.BindNodeResolution(
+                    "검증 노드",
+                    resolutionOptions,
+                    "노드 진행 요약",
+                    "노드 진행 메시지");
+                root.ShowScreen(RuntimeGameScreen.NodeResolution);
+                root.NodeResolutionCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool nodeResolution =
+                    root.CurrentScreen == RuntimeGameScreen.NodeResolution &&
+                    root.NodeResolutionTitleText.text == "검증 노드" &&
+                    root.NodeResolutionSummaryText.text == "노드 진행 요약" &&
+                    root.NodeResolutionMessageText.text == "노드 진행 메시지" &&
+                    resolutionCommandId == "leave";
+
                 root.ShowScreen(RuntimeGameScreen.Battle);
                 bool routing = root.CurrentScreen ==
                                RuntimeGameScreen.Battle &&
@@ -99,13 +141,15 @@ namespace HaveABreak.Editor
                                !root.NewRunButton.gameObject
                                     .transform.parent.parent.gameObject.activeSelf;
 
-                bool valid = structure && commands && preparation && routing;
+                bool valid = structure && commands && preparation &&
+                             nodeSelection && nodeResolution && routing;
                 if (valid)
                 {
                     Debug.Log(
                         "Final UGUI start screen validation passed: " +
                         "canvas scaling, Input System module, start layout, " +
                         "button commands, run preparation binding, " +
+                        "node selection and resolution commands, " +
                         "and screen visibility.");
                 }
                 else
@@ -113,7 +157,9 @@ namespace HaveABreak.Editor
                     Debug.LogError(
                         "Final UGUI start screen validation failed. " +
                         $"structure={structure}, commands={commands}, " +
-                        $"preparation={preparation}, routing={routing}");
+                        $"preparation={preparation}, " +
+                        $"nodeSelection={nodeSelection}, " +
+                        $"nodeResolution={nodeResolution}, routing={routing}");
                 }
 
                 return valid;
