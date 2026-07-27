@@ -1,0 +1,7 @@
+# Keep Unity-generated text settings stable across Windows and GitHub.
+.gitattributes text eol=lf
+Assets/DefaultVolumeProfile.asset text eol=lf
+Assets/Settings/UniversalRP.asset text eol=lf
+Assets/UniversalRenderPipelineGlobalSettings.asset text eol=lf
+ProjectSettings/ProjectSettings.asset text eol=lf
+ProjectSettings/UnityConnectSettings.asset text eol=lf
