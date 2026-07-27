@@ -6,6 +6,24 @@ namespace HaveABreak.Editor
 {
     internal static class BattleScreenCompleteHarnessValidation
     {
+        internal static bool? LastResult { get; private set; }
+        internal static DateTime LastCompletedAtUtc { get; private set; }
+        internal static TimeSpan LastDuration { get; private set; }
+
+        internal static bool TryGetRecentPass(
+            TimeSpan maximumAge,
+            out string summary)
+        {
+            bool recent = LastResult == true &&
+                          LastCompletedAtUtc != default &&
+                          DateTime.UtcNow - LastCompletedAtUtc <= maximumAge;
+            summary = recent
+                ? $"최근 전체 하네스 통과 결과 · " +
+                  $"{LastCompletedAtUtc:O} · {LastDuration.TotalSeconds:F1}초"
+                : null;
+            return recent;
+        }
+
         [MenuItem("Have a Break/Tests/Run Complete Test Harness With Battle Screen")]
         private static void RunFromMenu()
         {
@@ -24,6 +42,7 @@ namespace HaveABreak.Editor
 
         internal static bool Run()
         {
+            System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
             bool existing =
                 BattleRuntimeFullRegressionValidation.RunCompleteTestHarness();
             bool screenBoundary =
@@ -39,6 +58,8 @@ namespace HaveABreak.Editor
             bool lifecycleBoundary =
                 RunLifecycleSourceBoundaryValidation.Validate();
             bool lifecycle = RunLifecycleViewModelValidation.Validate();
+            bool manualE2ETool =
+                RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
                 BattleAutoplaySourceBoundaryValidation.Validate();
             bool autoplay = BattleAutoplayViewModelValidation.Validate();
@@ -48,7 +69,7 @@ namespace HaveABreak.Editor
             bool valid = existing && screenBoundary && screen &&
                          settlementBoundary && settlement &&
                          startBoundary && start &&
-                         lifecycleBoundary && lifecycle &&
+                         lifecycleBoundary && lifecycle && manualE2ETool &&
                          autoplayBoundary && autoplay && fullRun &&
                          playerActionFullRun;
             if (valid)
@@ -57,8 +78,9 @@ namespace HaveABreak.Editor
                     "Complete test harness with battle screen passed: " +
                     "existing runtime, source boundaries, value-type comparison " +
                     "guard, display snapshot flow, settlement command flow, " +
-                    "battle start checkpoint flow, run lifecycle flow, battle " +
-                    "player-action autoplay boundary and command flow, full run " +
+                    "battle start checkpoint flow, run lifecycle flow, manual " +
+                    "run E2E validation tool, battle player-action autoplay " +
+                    "boundary and command flow, full run " +
                     "end-to-end progression, and player-action full run " +
                     "progression.");
             }
@@ -70,11 +92,16 @@ namespace HaveABreak.Editor
                     $"screen={screen}, settlementBoundary={settlementBoundary}, " +
                     $"settlement={settlement}, startBoundary={startBoundary}, " +
                     $"start={start}, lifecycleBoundary={lifecycleBoundary}, " +
-                    $"lifecycle={lifecycle}, autoplayBoundary=" +
+                    $"lifecycle={lifecycle}, manualE2ETool={manualE2ETool}, " +
+                    $"autoplayBoundary=" +
                     $"{autoplayBoundary}, autoplay={autoplay}, fullRun=" +
                     $"{fullRun}, playerActionFullRun={playerActionFullRun}");
             }
 
+            stopwatch.Stop();
+            LastResult = valid;
+            LastCompletedAtUtc = DateTime.UtcNow;
+            LastDuration = stopwatch.Elapsed;
             return valid;
         }
     }
