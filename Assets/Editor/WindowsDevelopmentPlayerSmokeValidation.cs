@@ -48,8 +48,30 @@ namespace HaveABreak.Editor
             }
 
             string logPath = Path.Combine(projectRoot, RelativeLogPath);
+            Run(executablePath, logPath, "Windows Development Player");
+        }
+
+        internal static void Run(
+            string executablePath,
+            string logPath,
+            string displayName)
+        {
+            if (string.IsNullOrWhiteSpace(executablePath) ||
+                !File.Exists(executablePath))
+            {
+                throw new FileNotFoundException(
+                    "Windows player smoke test failed: executable not found.",
+                    executablePath);
+            }
+            if (string.IsNullOrWhiteSpace(logPath))
+            {
+                throw new ArgumentException(
+                    "Windows player smoke test failed: log path is empty.",
+                    nameof(logPath));
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(logPath) ??
-                                      projectRoot);
+                                      Path.GetDirectoryName(executablePath));
             if (File.Exists(logPath))
             {
                 File.Delete(logPath);
@@ -62,7 +84,7 @@ namespace HaveABreak.Editor
                     "-batchmode -nographics -logFile " +
                     Quote(logPath),
                 WorkingDirectory = Path.GetDirectoryName(executablePath) ??
-                                   projectRoot,
+                                   Directory.GetCurrentDirectory(),
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
@@ -120,7 +142,7 @@ namespace HaveABreak.Editor
             }
 
             Debug.Log(
-                "Windows Development Player smoke test passed: " +
+                $"{displayName ?? "Windows Player"} smoke test passed: " +
                 $"startup probe {StartupProbeMilliseconds / 1000.0:F1}s, " +
                 $"earlyExit={(earlyExitCode.HasValue ? earlyExitCode.Value.ToString() : "no")}, " +
                 logPath);
