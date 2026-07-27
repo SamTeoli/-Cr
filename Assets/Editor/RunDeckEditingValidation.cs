@@ -1,3 +1,4 @@
+using System;
 using HaveABreak.Cards;
 using UnityEditor;
 using UnityEngine;
@@ -109,7 +110,11 @@ namespace HaveABreak.Editor
                 initialOptions[2].IsSelected ||
                 initialOptions[2].SelectionOrder != 0 ||
                 initialOptions[0].DisplayLabel !=
-                $"[편성] {first.Card.DisplayName} · Lv.{first.CurrentLevel}")
+                $"[순서 1] {first.Card.DisplayName} · Lv.{first.CurrentLevel}" ||
+                initialOptions[1].DisplayLabel !=
+                $"[순서 2] {second.Card.DisplayName} · Lv.{second.CurrentLevel}" ||
+                initialOptions[2].DisplayLabel !=
+                $"[보유] {third.Card.DisplayName} · Lv.{third.CurrentLevel}")
             {
                 return false;
             }
@@ -137,6 +142,15 @@ namespace HaveABreak.Editor
                 !allOptions[0].IsSelected || allOptions[0].SelectionOrder != 1 ||
                 !allOptions[1].IsSelected || allOptions[1].SelectionOrder != 2 ||
                 !allOptions[2].IsSelected || allOptions[2].SelectionOrder != 3 ||
+                !allOptions[0].DisplayLabel.StartsWith(
+                    "[순서 1]",
+                    StringComparison.Ordinal) ||
+                !allOptions[1].DisplayLabel.StartsWith(
+                    "[순서 2]",
+                    StringComparison.Ordinal) ||
+                !allOptions[2].DisplayLabel.StartsWith(
+                    "[순서 3]",
+                    StringComparison.Ordinal) ||
                 !selection.TryCreateDeck(
                     progress.OwnedCards,
                     out RunDeckState allCardsDeck,
@@ -169,3 +183,4 @@ namespace HaveABreak.Editor
         }
     }
 }
+
