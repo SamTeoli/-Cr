@@ -1,9 +1,12 @@
+using System;
+using System.Collections.Generic;
 using HaveABreak.Cards;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace HaveABreak.Editor
 {
@@ -21,6 +24,18 @@ namespace HaveABreak.Editor
             GameObject host = new("Final UI Root Validation");
             bool newRunRequested = false;
             bool continueRequested = false;
+            string toggledCardId = null;
+            bool preparationCancelled = false;
+            bool preparationConfirmed = false;
+            string selectedNodeId = null;
+            string resolutionCommandId = null;
+            string battleCommandId = null;
+            string rewardCommandId = null;
+            bool confirmationCancelled = false;
+            bool confirmationAccepted = false;
+            bool resultNewRunRequested = false;
+            bool returnToStartRequested = false;
+            CardData validationCard = null;
 
             try
             {
@@ -28,6 +43,28 @@ namespace HaveABreak.Editor
                     host.AddComponent<RuntimeGameUiRoot>();
                 root.NewRunRequested += () => newRunRequested = true;
                 root.ContinueRequested += () => continueRequested = true;
+                root.RunPreparationCardToggleRequested +=
+                    cardId => toggledCardId = cardId;
+                root.RunPreparationCancelled +=
+                    () => preparationCancelled = true;
+                root.RunPreparationConfirmed +=
+                    () => preparationConfirmed = true;
+                root.NodeSelectionRequested +=
+                    nodeId => selectedNodeId = nodeId;
+                root.NodeResolutionCommandRequested +=
+                    commandId => resolutionCommandId = commandId;
+                root.BattleCommandRequested +=
+                    commandId => battleCommandId = commandId;
+                root.RewardCommandRequested +=
+                    commandId => rewardCommandId = commandId;
+                root.ConfirmationCancelled +=
+                    () => confirmationCancelled = true;
+                root.ConfirmationAccepted +=
+                    () => confirmationAccepted = true;
+                root.RunResultNewRunRequested +=
+                    () => resultNewRunRequested = true;
+                root.ReturnToStartRequested +=
+                    () => returnToStartRequested = true;
                 root.Initialize();
 
                 CanvasScaler scaler =
@@ -51,19 +88,170 @@ namespace HaveABreak.Editor
                 root.ContinueButton.onClick.Invoke();
                 bool commands = newRunRequested && continueRequested;
 
-                root.ShowScreen(RuntimeGameScreen.Battle);
-                bool routing = root.CurrentScreen ==
-                               RuntimeGameScreen.Battle &&
-                               !root.NewRunButton.gameObject
-                                   .transform.parent.parent.gameObject.activeSelf;
+                root.BindConfirmation(
+                    "새 런 확인",
+                    "현재 진행이 교체됩니다.",
+                    "새 런 시작");
+                root.ShowScreen(RuntimeGameScreen.Confirmation);
+                root.CancelConfirmationButton.onClick.Invoke();
+                root.ConfirmActionButton.onClick.Invoke();
+                bool confirmation =
+                    root.CurrentScreen == RuntimeGameScreen.Confirmation &&
+                    root.ConfirmationTitleText.text == "새 런 확인" &&
+                    root.ConfirmationBodyText.text ==
+                        "현재 진행이 교체됩니다." &&
+                    root.ConfirmActionButton
+                        .GetComponentInChildren<Text>().text == "새 런 시작" &&
+                    confirmationCancelled && confirmationAccepted;
 
-                bool valid = structure && commands && routing;
+                RunDeckSelectionOption[] options =
+                    CreatePreparationOptions(out validationCard);
+                root.BindRunPreparation(
+                    options,
+                    1,
+                    "덱 준비 검증",
+                    true);
+                root.ShowScreen(RuntimeGameScreen.RunPreparation);
+                Button cardButton =
+                    root.RunPreparationCardList.GetChild(0)
+                        .GetComponent<Button>();
+                cardButton.onClick.Invoke();
+                root.CancelRunPreparationButton.onClick.Invoke();
+                root.ConfirmRunPreparationButton.onClick.Invoke();
+                bool preparation =
+                    root.CurrentScreen == RuntimeGameScreen.RunPreparation &&
+                    root.RunPreparationSelectedCountText.text ==
+                        "선택 1장 / 보유 1장" &&
+                    root.RunPreparationMessageText.text == "덱 준비 검증" &&
+                    root.RunPreparationCardList.childCount == 1 &&
+                    root.ConfirmRunPreparationButton.interactable &&
+                    toggledCardId == options[0].OwnedCardId &&
+                    preparationCancelled &&
+                    preparationConfirmed &&
+                    !root.NewRunButton.gameObject
+                        .transform.parent.parent.gameObject.activeSelf;
+
+                RuntimeGameCommandOption[] nodeOptions =
+                {
+                    new("NODE-VALIDATION", "검증 노드")
+                };
+                root.BindNodeSelection(
+                    nodeOptions,
+                    "노드 선택 요약",
+                    "노드 선택 메시지");
+                root.ShowScreen(RuntimeGameScreen.NodeSelection);
+                root.NodeSelectionCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool nodeSelection =
+                    root.CurrentScreen == RuntimeGameScreen.NodeSelection &&
+                    root.NodeSelectionSummaryText.text == "노드 선택 요약" &&
+                    root.NodeSelectionMessageText.text == "노드 선택 메시지" &&
+                    selectedNodeId == "NODE-VALIDATION";
+
+                RuntimeGameCommandOption[] resolutionOptions =
+                {
+                    new("leave", "노드 나가기")
+                };
+                root.BindNodeResolution(
+                    "검증 노드",
+                    resolutionOptions,
+                    "노드 진행 요약",
+                    "노드 진행 메시지");
+                root.ShowScreen(RuntimeGameScreen.NodeResolution);
+                root.NodeResolutionCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool nodeResolution =
+                    root.CurrentScreen == RuntimeGameScreen.NodeResolution &&
+                    root.NodeResolutionTitleText.text == "검증 노드" &&
+                    root.NodeResolutionSummaryText.text == "노드 진행 요약" &&
+                    root.NodeResolutionMessageText.text == "노드 진행 메시지" &&
+                    resolutionCommandId == "leave";
+
+                RuntimeGameCommandOption[] battleOptions =
+                {
+                    new("end-turn", "턴 종료")
+                };
+                root.BindBattle(
+                    "검증 전투",
+                    battleOptions,
+                    "전투 상태 요약",
+                    "전투 명령 메시지");
+                root.ShowScreen(RuntimeGameScreen.Battle);
+                root.BattleCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool battle =
+                    root.CurrentScreen == RuntimeGameScreen.Battle &&
+                    root.BattleTitleText.text == "검증 전투" &&
+                    root.BattleSummaryText.text == "전투 상태 요약" &&
+                    root.BattleMessageText.text == "전투 명령 메시지" &&
+                    battleCommandId == "end-turn";
+
+                RuntimeGameCommandOption[] rewardOptions =
+                {
+                    new("complete", "보상 완료")
+                };
+                root.BindReward(
+                    rewardOptions,
+                    "골드 10 수령 완료",
+                    "보상 검증 메시지");
+                root.ShowScreen(RuntimeGameScreen.Reward);
+                root.RewardCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool reward =
+                    root.CurrentScreen == RuntimeGameScreen.Reward &&
+                    root.RewardSummaryText.text == "골드 10 수령 완료" &&
+                    root.RewardMessageText.text == "보상 검증 메시지" &&
+                    rewardCommandId == "complete";
+
+                root.BindRunResult(
+                    "런 완료",
+                    "완료 12/12",
+                    "보스를 쓰러뜨렸습니다.");
+                root.ShowScreen(RuntimeGameScreen.Completed);
+                root.RunResultNewRunButton.onClick.Invoke();
+                root.ReturnToStartButton.onClick.Invoke();
+                bool completed =
+                    root.CurrentScreen == RuntimeGameScreen.Completed &&
+                    root.RunResultTitleText.text == "런 완료" &&
+                    root.RunResultSummaryText.text == "완료 12/12" &&
+                    root.RunResultMessageText.text ==
+                        "보스를 쓰러뜨렸습니다." &&
+                    resultNewRunRequested && returnToStartRequested;
+                root.BindRunResult(
+                    "런 패배",
+                    "완료 5/12",
+                    "플레이어 HP가 0입니다.");
+                root.ShowScreen(RuntimeGameScreen.Defeated);
+                bool defeated =
+                    root.CurrentScreen == RuntimeGameScreen.Defeated &&
+                    root.RunResultTitleText.text == "런 패배" &&
+                    root.RunResultSummaryText.text == "완료 5/12" &&
+                    root.RunResultMessageText.text ==
+                        "플레이어 HP가 0입니다.";
+
+                root.ShowScreen(RuntimeGameScreen.Defeated);
+                bool routing = root.CurrentScreen ==
+                               RuntimeGameScreen.Defeated &&
+                               !root.RunPreparationCardList.gameObject
+                                   .activeInHierarchy &&
+                               !root.NewRunButton.gameObject
+                                    .transform.parent.parent.gameObject.activeSelf;
+
+                bool valid = structure && commands && confirmation &&
+                             preparation &&
+                             nodeSelection && nodeResolution && battle &&
+                             reward && completed && defeated && routing;
                 if (valid)
                 {
                     Debug.Log(
                         "Final UGUI start screen validation passed: " +
                         "canvas scaling, Input System module, start layout, " +
-                        "button commands, " +
+                        "button commands, run preparation binding, " +
+                        "confirmation commands, " +
+                        "node selection and resolution commands, " +
+                        "battle state and commands, " +
+                        "reward state and commands, " +
+                        "completed and defeated run results, " +
                         "and screen visibility.");
                 }
                 else
@@ -71,6 +259,12 @@ namespace HaveABreak.Editor
                     Debug.LogError(
                         "Final UGUI start screen validation failed. " +
                         $"structure={structure}, commands={commands}, " +
+                        $"confirmation={confirmation}, " +
+                        $"preparation={preparation}, " +
+                        $"nodeSelection={nodeSelection}, " +
+                        $"nodeResolution={nodeResolution}, battle={battle}, " +
+                        $"reward={reward}, " +
+                        $"completed={completed}, defeated={defeated}, " +
                         $"routing={routing}");
                 }
 
@@ -79,11 +273,35 @@ namespace HaveABreak.Editor
             finally
             {
                 Object.DestroyImmediate(host);
+                if (validationCard != null)
+                {
+                    Object.DestroyImmediate(validationCard);
+                }
                 if (previousEventSystem != null)
                 {
                     EventSystem.current = previousEventSystem;
                 }
             }
+        }
+
+        private static RunDeckSelectionOption[] CreatePreparationOptions(
+            out CardData card)
+        {
+            card = ScriptableObject.CreateInstance<SkillCardData>();
+            RunCardInstance ownedCard = new(
+                card,
+                "OWNED-UI-VALIDATION",
+                1);
+            RunOwnedCardState ownedCards = new();
+            if (!ownedCards.TryAdd(ownedCard, out _))
+            {
+                return Array.Empty<RunDeckSelectionOption>();
+            }
+
+            RunDeckSelectionViewModel selection = new();
+            selection.OpenWithAllOwnedCards(ownedCards);
+            selection.Toggle(ownedCard.OwnedCardId);
+            return selection.CreateOptions(ownedCards);
         }
     }
 }

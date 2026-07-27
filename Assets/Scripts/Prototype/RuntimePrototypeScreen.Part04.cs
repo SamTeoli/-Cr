@@ -203,6 +203,7 @@ namespace HaveABreak.Cards
             deckSelection.OpenWithAllOwnedCards(runPreparationCards);
             scroll = Vector2.zero;
             message = result.Message;
+            RefreshFinalRunPreparation();
         }
 
         private void CancelRunPreparation()
@@ -211,6 +212,7 @@ namespace HaveABreak.Cards
             deckSelection.Close();
             scroll = Vector2.zero;
             message = "새 런 준비를 취소했습니다.";
+            RefreshFinalUiVisibility();
         }
 
         private void ConfirmRunPreparation()
@@ -227,6 +229,7 @@ namespace HaveABreak.Cards
             message = result.Message;
             if (!result.Succeeded)
             {
+                RefreshFinalRunPreparation();
                 return;
             }
 
@@ -237,6 +240,7 @@ namespace HaveABreak.Cards
             deckSelection.Close();
             runPreparationCards = null;
             scroll = Vector2.zero;
+            RefreshFinalUiVisibility();
         }
 
         private void ContinueRun()
@@ -256,6 +260,7 @@ namespace HaveABreak.Cards
                 campaign = null;
                 progress = null;
                 battleScreen.Reset();
+                RefreshFinalUiVisibility();
                 return;
             }
 
@@ -264,6 +269,7 @@ namespace HaveABreak.Cards
             selectedUpgradeCardId = result.SelectedOwnedCardId;
             battleScreen.Reset();
             scroll = Vector2.zero;
+            RefreshFinalUiVisibility();
         }
     }
 }

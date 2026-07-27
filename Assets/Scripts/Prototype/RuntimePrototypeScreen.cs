@@ -28,16 +28,23 @@ namespace HaveABreak.Cards
         private GUIStyle headingStyle;
         private GUIStyle wrappedStyle;
         private RunLifecycleRequest pendingRunRequest;
+        public RuntimeGameUiRoot FinalUiRoot { get; private set; }
 
         public void Initialize(RuntimePrototypeConfig value)
         {
             config = value;
             permanentRewards = runLifecycle.LoadPermanentRewards(
                 permanentRewards);
+            InitializeFinalUi();
         }
 
         private void OnGUI()
         {
+            if (TryShowFinalUi())
+            {
+                return;
+            }
+
             EnsureStyles();
             Rect safe = Screen.safeArea;
             float width = Mathf.Min(1100f, Mathf.Max(1f, safe.width - 24f));

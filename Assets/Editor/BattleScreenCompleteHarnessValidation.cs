@@ -60,6 +60,8 @@ namespace HaveABreak.Editor
             bool lifecycle = RunLifecycleViewModelValidation.Validate();
             bool finalUiRouter = RuntimeGameScreenRouterValidation.Validate();
             bool finalUiRoot = RuntimeGameUiRootValidation.Validate();
+            bool finalUiPrototype =
+                RuntimePrototypeFinalUiValidation.Validate();
             bool manualE2ETool =
                 RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
@@ -71,8 +73,8 @@ namespace HaveABreak.Editor
             bool valid = existing && screenBoundary && screen &&
                          settlementBoundary && settlement &&
                          startBoundary && start &&
-                         lifecycleBoundary && lifecycle && finalUiRouter &&
-                         finalUiRoot &&
+                          lifecycleBoundary && lifecycle && finalUiRouter &&
+                          finalUiRoot && finalUiPrototype &&
                          manualE2ETool &&
                          autoplayBoundary && autoplay && fullRun &&
                          playerActionFullRun;
@@ -99,6 +101,7 @@ namespace HaveABreak.Editor
                     $"start={start}, lifecycleBoundary={lifecycleBoundary}, " +
                     $"lifecycle={lifecycle}, finalUiRouter={finalUiRouter}, " +
                     $"finalUiRoot={finalUiRoot}, " +
+                    $"finalUiPrototype={finalUiPrototype}, " +
                     $"manualE2ETool={manualE2ETool}, " +
                     $"autoplayBoundary=" +
                     $"{autoplayBoundary}, autoplay={autoplay}, fullRun=" +
