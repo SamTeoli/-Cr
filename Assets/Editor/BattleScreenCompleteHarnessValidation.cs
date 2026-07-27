@@ -59,6 +59,7 @@ namespace HaveABreak.Editor
                 RunLifecycleSourceBoundaryValidation.Validate();
             bool lifecycle = RunLifecycleViewModelValidation.Validate();
             bool finalUiRouter = RuntimeGameScreenRouterValidation.Validate();
+            bool finalUiRoot = RuntimeGameUiRootValidation.Validate();
             bool manualE2ETool =
                 RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
@@ -71,6 +72,7 @@ namespace HaveABreak.Editor
                          settlementBoundary && settlement &&
                          startBoundary && start &&
                          lifecycleBoundary && lifecycle && finalUiRouter &&
+                         finalUiRoot &&
                          manualE2ETool &&
                          autoplayBoundary && autoplay && fullRun &&
                          playerActionFullRun;
@@ -81,7 +83,7 @@ namespace HaveABreak.Editor
                     "existing runtime, source boundaries, value-type comparison " +
                     "guard, display snapshot flow, settlement command flow, " +
                     "battle start checkpoint flow, run lifecycle flow, final " +
-                    "UI screen routing, manual " +
+                    "UI screen routing and UGUI start screen, manual " +
                     "run E2E validation tool, battle player-action autoplay " +
                     "boundary and command flow, full run " +
                     "end-to-end progression, and player-action full run " +
@@ -96,6 +98,7 @@ namespace HaveABreak.Editor
                     $"settlement={settlement}, startBoundary={startBoundary}, " +
                     $"start={start}, lifecycleBoundary={lifecycleBoundary}, " +
                     $"lifecycle={lifecycle}, finalUiRouter={finalUiRouter}, " +
+                    $"finalUiRoot={finalUiRoot}, " +
                     $"manualE2ETool={manualE2ETool}, " +
                     $"autoplayBoundary=" +
                     $"{autoplayBoundary}, autoplay={autoplay}, fullRun=" +
