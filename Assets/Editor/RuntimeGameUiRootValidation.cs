@@ -1,9 +1,12 @@
+using System;
+using System.Collections.Generic;
 using HaveABreak.Cards;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace HaveABreak.Editor
 {
@@ -21,6 +24,10 @@ namespace HaveABreak.Editor
             GameObject host = new("Final UI Root Validation");
             bool newRunRequested = false;
             bool continueRequested = false;
+            string toggledCardId = null;
+            bool preparationCancelled = false;
+            bool preparationConfirmed = false;
+            CardData validationCard = null;
 
             try
             {
@@ -28,6 +35,12 @@ namespace HaveABreak.Editor
                     host.AddComponent<RuntimeGameUiRoot>();
                 root.NewRunRequested += () => newRunRequested = true;
                 root.ContinueRequested += () => continueRequested = true;
+                root.RunPreparationCardToggleRequested +=
+                    cardId => toggledCardId = cardId;
+                root.RunPreparationCancelled +=
+                    () => preparationCancelled = true;
+                root.RunPreparationConfirmed +=
+                    () => preparationConfirmed = true;
                 root.Initialize();
 
                 CanvasScaler scaler =
@@ -51,19 +64,48 @@ namespace HaveABreak.Editor
                 root.ContinueButton.onClick.Invoke();
                 bool commands = newRunRequested && continueRequested;
 
+                RunDeckSelectionOption[] options =
+                    CreatePreparationOptions(out validationCard);
+                root.BindRunPreparation(
+                    options,
+                    1,
+                    "덱 준비 검증",
+                    true);
+                root.ShowScreen(RuntimeGameScreen.RunPreparation);
+                Button cardButton =
+                    root.RunPreparationCardList.GetChild(0)
+                        .GetComponent<Button>();
+                cardButton.onClick.Invoke();
+                root.CancelRunPreparationButton.onClick.Invoke();
+                root.ConfirmRunPreparationButton.onClick.Invoke();
+                bool preparation =
+                    root.CurrentScreen == RuntimeGameScreen.RunPreparation &&
+                    root.RunPreparationSelectedCountText.text ==
+                        "선택 1장 / 보유 1장" &&
+                    root.RunPreparationMessageText.text == "덱 준비 검증" &&
+                    root.RunPreparationCardList.childCount == 1 &&
+                    root.ConfirmRunPreparationButton.interactable &&
+                    toggledCardId == options[0].OwnedCardId &&
+                    preparationCancelled &&
+                    preparationConfirmed &&
+                    !root.NewRunButton.gameObject
+                        .transform.parent.parent.gameObject.activeSelf;
+
                 root.ShowScreen(RuntimeGameScreen.Battle);
                 bool routing = root.CurrentScreen ==
                                RuntimeGameScreen.Battle &&
+                               !root.RunPreparationCardList.gameObject
+                                   .activeInHierarchy &&
                                !root.NewRunButton.gameObject
-                                   .transform.parent.parent.gameObject.activeSelf;
+                                    .transform.parent.parent.gameObject.activeSelf;
 
-                bool valid = structure && commands && routing;
+                bool valid = structure && commands && preparation && routing;
                 if (valid)
                 {
                     Debug.Log(
                         "Final UGUI start screen validation passed: " +
                         "canvas scaling, Input System module, start layout, " +
-                        "button commands, " +
+                        "button commands, run preparation binding, " +
                         "and screen visibility.");
                 }
                 else
@@ -71,7 +113,7 @@ namespace HaveABreak.Editor
                     Debug.LogError(
                         "Final UGUI start screen validation failed. " +
                         $"structure={structure}, commands={commands}, " +
-                        $"routing={routing}");
+                        $"preparation={preparation}, routing={routing}");
                 }
 
                 return valid;
@@ -79,11 +121,35 @@ namespace HaveABreak.Editor
             finally
             {
                 Object.DestroyImmediate(host);
+                if (validationCard != null)
+                {
+                    Object.DestroyImmediate(validationCard);
+                }
                 if (previousEventSystem != null)
                 {
                     EventSystem.current = previousEventSystem;
                 }
             }
+        }
+
+        private static RunDeckSelectionOption[] CreatePreparationOptions(
+            out CardData card)
+        {
+            card = ScriptableObject.CreateInstance<SkillCardData>();
+            RunCardInstance ownedCard = new(
+                card,
+                "OWNED-UI-VALIDATION",
+                1);
+            RunOwnedCardState ownedCards = new();
+            if (!ownedCards.TryAdd(ownedCard, out _))
+            {
+                return Array.Empty<RunDeckSelectionOption>();
+            }
+
+            RunDeckSelectionViewModel selection = new();
+            selection.OpenWithAllOwnedCards(ownedCards);
+            selection.Toggle(ownedCard.OwnedCardId);
+            return selection.CreateOptions(ownedCards);
         }
     }
 }

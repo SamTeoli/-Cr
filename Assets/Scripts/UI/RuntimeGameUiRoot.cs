@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -18,13 +19,22 @@ namespace HaveABreak.Cards
             new(0.15f, 0.2f, 0.29f, 1f);
 
         private GameObject startScreen;
+        private GameObject runPreparationScreen;
         public Canvas RootCanvas { get; private set; }
         public Button NewRunButton { get; private set; }
         public Button ContinueButton { get; private set; }
+        public Text RunPreparationSelectedCountText { get; private set; }
+        public Text RunPreparationMessageText { get; private set; }
+        public RectTransform RunPreparationCardList { get; private set; }
+        public Button CancelRunPreparationButton { get; private set; }
+        public Button ConfirmRunPreparationButton { get; private set; }
         public RuntimeGameScreen CurrentScreen { get; private set; }
 
         public event Action NewRunRequested;
         public event Action ContinueRequested;
+        public event Action<string> RunPreparationCardToggleRequested;
+        public event Action RunPreparationCancelled;
+        public event Action RunPreparationConfirmed;
 
         public void Initialize()
         {
@@ -36,6 +46,7 @@ namespace HaveABreak.Cards
             EnsureEventSystem();
             BuildCanvas();
             BuildStartScreen();
+            BuildRunPreparationScreen();
             ShowScreen(RuntimeGameScreen.Start);
         }
 
@@ -45,6 +56,66 @@ namespace HaveABreak.Cards
             if (startScreen != null)
             {
                 startScreen.SetActive(screen == RuntimeGameScreen.Start);
+            }
+            if (runPreparationScreen != null)
+            {
+                runPreparationScreen.SetActive(
+                    screen == RuntimeGameScreen.RunPreparation);
+            }
+        }
+
+        public void BindRunPreparation(
+            IReadOnlyList<RunDeckSelectionOption> options,
+            int selectedCount,
+            string message,
+            bool canConfirm)
+        {
+            if (RunPreparationCardList == null)
+            {
+                throw new InvalidOperationException(
+                    "RuntimeGameUiRoot.Initialize must be called before binding.");
+            }
+
+            for (int index = RunPreparationCardList.childCount - 1;
+                 index >= 0;
+                 index--)
+            {
+                GameObject child =
+                    RunPreparationCardList.GetChild(index).gameObject;
+                if (Application.isPlaying)
+                {
+                    child.transform.SetParent(null, false);
+                    Destroy(child);
+                }
+                else
+                {
+                    DestroyImmediate(child);
+                }
+            }
+
+            int optionCount = options?.Count ?? 0;
+            RunPreparationSelectedCountText.text =
+                $"선택 {Mathf.Max(0, selectedCount)}장 / 보유 {optionCount}장";
+            RunPreparationMessageText.text = string.IsNullOrWhiteSpace(message)
+                ? "카드를 선택한 순서가 이번 런의 덱 순서가 됩니다."
+                : message;
+            ConfirmRunPreparationButton.interactable = canConfirm;
+
+            for (int index = 0; index < optionCount; index++)
+            {
+                RunDeckSelectionOption option = options[index];
+                if (option == null)
+                {
+                    continue;
+                }
+
+                string ownedCardId = option.OwnedCardId;
+                CreateButton(
+                    $"Card_{ownedCardId}",
+                    RunPreparationCardList,
+                    option.DisplayLabel,
+                    option.IsSelected ? PrimaryColor : SecondaryColor,
+                    () => RunPreparationCardToggleRequested?.Invoke(ownedCardId));
             }
         }
 
@@ -156,6 +227,148 @@ namespace HaveABreak.Cards
                 18,
                 FontStyle.Italic,
                 52f);
+        }
+
+        private void BuildRunPreparationScreen()
+        {
+            runPreparationScreen = new GameObject(
+                "RunPreparationScreen",
+                typeof(RectTransform));
+            RectTransform screenRect =
+                runPreparationScreen.GetComponent<RectTransform>();
+            screenRect.SetParent(RootCanvas.transform, false);
+            Stretch(screenRect);
+
+            Image panel = CreateImage(
+                "RunPreparationPanel",
+                screenRect,
+                PanelColor);
+            RectTransform panelRect = panel.rectTransform;
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.sizeDelta = new Vector2(1120f, 860f);
+
+            VerticalLayoutGroup layout =
+                panel.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(64, 64, 48, 48);
+            layout.spacing = 18f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            CreateText(
+                "Title",
+                panelRect,
+                "새 런 덱 준비",
+                44,
+                FontStyle.Bold,
+                72f);
+            CreateText(
+                "Instructions",
+                panelRect,
+                "보유 카드 중 이번 런에서 사용할 카드를 선택하세요.",
+                22,
+                FontStyle.Normal,
+                48f);
+            RunPreparationSelectedCountText = CreateText(
+                "SelectedCount",
+                panelRect,
+                "선택 0장 / 보유 0장",
+                24,
+                FontStyle.Bold,
+                48f);
+
+            BuildRunPreparationCardScroll(panelRect);
+
+            RunPreparationMessageText = CreateText(
+                "Message",
+                panelRect,
+                "카드를 선택한 순서가 이번 런의 덱 순서가 됩니다.",
+                18,
+                FontStyle.Normal,
+                54f);
+
+            GameObject commandRow = new(
+                "CommandRow",
+                typeof(RectTransform),
+                typeof(HorizontalLayoutGroup),
+                typeof(LayoutElement));
+            commandRow.transform.SetParent(panelRect, false);
+            HorizontalLayoutGroup commandLayout =
+                commandRow.GetComponent<HorizontalLayoutGroup>();
+            commandLayout.spacing = 20f;
+            commandLayout.childControlWidth = true;
+            commandLayout.childControlHeight = true;
+            commandLayout.childForceExpandWidth = true;
+            commandLayout.childForceExpandHeight = false;
+            commandRow.GetComponent<LayoutElement>().preferredHeight = 78f;
+
+            CancelRunPreparationButton = CreateButton(
+                "CancelButton",
+                commandRow.transform,
+                "취소",
+                SecondaryColor,
+                () => RunPreparationCancelled?.Invoke());
+            ConfirmRunPreparationButton = CreateButton(
+                "ConfirmButton",
+                commandRow.transform,
+                "이 덱으로 런 시작",
+                PrimaryColor,
+                () => RunPreparationConfirmed?.Invoke());
+        }
+
+        private void BuildRunPreparationCardScroll(Transform parent)
+        {
+            GameObject scrollObject = new(
+                "CardScroll",
+                typeof(RectTransform),
+                typeof(ScrollRect),
+                typeof(LayoutElement));
+            scrollObject.transform.SetParent(parent, false);
+            scrollObject.GetComponent<LayoutElement>().preferredHeight = 430f;
+
+            Image viewport = CreateImage(
+                "Viewport",
+                scrollObject.transform,
+                new Color(0.025f, 0.04f, 0.07f, 0.75f));
+            viewport.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            Stretch(viewport.rectTransform);
+
+            GameObject contentObject = new(
+                "Content",
+                typeof(RectTransform),
+                typeof(VerticalLayoutGroup),
+                typeof(ContentSizeFitter));
+            RunPreparationCardList =
+                contentObject.GetComponent<RectTransform>();
+            RunPreparationCardList.SetParent(viewport.transform, false);
+            RunPreparationCardList.anchorMin = new Vector2(0f, 1f);
+            RunPreparationCardList.anchorMax = new Vector2(1f, 1f);
+            RunPreparationCardList.pivot = new Vector2(0.5f, 1f);
+            RunPreparationCardList.offsetMin = new Vector2(18f, 0f);
+            RunPreparationCardList.offsetMax = new Vector2(-18f, 0f);
+
+            VerticalLayoutGroup cardLayout =
+                contentObject.GetComponent<VerticalLayoutGroup>();
+            cardLayout.padding = new RectOffset(8, 8, 12, 12);
+            cardLayout.spacing = 10f;
+            cardLayout.childControlWidth = true;
+            cardLayout.childControlHeight = true;
+            cardLayout.childForceExpandWidth = true;
+            cardLayout.childForceExpandHeight = false;
+            ContentSizeFitter fitter =
+                contentObject.GetComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            ScrollRect scroll = scrollObject.GetComponent<ScrollRect>();
+            scroll.viewport = viewport.rectTransform;
+            scroll.content = RunPreparationCardList;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
         }
 
         private static Image CreateImage(
