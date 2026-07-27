@@ -36,14 +36,20 @@ namespace HaveABreak.Cards
             new(0.15f, 0.2f, 0.29f, 1f);
 
         private GameObject startScreen;
+        private GameObject confirmationScreen;
         private GameObject runPreparationScreen;
         private GameObject nodeSelectionScreen;
         private GameObject nodeResolutionScreen;
         private GameObject battleScreen;
         private GameObject rewardScreen;
+        private GameObject runResultScreen;
         public Canvas RootCanvas { get; private set; }
         public Button NewRunButton { get; private set; }
         public Button ContinueButton { get; private set; }
+        public Text ConfirmationTitleText { get; private set; }
+        public Text ConfirmationBodyText { get; private set; }
+        public Button CancelConfirmationButton { get; private set; }
+        public Button ConfirmActionButton { get; private set; }
         public Text RunPreparationSelectedCountText { get; private set; }
         public Text RunPreparationMessageText { get; private set; }
         public RectTransform RunPreparationCardList { get; private set; }
@@ -63,10 +69,17 @@ namespace HaveABreak.Cards
         public Text RewardSummaryText { get; private set; }
         public Text RewardMessageText { get; private set; }
         public RectTransform RewardCommandList { get; private set; }
+        public Text RunResultTitleText { get; private set; }
+        public Text RunResultSummaryText { get; private set; }
+        public Text RunResultMessageText { get; private set; }
+        public Button RunResultNewRunButton { get; private set; }
+        public Button ReturnToStartButton { get; private set; }
         public RuntimeGameScreen CurrentScreen { get; private set; }
 
         public event Action NewRunRequested;
         public event Action ContinueRequested;
+        public event Action ConfirmationCancelled;
+        public event Action ConfirmationAccepted;
         public event Action<string> RunPreparationCardToggleRequested;
         public event Action RunPreparationCancelled;
         public event Action RunPreparationConfirmed;
@@ -74,6 +87,8 @@ namespace HaveABreak.Cards
         public event Action<string> NodeResolutionCommandRequested;
         public event Action<string> BattleCommandRequested;
         public event Action<string> RewardCommandRequested;
+        public event Action RunResultNewRunRequested;
+        public event Action ReturnToStartRequested;
 
         public void Initialize()
         {
@@ -85,11 +100,13 @@ namespace HaveABreak.Cards
             EnsureEventSystem();
             BuildCanvas();
             BuildStartScreen();
+            BuildConfirmationScreen();
             BuildRunPreparationScreen();
             BuildNodeSelectionScreen();
             BuildNodeResolutionScreen();
             BuildBattleScreen();
             BuildRewardScreen();
+            BuildRunResultScreen();
             ShowScreen(RuntimeGameScreen.Start);
         }
 
@@ -99,6 +116,11 @@ namespace HaveABreak.Cards
             if (startScreen != null)
             {
                 startScreen.SetActive(screen == RuntimeGameScreen.Start);
+            }
+            if (confirmationScreen != null)
+            {
+                confirmationScreen.SetActive(
+                    screen == RuntimeGameScreen.Confirmation);
             }
             if (runPreparationScreen != null)
             {
@@ -122,6 +144,12 @@ namespace HaveABreak.Cards
             if (rewardScreen != null)
             {
                 rewardScreen.SetActive(screen == RuntimeGameScreen.Reward);
+            }
+            if (runResultScreen != null)
+            {
+                runResultScreen.SetActive(
+                    screen == RuntimeGameScreen.Completed ||
+                    screen == RuntimeGameScreen.Defeated);
             }
         }
 
@@ -180,6 +208,17 @@ namespace HaveABreak.Cards
             }
         }
 
+        public void BindConfirmation(
+            string title,
+            string body,
+            string confirmLabel)
+        {
+            ConfirmationTitleText.text = title ?? "확인";
+            ConfirmationBodyText.text = body ?? string.Empty;
+            ConfirmActionButton.GetComponentInChildren<Text>().text =
+                confirmLabel ?? "확인";
+        }
+
         public void BindNodeSelection(
             IReadOnlyList<RuntimeGameCommandOption> options,
             string summary,
@@ -235,6 +274,16 @@ namespace HaveABreak.Cards
                 commandId => RewardCommandRequested?.Invoke(commandId));
             RewardSummaryText.text = summary ?? string.Empty;
             RewardMessageText.text = message ?? string.Empty;
+        }
+
+        public void BindRunResult(
+            string title,
+            string summary,
+            string message)
+        {
+            RunResultTitleText.text = title ?? "런 결과";
+            RunResultSummaryText.text = summary ?? string.Empty;
+            RunResultMessageText.text = message ?? string.Empty;
         }
 
         private void EnsureEventSystem()
@@ -345,6 +394,31 @@ namespace HaveABreak.Cards
                 18,
                 FontStyle.Italic,
                 52f);
+        }
+
+        private void BuildConfirmationScreen()
+        {
+            confirmationScreen = BuildCommandScreen(
+                "ConfirmationScreen",
+                "확인",
+                out Text title,
+                out Text body,
+                out RectTransform commandList,
+                out _);
+            ConfirmationTitleText = title;
+            ConfirmationBodyText = body;
+            CancelConfirmationButton = CreateButton(
+                "Cancel",
+                commandList,
+                "취소",
+                SecondaryColor,
+                () => ConfirmationCancelled?.Invoke());
+            ConfirmActionButton = CreateButton(
+                "Confirm",
+                commandList,
+                "확인",
+                PrimaryColor,
+                () => ConfirmationAccepted?.Invoke());
         }
 
         private void BuildRunPreparationScreen()
@@ -557,6 +631,32 @@ namespace HaveABreak.Cards
             RewardSummaryText = summaryText;
             RewardCommandList = commandList;
             RewardMessageText = messageText;
+        }
+
+        private void BuildRunResultScreen()
+        {
+            runResultScreen = BuildCommandScreen(
+                "RunResultScreen",
+                "런 결과",
+                out Text title,
+                out Text summary,
+                out RectTransform commandList,
+                out Text message);
+            RunResultTitleText = title;
+            RunResultSummaryText = summary;
+            RunResultMessageText = message;
+            RunResultNewRunButton = CreateButton(
+                "NewRun",
+                commandList,
+                "새 런 시작",
+                PrimaryColor,
+                () => RunResultNewRunRequested?.Invoke());
+            ReturnToStartButton = CreateButton(
+                "ReturnToStart",
+                commandList,
+                "시작 화면으로",
+                SecondaryColor,
+                () => ReturnToStartRequested?.Invoke());
         }
 
         private GameObject BuildCommandScreen(

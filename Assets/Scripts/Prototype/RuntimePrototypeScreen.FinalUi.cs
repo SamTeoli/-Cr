@@ -7,6 +7,7 @@ namespace HaveABreak.Cards
     public sealed partial class RuntimePrototypeScreen : MonoBehaviour
     {
         private RuntimeGameScreen? finalCampaignScreen;
+        private bool finalStartScreenRequested;
 
         private void InitializeFinalUi()
         {
@@ -16,8 +17,10 @@ namespace HaveABreak.Cards
             }
 
             FinalUiRoot = gameObject.AddComponent<RuntimeGameUiRoot>();
-            FinalUiRoot.NewRunRequested += RequestStartNewRun;
-            FinalUiRoot.ContinueRequested += RequestContinueRun;
+            FinalUiRoot.NewRunRequested += RequestFinalStartNewRun;
+            FinalUiRoot.ContinueRequested += RequestFinalContinueRun;
+            FinalUiRoot.ConfirmationCancelled += CancelFinalConfirmation;
+            FinalUiRoot.ConfirmationAccepted += AcceptFinalConfirmation;
             FinalUiRoot.RunPreparationCardToggleRequested +=
                 ToggleFinalRunPreparationCard;
             FinalUiRoot.RunPreparationCancelled += CancelRunPreparation;
@@ -27,6 +30,8 @@ namespace HaveABreak.Cards
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested += ExecuteFinalBattleCommand;
             FinalUiRoot.RewardCommandRequested += ExecuteFinalRewardCommand;
+            FinalUiRoot.RunResultNewRunRequested += RequestFinalStartNewRun;
+            FinalUiRoot.ReturnToStartRequested += ShowFinalStartScreen;
             FinalUiRoot.Initialize();
             RefreshFinalUiVisibility();
         }
@@ -38,8 +43,10 @@ namespace HaveABreak.Cards
                 return;
             }
 
-            FinalUiRoot.NewRunRequested -= RequestStartNewRun;
-            FinalUiRoot.ContinueRequested -= RequestContinueRun;
+            FinalUiRoot.NewRunRequested -= RequestFinalStartNewRun;
+            FinalUiRoot.ContinueRequested -= RequestFinalContinueRun;
+            FinalUiRoot.ConfirmationCancelled -= CancelFinalConfirmation;
+            FinalUiRoot.ConfirmationAccepted -= AcceptFinalConfirmation;
             FinalUiRoot.RunPreparationCardToggleRequested -=
                 ToggleFinalRunPreparationCard;
             FinalUiRoot.RunPreparationCancelled -= CancelRunPreparation;
@@ -49,6 +56,8 @@ namespace HaveABreak.Cards
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested -= ExecuteFinalBattleCommand;
             FinalUiRoot.RewardCommandRequested -= ExecuteFinalRewardCommand;
+            FinalUiRoot.RunResultNewRunRequested -= RequestFinalStartNewRun;
+            FinalUiRoot.ReturnToStartRequested -= ShowFinalStartScreen;
         }
 
         private bool TryShowFinalUi()
@@ -60,14 +69,26 @@ namespace HaveABreak.Cards
 
             if (pendingRunRequest?.ConfirmationRequired == true)
             {
-                SetFinalUiActive(false);
-                return false;
+                FinalUiRoot.BindConfirmation(
+                    pendingRunRequest.Title,
+                    pendingRunRequest.Body,
+                    pendingRunRequest.ConfirmLabel);
+                SetFinalUiActive(true);
+                FinalUiRoot.ShowScreen(RuntimeGameScreen.Confirmation);
+                return true;
             }
 
             if (runPreparationCards != null && deckSelection.IsOpen)
             {
                 SetFinalUiActive(true);
                 FinalUiRoot.ShowScreen(RuntimeGameScreen.RunPreparation);
+                return true;
+            }
+
+            if (finalStartScreenRequested)
+            {
+                SetFinalUiActive(true);
+                FinalUiRoot.ShowScreen(RuntimeGameScreen.Start);
                 return true;
             }
 
@@ -124,6 +145,22 @@ namespace HaveABreak.Cards
                 return true;
             }
 
+            if (campaign.Phase == RunCampaignPhase.Completed ||
+                campaign.Phase == RunCampaignPhase.Defeated)
+            {
+                RuntimeGameScreen screen =
+                    campaign.Phase == RunCampaignPhase.Completed
+                        ? RuntimeGameScreen.Completed
+                        : RuntimeGameScreen.Defeated;
+                if (finalCampaignScreen != screen)
+                {
+                    RefreshFinalRunResult(screen);
+                }
+                SetFinalUiActive(true);
+                FinalUiRoot.ShowScreen(screen);
+                return true;
+            }
+
             finalCampaignScreen = null;
             SetFinalUiActive(false);
             return false;
@@ -138,6 +175,58 @@ namespace HaveABreak.Cards
             }
 
             RefreshFinalRunPreparation();
+        }
+
+        private void RequestFinalStartNewRun()
+        {
+            RequestStartNewRun();
+            if (pendingRunRequest == null)
+            {
+                finalStartScreenRequested = false;
+            }
+            TryShowFinalUi();
+        }
+
+        private void RequestFinalContinueRun()
+        {
+            RequestContinueRun();
+            if (pendingRunRequest == null)
+            {
+                finalStartScreenRequested = false;
+            }
+            TryShowFinalUi();
+        }
+
+        private void CancelFinalConfirmation()
+        {
+            pendingRunRequest = null;
+            TryShowFinalUi();
+        }
+
+        private void AcceptFinalConfirmation()
+        {
+            RunLifecycleRequestKind kind =
+                pendingRunRequest?.Kind ?? RunLifecycleRequestKind.None;
+            pendingRunRequest = null;
+            if (kind == RunLifecycleRequestKind.StartNewRun)
+            {
+                finalStartScreenRequested = false;
+                BeginRunPreparation();
+            }
+            else if (kind == RunLifecycleRequestKind.ContinueRun)
+            {
+                finalStartScreenRequested = false;
+                ContinueRun();
+            }
+            TryShowFinalUi();
+        }
+
+        private void ShowFinalStartScreen()
+        {
+            finalStartScreenRequested = true;
+            finalCampaignScreen = null;
+            SetFinalUiActive(true);
+            FinalUiRoot.ShowScreen(RuntimeGameScreen.Start);
         }
 
         private void RefreshFinalRunPreparation()
@@ -504,6 +593,25 @@ namespace HaveABreak.Cards
                    $"{config.RunStartProgressionConfig.TotalNodeCount} · " +
                    $"HP {run.CurrentHealth}/{run.MaximumHealth} · " +
                    $"골드 {run.Gold}";
+        }
+
+        private void RefreshFinalRunResult(RuntimeGameScreen screen)
+        {
+            if (FinalUiRoot == null || campaign == null || progress == null)
+            {
+                return;
+            }
+
+            bool completed = screen == RuntimeGameScreen.Completed;
+            string title = completed ? "런 완료" : "런 패배";
+            string result = completed
+                ? "보스를 쓰러뜨리고 런을 완료했습니다."
+                : "플레이어 HP가 0이 되어 런이 종료되었습니다.";
+            string summary =
+                $"{CreateFinalRunSummary()}\n" +
+                $"완료 전투 {progress.CompletedEncounterCount}";
+            FinalUiRoot.BindRunResult(title, summary, result);
+            finalCampaignScreen = screen;
         }
 
         private void RefreshFinalBattle()

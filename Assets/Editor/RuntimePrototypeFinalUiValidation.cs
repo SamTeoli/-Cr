@@ -77,7 +77,8 @@ namespace HaveABreak.Editor
                     Debug.Log(
                         "Final UI prototype bridge validation passed: " +
                         "start, preparation, card toggle, cancellation, " +
-                        "battle command routing, and reward completion.");
+                        "battle command routing, reward completion, " +
+                        "run result routing, confirmation, and restart.");
                 }
                 else
                 {
@@ -257,7 +258,12 @@ namespace HaveABreak.Editor
                            !progress.HasActiveEncounter &&
                            advanced &&
                            root.CurrentScreen ==
-                           RuntimeGameScreen.NodeSelection;
+                           RuntimeGameScreen.NodeSelection &&
+                           ValidateRunEndBridge(
+                               prototype,
+                               root,
+                               campaign,
+                               showFinalUi);
                 }
 
                 if (claim == null)
@@ -268,6 +274,57 @@ namespace HaveABreak.Editor
             }
 
             return false;
+        }
+
+        private static bool ValidateRunEndBridge(
+            RuntimePrototypeScreen prototype,
+            RuntimeGameUiRoot root,
+            RunCampaignState campaign,
+            MethodInfo showFinalUi)
+        {
+            const BindingFlags fields =
+                BindingFlags.Instance | BindingFlags.NonPublic;
+            FieldInfo phase = typeof(RunCampaignState).GetField(
+                "phase",
+                fields);
+            if (phase == null)
+            {
+                return false;
+            }
+
+            phase.SetValue(campaign, RunCampaignPhase.Completed);
+            bool completedShown =
+                showFinalUi?.Invoke(prototype, null) as bool? == true &&
+                root.CurrentScreen == RuntimeGameScreen.Completed &&
+                root.RunResultTitleText.text == "런 완료" &&
+                !string.IsNullOrWhiteSpace(root.RunResultSummaryText.text);
+            if (!completedShown)
+            {
+                return false;
+            }
+
+            root.ReturnToStartButton.onClick.Invoke();
+            bool returned = root.CurrentScreen == RuntimeGameScreen.Start;
+            root.NewRunButton.onClick.Invoke();
+            bool confirmation =
+                root.CurrentScreen == RuntimeGameScreen.Confirmation &&
+                root.ConfirmationTitleText.text == "새 런을 시작할까요?";
+            root.ConfirmActionButton.onClick.Invoke();
+            bool preparation =
+                root.CurrentScreen == RuntimeGameScreen.RunPreparation &&
+                root.RunPreparationCardList.childCount > 0;
+            root.CancelRunPreparationButton.onClick.Invoke();
+
+            phase.SetValue(campaign, RunCampaignPhase.Defeated);
+            bool defeatedShown =
+                showFinalUi?.Invoke(prototype, null) as bool? == true &&
+                root.CurrentScreen == RuntimeGameScreen.Defeated &&
+                root.RunResultTitleText.text == "런 패배";
+            root.ReturnToStartButton.onClick.Invoke();
+            bool defeatedReturned =
+                root.CurrentScreen == RuntimeGameScreen.Start;
+            return returned && confirmation && preparation &&
+                   defeatedShown && defeatedReturned;
         }
 
         private static RunEncounterProgressState CreateProgress(

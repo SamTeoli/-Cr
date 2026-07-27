@@ -31,6 +31,10 @@ namespace HaveABreak.Editor
             string resolutionCommandId = null;
             string battleCommandId = null;
             string rewardCommandId = null;
+            bool confirmationCancelled = false;
+            bool confirmationAccepted = false;
+            bool resultNewRunRequested = false;
+            bool returnToStartRequested = false;
             CardData validationCard = null;
 
             try
@@ -53,6 +57,14 @@ namespace HaveABreak.Editor
                     commandId => battleCommandId = commandId;
                 root.RewardCommandRequested +=
                     commandId => rewardCommandId = commandId;
+                root.ConfirmationCancelled +=
+                    () => confirmationCancelled = true;
+                root.ConfirmationAccepted +=
+                    () => confirmationAccepted = true;
+                root.RunResultNewRunRequested +=
+                    () => resultNewRunRequested = true;
+                root.ReturnToStartRequested +=
+                    () => returnToStartRequested = true;
                 root.Initialize();
 
                 CanvasScaler scaler =
@@ -75,6 +87,22 @@ namespace HaveABreak.Editor
                 root.NewRunButton.onClick.Invoke();
                 root.ContinueButton.onClick.Invoke();
                 bool commands = newRunRequested && continueRequested;
+
+                root.BindConfirmation(
+                    "새 런 확인",
+                    "현재 진행이 교체됩니다.",
+                    "새 런 시작");
+                root.ShowScreen(RuntimeGameScreen.Confirmation);
+                root.CancelConfirmationButton.onClick.Invoke();
+                root.ConfirmActionButton.onClick.Invoke();
+                bool confirmation =
+                    root.CurrentScreen == RuntimeGameScreen.Confirmation &&
+                    root.ConfirmationTitleText.text == "새 런 확인" &&
+                    root.ConfirmationBodyText.text ==
+                        "현재 진행이 교체됩니다." &&
+                    root.ConfirmActionButton
+                        .GetComponentInChildren<Text>().text == "새 런 시작" &&
+                    confirmationCancelled && confirmationAccepted;
 
                 RunDeckSelectionOption[] options =
                     CreatePreparationOptions(out validationCard);
@@ -175,26 +203,55 @@ namespace HaveABreak.Editor
                     root.RewardMessageText.text == "보상 검증 메시지" &&
                     rewardCommandId == "complete";
 
-                root.ShowScreen(RuntimeGameScreen.Reward);
+                root.BindRunResult(
+                    "런 완료",
+                    "완료 12/12",
+                    "보스를 쓰러뜨렸습니다.");
+                root.ShowScreen(RuntimeGameScreen.Completed);
+                root.RunResultNewRunButton.onClick.Invoke();
+                root.ReturnToStartButton.onClick.Invoke();
+                bool completed =
+                    root.CurrentScreen == RuntimeGameScreen.Completed &&
+                    root.RunResultTitleText.text == "런 완료" &&
+                    root.RunResultSummaryText.text == "완료 12/12" &&
+                    root.RunResultMessageText.text ==
+                        "보스를 쓰러뜨렸습니다." &&
+                    resultNewRunRequested && returnToStartRequested;
+                root.BindRunResult(
+                    "런 패배",
+                    "완료 5/12",
+                    "플레이어 HP가 0입니다.");
+                root.ShowScreen(RuntimeGameScreen.Defeated);
+                bool defeated =
+                    root.CurrentScreen == RuntimeGameScreen.Defeated &&
+                    root.RunResultTitleText.text == "런 패배" &&
+                    root.RunResultSummaryText.text == "완료 5/12" &&
+                    root.RunResultMessageText.text ==
+                        "플레이어 HP가 0입니다.";
+
+                root.ShowScreen(RuntimeGameScreen.Defeated);
                 bool routing = root.CurrentScreen ==
-                               RuntimeGameScreen.Reward &&
+                               RuntimeGameScreen.Defeated &&
                                !root.RunPreparationCardList.gameObject
                                    .activeInHierarchy &&
                                !root.NewRunButton.gameObject
                                     .transform.parent.parent.gameObject.activeSelf;
 
-                bool valid = structure && commands && preparation &&
+                bool valid = structure && commands && confirmation &&
+                             preparation &&
                              nodeSelection && nodeResolution && battle &&
-                             reward && routing;
+                             reward && completed && defeated && routing;
                 if (valid)
                 {
                     Debug.Log(
                         "Final UGUI start screen validation passed: " +
                         "canvas scaling, Input System module, start layout, " +
                         "button commands, run preparation binding, " +
+                        "confirmation commands, " +
                         "node selection and resolution commands, " +
                         "battle state and commands, " +
                         "reward state and commands, " +
+                        "completed and defeated run results, " +
                         "and screen visibility.");
                 }
                 else
@@ -202,10 +259,12 @@ namespace HaveABreak.Editor
                     Debug.LogError(
                         "Final UGUI start screen validation failed. " +
                         $"structure={structure}, commands={commands}, " +
+                        $"confirmation={confirmation}, " +
                         $"preparation={preparation}, " +
                         $"nodeSelection={nodeSelection}, " +
                         $"nodeResolution={nodeResolution}, battle={battle}, " +
                         $"reward={reward}, " +
+                        $"completed={completed}, defeated={defeated}, " +
                         $"routing={routing}");
                 }
 
