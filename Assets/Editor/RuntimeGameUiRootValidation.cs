@@ -115,6 +115,8 @@ namespace HaveABreak.Editor
                 Button cardButton =
                     root.RunPreparationCardList.GetChild(0)
                         .GetComponent<Button>();
+                RuntimeCardView preparationCard =
+                    cardButton.GetComponent<RuntimeCardView>();
                 cardButton.onClick.Invoke();
                 root.CancelRunPreparationButton.onClick.Invoke();
                 root.ConfirmRunPreparationButton.onClick.Invoke();
@@ -124,6 +126,16 @@ namespace HaveABreak.Editor
                         "선택 1장 / 보유 1장" &&
                     root.RunPreparationMessageText.text == "덱 준비 검증" &&
                     root.RunPreparationCardList.childCount == 1 &&
+                    preparationCard != null &&
+                    preparationCard.NameText != null &&
+                    preparationCard.ArtPlaceholderText.text == "아트 자리" &&
+                    preparationCard.MetadataText.text.Contains("스킬") &&
+                    preparationCard.MetadataText.text.Contains("일반") &&
+                    preparationCard.SelectionText.gameObject.activeSelf &&
+                    preparationCard.SelectionText.text == "[선택 1번]" &&
+                    preparationCard.AccessibilityText.text.Contains("마력") &&
+                    preparationCard.FrameImage.color !=
+                        preparationCard.Presentation.TypeColor &&
                     root.ConfirmRunPreparationButton.interactable &&
                     toggledCardId == options[0].OwnedCardId &&
                     preparationCancelled &&
@@ -179,12 +191,75 @@ namespace HaveABreak.Editor
                 root.ShowScreen(RuntimeGameScreen.Battle);
                 root.BattleCommandList.GetChild(0)
                     .GetComponent<Button>().onClick.Invoke();
+                bool genericBattleCommand = battleCommandId == "end-turn";
+                RuntimeCardPresentation[] battleCards =
+                {
+                    new(
+                        "play:ACTIVE",
+                        "검증 스킬",
+                        "C-VALIDATION",
+                        CardType.Skill,
+                        CardRarity.Legendary,
+                        2,
+                        null,
+                        null,
+                        "카드 효과 검증",
+                        false,
+                        0,
+                        true,
+                        null,
+                        "검증 스킬 접근성 설명"),
+                    new(
+                        "play:BLOCKED",
+                        "검증 몬스터",
+                        "M-VALIDATION",
+                        CardType.Monster,
+                        CardRarity.Rare,
+                        3,
+                        4,
+                        5,
+                        "몬스터 효과 검증",
+                        false,
+                        0,
+                        false,
+                        "마력이 부족합니다.",
+                        "검증 몬스터 사용 불가")
+                };
+                root.BindBattleHand(battleCards);
+                RuntimeCardView activeCard =
+                    root.BattleHandCardList.GetChild(0)
+                        .GetComponent<RuntimeCardView>();
+                RuntimeCardView blockedCard =
+                    root.BattleHandCardList.GetChild(1)
+                        .GetComponent<RuntimeCardView>();
+                activeCard.ClickButton.onClick.Invoke();
+                bool cardFoundation =
+                    root.BattleHandCardList.childCount == 2 &&
+                    activeCard.ArtPlaceholderText.text == "아트 자리" &&
+                    activeCard.MetadataText.text.Contains("전설") &&
+                    activeCard.FrameImage.color ==
+                        battleCards[0].TypeColor &&
+                    activeCard.RarityAccentImage.color ==
+                        battleCards[0].RarityColor &&
+                    blockedCard.StatsText.text == "공격 4  생명 5" &&
+                    blockedCard.MetadataText.text.Contains("희귀") &&
+                    !blockedCard.ClickButton.interactable &&
+                    blockedCard.BlockReasonText.gameObject.activeSelf &&
+                    blockedCard.BlockReasonText.text.Contains(
+                        "마력이 부족합니다.") &&
+                    blockedCard.FrameImage.color !=
+                        battleCards[1].TypeColor &&
+                    battleCards[0].TypeColor != battleCards[1].TypeColor &&
+                    battleCards[0].RarityColor !=
+                        battleCards[1].RarityColor &&
+                    battleCommandId == "play:ACTIVE";
                 bool battle =
                     root.CurrentScreen == RuntimeGameScreen.Battle &&
                     root.BattleTitleText.text == "검증 전투" &&
                     root.BattleSummaryText.text == "전투 상태 요약" &&
                     root.BattleMessageText.text == "전투 명령 메시지" &&
-                    battleCommandId == "end-turn";
+                    genericBattleCommand &&
+                    cardFoundation;
 
                 RuntimeGameCommandOption[] rewardOptions =
                 {
@@ -249,7 +324,8 @@ namespace HaveABreak.Editor
                         "button commands, run preparation binding, " +
                         "confirmation commands, " +
                         "node selection and resolution commands, " +
-                        "battle state and commands, " +
+                        "battle state and commands, reusable card structure, " +
+                        "type and rarity colors, selection and disabled states, " +
                         "reward state and commands, " +
                         "completed and defeated run results, " +
                         "and screen visibility.");
@@ -300,7 +376,6 @@ namespace HaveABreak.Editor
 
             RunDeckSelectionViewModel selection = new();
             selection.OpenWithAllOwnedCards(ownedCards);
-            selection.Toggle(ownedCard.OwnedCardId);
             return selection.CreateOptions(ownedCards);
         }
     }

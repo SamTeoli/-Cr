@@ -634,10 +634,14 @@ namespace HaveABreak.Cards
                     options,
                     snapshot.ErrorText ?? "활성 전투를 찾을 수 없습니다.",
                     message);
+                FinalUiRoot.BindBattleHand(
+                    System.Array.Empty<RuntimeCardPresentation>());
                 finalCampaignScreen = RuntimeGameScreen.Battle;
                 return;
             }
 
+            List<RuntimeCardPresentation> handCards =
+                new(snapshot.Hand.Length);
             foreach (BattleEnemyDisplayOption enemy in snapshot.Enemies)
             {
                 if (!enemy.IsOccupied)
@@ -655,6 +659,8 @@ namespace HaveABreak.Cards
 
             foreach (BattleHandCardActionOption card in snapshot.Hand)
             {
+                handCards.Add(
+                    RuntimeCardPresentation.FromBattleHand(card));
                 if (card.BanishTargets.Length > 0)
                 {
                     string target =
@@ -665,13 +671,6 @@ namespace HaveABreak.Cards
                         $"[소멸 대상 변경] {target}",
                         !snapshot.SessionFinished));
                 }
-                string block = string.IsNullOrWhiteSpace(card.BlockReason)
-                    ? string.Empty
-                    : $"\n{card.BlockReason}";
-                options.Add(new RuntimeGameCommandOption(
-                    $"play:{card.BattleCardId}",
-                    $"[카드 사용] {card.DisplayText}{block}",
-                    card.CanPlay));
             }
 
             foreach (BattleMonsterDisplayOption monster in snapshot.Monsters)
@@ -739,6 +738,7 @@ namespace HaveABreak.Cards
                 options,
                 string.Join("\n", summaryParts),
                 message);
+            FinalUiRoot.BindBattleHand(handCards);
             finalCampaignScreen = RuntimeGameScreen.Battle;
         }
 

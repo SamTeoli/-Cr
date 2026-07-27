@@ -65,6 +65,7 @@ namespace HaveABreak.Cards
         public Text BattleTitleText { get; private set; }
         public Text BattleSummaryText { get; private set; }
         public Text BattleMessageText { get; private set; }
+        public RectTransform BattleHandCardList { get; private set; }
         public RectTransform BattleCommandList { get; private set; }
         public Text RewardSummaryText { get; private set; }
         public Text RewardMessageText { get; private set; }
@@ -198,13 +199,14 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
-                string ownedCardId = option.OwnedCardId;
-                CreateButton(
-                    $"Card_{ownedCardId}",
+                RuntimeCardPresentation presentation =
+                    RuntimeCardPresentation.FromRunDeck(option);
+                CreateCardView(
+                    $"Card_{option.OwnedCardId}",
                     RunPreparationCardList,
-                    option.DisplayLabel,
-                    option.IsSelected ? PrimaryColor : SecondaryColor,
-                    () => RunPreparationCardToggleRequested?.Invoke(ownedCardId));
+                    presentation,
+                    commandId =>
+                        RunPreparationCardToggleRequested?.Invoke(commandId));
             }
         }
 
@@ -261,6 +263,34 @@ namespace HaveABreak.Cards
             BattleTitleText.text = title ?? "전투";
             BattleSummaryText.text = summary ?? string.Empty;
             BattleMessageText.text = message ?? string.Empty;
+        }
+
+        public void BindBattleHand(
+            IReadOnlyList<RuntimeCardPresentation> cards)
+        {
+            if (BattleHandCardList == null)
+            {
+                throw new InvalidOperationException(
+                    "RuntimeGameUiRoot.Initialize must be called before binding.");
+            }
+
+            ClearChildren(BattleHandCardList);
+            int cardCount = cards?.Count ?? 0;
+            for (int index = 0; index < cardCount; index++)
+            {
+                RuntimeCardPresentation card = cards[index];
+                if (card == null)
+                {
+                    continue;
+                }
+
+                CreateCardView(
+                    $"HandCard_{index}",
+                    BattleHandCardList,
+                    card,
+                    commandId =>
+                        BattleCommandRequested?.Invoke(commandId));
+            }
         }
 
         public void BindReward(
@@ -532,7 +562,7 @@ namespace HaveABreak.Cards
             GameObject contentObject = new(
                 "Content",
                 typeof(RectTransform),
-                typeof(VerticalLayoutGroup),
+                typeof(GridLayoutGroup),
                 typeof(ContentSizeFitter));
             RunPreparationCardList =
                 contentObject.GetComponent<RectTransform>();
@@ -543,14 +573,14 @@ namespace HaveABreak.Cards
             RunPreparationCardList.offsetMin = new Vector2(18f, 0f);
             RunPreparationCardList.offsetMax = new Vector2(-18f, 0f);
 
-            VerticalLayoutGroup cardLayout =
-                contentObject.GetComponent<VerticalLayoutGroup>();
+            GridLayoutGroup cardLayout =
+                contentObject.GetComponent<GridLayoutGroup>();
             cardLayout.padding = new RectOffset(8, 8, 12, 12);
-            cardLayout.spacing = 10f;
-            cardLayout.childControlWidth = true;
-            cardLayout.childControlHeight = true;
-            cardLayout.childForceExpandWidth = true;
-            cardLayout.childForceExpandHeight = false;
+            cardLayout.spacing = new Vector2(12f, 12f);
+            cardLayout.cellSize = new Vector2(226f, 344f);
+            cardLayout.constraint =
+                GridLayoutGroup.Constraint.FixedColumnCount;
+            cardLayout.constraintCount = 4;
             ContentSizeFitter fitter =
                 contentObject.GetComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -617,6 +647,16 @@ namespace HaveABreak.Cards
             BattleSummaryText = summaryText;
             BattleCommandList = commandList;
             BattleMessageText = messageText;
+
+            Transform panel = titleText.transform.parent;
+            BattleHandCardList = BuildCardScroll(
+                panel,
+                "BattleHandScroll",
+                360f);
+            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
+                summaryText.transform.GetSiblingIndex() + 1);
+            BattleCommandList.transform.parent.parent
+                .GetComponent<LayoutElement>().preferredHeight = 150f;
         }
 
         private void BuildRewardScreen()
@@ -769,6 +809,83 @@ namespace HaveABreak.Cards
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
             return content;
+        }
+
+        private static RectTransform BuildCardScroll(
+            Transform parent,
+            string name,
+            float preferredHeight)
+        {
+            GameObject scrollObject = new(
+                name,
+                typeof(RectTransform),
+                typeof(ScrollRect),
+                typeof(LayoutElement));
+            scrollObject.transform.SetParent(parent, false);
+            scrollObject.GetComponent<LayoutElement>().preferredHeight =
+                preferredHeight;
+
+            Image viewport = CreateImage(
+                "Viewport",
+                scrollObject.transform,
+                new Color(0.025f, 0.04f, 0.07f, 0.75f));
+            viewport.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            Stretch(viewport.rectTransform);
+
+            GameObject contentObject = new(
+                "Content",
+                typeof(RectTransform),
+                typeof(GridLayoutGroup),
+                typeof(ContentSizeFitter));
+            RectTransform content =
+                contentObject.GetComponent<RectTransform>();
+            content.SetParent(viewport.transform, false);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.offsetMin = new Vector2(18f, 0f);
+            content.offsetMax = new Vector2(-18f, 0f);
+
+            GridLayoutGroup layout =
+                contentObject.GetComponent<GridLayoutGroup>();
+            layout.padding = new RectOffset(8, 8, 8, 8);
+            layout.spacing = new Vector2(12f, 12f);
+            layout.cellSize = new Vector2(226f, 344f);
+            layout.constraint =
+                GridLayoutGroup.Constraint.FixedColumnCount;
+            layout.constraintCount = 4;
+
+            ContentSizeFitter fitter =
+                contentObject.GetComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            ScrollRect scroll = scrollObject.GetComponent<ScrollRect>();
+            scroll.viewport = viewport.rectTransform;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            return content;
+        }
+
+        private static RuntimeCardView CreateCardView(
+            string name,
+            Transform parent,
+            RuntimeCardPresentation presentation,
+            Action<string> clicked)
+        {
+            GameObject cardObject = new(
+                name,
+                typeof(RectTransform),
+                typeof(Image),
+                typeof(Button),
+                typeof(LayoutElement),
+                typeof(RuntimeCardView));
+            cardObject.transform.SetParent(parent, false);
+            RuntimeCardView view =
+                cardObject.GetComponent<RuntimeCardView>();
+            view.Bind(presentation, clicked);
+            return view;
         }
 
         private static void BindCommandList(
