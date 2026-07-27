@@ -18,8 +18,8 @@ namespace HaveABreak.Editor
                           LastCompletedAtUtc != default &&
                           DateTime.UtcNow - LastCompletedAtUtc <= maximumAge;
             summary = recent
-                ? $"理쒓렐 ?꾩껜 ?섎꽕???듦낵 寃곌낵 쨌 " +
-                  $"{LastCompletedAtUtc:O} 쨌 {LastDuration.TotalSeconds:F1}珥?
+                ? $"최근 전체 하네스 통과 결과 · " +
+                  $"{LastCompletedAtUtc:O} · {LastDuration.TotalSeconds:F1}초"
                 : null;
             return recent;
         }
@@ -110,4 +110,3 @@ namespace HaveABreak.Editor
         }
     }
 }
-
