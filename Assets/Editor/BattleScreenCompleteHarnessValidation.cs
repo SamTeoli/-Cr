@@ -58,6 +58,7 @@ namespace HaveABreak.Editor
             bool lifecycleBoundary =
                 RunLifecycleSourceBoundaryValidation.Validate();
             bool lifecycle = RunLifecycleViewModelValidation.Validate();
+            bool finalUiRouter = RuntimeGameScreenRouterValidation.Validate();
             bool manualE2ETool =
                 RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
@@ -69,7 +70,8 @@ namespace HaveABreak.Editor
             bool valid = existing && screenBoundary && screen &&
                          settlementBoundary && settlement &&
                          startBoundary && start &&
-                         lifecycleBoundary && lifecycle && manualE2ETool &&
+                         lifecycleBoundary && lifecycle && finalUiRouter &&
+                         manualE2ETool &&
                          autoplayBoundary && autoplay && fullRun &&
                          playerActionFullRun;
             if (valid)
@@ -78,7 +80,8 @@ namespace HaveABreak.Editor
                     "Complete test harness with battle screen passed: " +
                     "existing runtime, source boundaries, value-type comparison " +
                     "guard, display snapshot flow, settlement command flow, " +
-                    "battle start checkpoint flow, run lifecycle flow, manual " +
+                    "battle start checkpoint flow, run lifecycle flow, final " +
+                    "UI screen routing, manual " +
                     "run E2E validation tool, battle player-action autoplay " +
                     "boundary and command flow, full run " +
                     "end-to-end progression, and player-action full run " +
@@ -92,7 +95,8 @@ namespace HaveABreak.Editor
                     $"screen={screen}, settlementBoundary={settlementBoundary}, " +
                     $"settlement={settlement}, startBoundary={startBoundary}, " +
                     $"start={start}, lifecycleBoundary={lifecycleBoundary}, " +
-                    $"lifecycle={lifecycle}, manualE2ETool={manualE2ETool}, " +
+                    $"lifecycle={lifecycle}, finalUiRouter={finalUiRouter}, " +
+                    $"manualE2ETool={manualE2ETool}, " +
                     $"autoplayBoundary=" +
                     $"{autoplayBoundary}, autoplay={autoplay}, fullRun=" +
                     $"{fullRun}, playerActionFullRun={playerActionFullRun}");
