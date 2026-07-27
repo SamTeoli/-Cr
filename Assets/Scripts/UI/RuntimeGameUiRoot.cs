@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace HaveABreak.Cards
@@ -17,8 +18,6 @@ namespace HaveABreak.Cards
             new(0.15f, 0.2f, 0.29f, 1f);
 
         private GameObject startScreen;
-        private GameObject ownedEventSystem;
-
         public Canvas RootCanvas { get; private set; }
         public Button NewRunButton { get; private set; }
         public Button ContinueButton { get; private set; }
@@ -56,11 +55,11 @@ namespace HaveABreak.Cards
                 return;
             }
 
-            ownedEventSystem = new GameObject(
+            GameObject eventSystem = new(
                 "FinalUiEventSystem",
                 typeof(EventSystem),
-                typeof(StandaloneInputModule));
-            ownedEventSystem.transform.SetParent(transform, false);
+                typeof(InputSystemUIInputModule));
+            eventSystem.transform.SetParent(transform, false);
         }
 
         private void BuildCanvas()
