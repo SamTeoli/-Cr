@@ -22,7 +22,7 @@ namespace HaveABreak.Cards
         public bool IsSelected { get; }
         public int SelectionOrder { get; }
         public string DisplayLabel =>
-            $"{(IsSelected ? "[편성]" : "[보유]")} " +
+            $"{(IsSelected ? $"[순서 {SelectionOrder}]" : "[보유]")} " +
             $"{DisplayName} · Lv.{CurrentLevel}";
     }
 
@@ -181,3 +181,4 @@ namespace HaveABreak.Cards
         }
     }
 }
+
