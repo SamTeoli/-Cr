@@ -11,7 +11,7 @@ namespace HaveABreak.EditorTools
     public sealed class RunEndToEndManualValidationWindow : EditorWindow
     {
         private const string MenuPath =
-            "Have a Break/Tests/Open Manual Run E2E Validation";
+            "Have a Break/Tests/Open Automated Run E2E Validation";
         private readonly Dictionary<string, bool> sectionFoldouts = new();
         private RunEndToEndManualSession session;
         private Vector2 scroll;
@@ -26,7 +26,7 @@ namespace HaveABreak.EditorTools
         {
             RunEndToEndManualValidationWindow window =
                 GetWindow<RunEndToEndManualValidationWindow>(
-                    "Manual Run E2E");
+                    "Automated Run E2E");
             window.minSize = new Vector2(760f, 620f);
             window.Show();
         }
@@ -72,12 +72,12 @@ namespace HaveABreak.EditorTools
         private void DrawHeader()
         {
             EditorGUILayout.LabelField(
-                "한 런 수동 엔드투엔드 검증",
+                "한 런 자동 엔드투엔드 검증",
                 EditorStyles.largeLabel);
             EditorGUILayout.HelpBox(
-                "병합된 main에서 새 런 시작부터 최종 보스·영구 보상까지 " +
-                "실제 화면 조작을 기록합니다. 자동 하네스는 사전 조건이며 " +
-                "이 창은 수동 플레이 결과와 증거를 남기는 용도입니다.",
+                "전체 자동 하네스로 새 런 준비부터 최종 보스·영구 보상까지 " +
+                "21개 검사항목을 한 번에 판정합니다. 필요할 때만 각 항목의 " +
+                "상태와 메모를 수동으로 보완할 수 있습니다.",
                 MessageType.Info);
         }
 
@@ -93,7 +93,7 @@ namespace HaveABreak.EditorTools
             }
 
             if (GUILayout.Button(
-                    "자동 사전 검사",
+                    "전체 자동 검사",
                     EditorStyles.toolbarButton,
                     GUILayout.Width(110f)))
             {
@@ -109,7 +109,7 @@ namespace HaveABreak.EditorTools
             }
 
             if (GUILayout.Button(
-                    "다음 수동 검사",
+                    "다음 미완료 검사",
                     EditorStyles.toolbarButton,
                     GUILayout.Width(110f)))
             {
@@ -129,31 +129,19 @@ namespace HaveABreak.EditorTools
 
         private void DrawProgress()
         {
-            RunEndToEndManualStepResult automatic =
-                session.FindOrCreate("preflight-harness");
-            string automaticLabel = automatic.status switch
-            {
-                RunEndToEndManualStatus.Passed => "통과",
-                RunEndToEndManualStatus.Failed => "실패",
-                RunEndToEndManualStatus.Blocked => "차단",
-                _ => "미실행"
-            };
-
-            RunEndToEndManualStep[] manualSteps =
-                RunEndToEndManualValidationCatalog.Steps
-                    .Where(step => step.Id != "preflight-harness")
-                    .ToArray();
-            int total = manualSteps.Length;
-            int completed = manualSteps.Count(step =>
+            RunEndToEndManualStep[] steps =
+                RunEndToEndManualValidationCatalog.Steps;
+            int total = steps.Length;
+            int completed = steps.Count(step =>
                 session.FindOrCreate(step.Id).status !=
                 RunEndToEndManualStatus.NotRun);
-            int passed = manualSteps.Count(step =>
+            int passed = steps.Count(step =>
                 session.FindOrCreate(step.Id).status ==
                 RunEndToEndManualStatus.Passed);
-            int failed = manualSteps.Count(step =>
+            int failed = steps.Count(step =>
                 session.FindOrCreate(step.Id).status ==
                 RunEndToEndManualStatus.Failed);
-            int blocked = manualSteps.Count(step =>
+            int blocked = steps.Count(step =>
                 session.FindOrCreate(step.Id).status ==
                 RunEndToEndManualStatus.Blocked);
 
@@ -165,14 +153,14 @@ namespace HaveABreak.EditorTools
             EditorGUI.ProgressBar(
                 rect,
                 ratio,
-                $"자동 검사 1/1: {automaticLabel} · 수동 검사 {completed}/{total} " +
-                $"(통과 {passed} · 실패 {failed} · 차단 {blocked})");
+                $"전체 자동 검사 {completed}/{total} · 통과 {passed} · " +
+                $"실패 {failed} · 차단 {blocked}");
 
             RunEndToEndManualStep next = FindNextPendingManualStep();
             EditorGUILayout.HelpBox(
                 next == null
-                    ? "모든 수동 검사의 상태가 기록되었습니다."
-                    : $"다음 수동 검사: [{next.Section}] {next.Title}",
+                    ? "모든 자동 검사항목의 결과가 기록되었습니다."
+                    : $"다음 미완료 검사: [{next.Section}] {next.Title}",
                 next == null ? MessageType.Info : MessageType.None);
             EditorGUILayout.Space(4f);
         }
@@ -219,7 +207,7 @@ namespace HaveABreak.EditorTools
                 {
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(
-                        $"현재 수동 검사 · {focused.Section}",
+                        $"현재 검사 · {focused.Section}",
                         EditorStyles.boldLabel);
                     if (GUILayout.Button("전체 목록 보기", GUILayout.Width(110f)))
                     {
@@ -344,8 +332,7 @@ namespace HaveABreak.EditorTools
         private RunEndToEndManualStep FindNextPendingManualStep()
         {
             return RunEndToEndManualValidationCatalog.Steps.FirstOrDefault(
-                step => step.Id != "preflight-harness" &&
-                        session.FindOrCreate(step.Id).status ==
+                step => session.FindOrCreate(step.Id).status ==
                         RunEndToEndManualStatus.NotRun);
         }
 
@@ -355,8 +342,8 @@ namespace HaveABreak.EditorTools
             if (next == null)
             {
                 EditorUtility.DisplayDialog(
-                    "수동 검사",
-                    "모든 수동 검사의 상태가 기록되었습니다.",
+                    "검사 결과",
+                    "모든 검사항목의 상태가 기록되었습니다.",
                     "확인");
                 focusedStepId = null;
                 return;
@@ -388,7 +375,7 @@ namespace HaveABreak.EditorTools
                     out string recentSummary))
             {
                 int choice = EditorUtility.DisplayDialogComplex(
-                    "자동 사전 검사",
+                    "전체 자동 검사",
                     recentSummary + "\n\n이미 통과한 결과를 사용할 수 있습니다.",
                     "최근 결과 사용",
                     "취소",
@@ -405,9 +392,9 @@ namespace HaveABreak.EditorTools
                 }
             }
             else if (!EditorUtility.DisplayDialog(
-                         "자동 사전 검사 실행",
-                         "전체 회귀 하네스를 다시 실행합니다. Unity가 검사 중 " +
-                         "응답하지 않는 것처럼 보일 수 있습니다.",
+                         "전체 자동 검사 실행",
+                         "21개 항목을 전체 회귀 하네스로 자동 판정합니다. " +
+                         "Unity가 검사 중 응답하지 않는 것처럼 보일 수 있습니다.",
                          "실행",
                          "취소"))
             {
@@ -421,8 +408,8 @@ namespace HaveABreak.EditorTools
             try
             {
                 EditorUtility.DisplayProgressBar(
-                    "자동 사전 검사",
-                    "전체 회귀 하네스를 실행하고 있습니다.",
+                    "전체 자동 검사",
+                    "21개 엔드투엔드 항목을 자동 판정하고 있습니다.",
                     0.5f);
                 passed = BattleScreenCompleteHarnessValidation.Run();
                 note = passed
@@ -446,13 +433,24 @@ namespace HaveABreak.EditorTools
 
         private void ApplyPreflightResult(bool passed, string note)
         {
-            RunEndToEndManualStepResult result =
-                session.FindOrCreate("preflight-harness");
-            result.status = passed
-                ? RunEndToEndManualStatus.Passed
-                : RunEndToEndManualStatus.Failed;
-            result.note = note;
-            result.updatedAtUtc = DateTime.UtcNow.ToString("O");
+            string updatedAt = DateTime.UtcNow.ToString("O");
+            foreach (RunEndToEndManualStep step in
+                     RunEndToEndManualValidationCatalog.Steps)
+            {
+                RunEndToEndManualStepResult result =
+                    session.FindOrCreate(step.Id);
+                result.status = passed
+                    ? RunEndToEndManualStatus.Passed
+                    : step.Id == "preflight-harness"
+                        ? RunEndToEndManualStatus.Failed
+                        : RunEndToEndManualStatus.Blocked;
+                result.note = step.Id == "preflight-harness"
+                    ? note
+                    : passed
+                        ? "전체 자동 하네스에서 해당 흐름 검증 통과"
+                        : "전체 자동 하네스 실패로 개별 자동 판정 차단";
+                result.updatedAtUtc = updatedAt;
+            }
             TouchAndSave();
             Repaint();
         }
