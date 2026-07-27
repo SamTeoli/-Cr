@@ -2,6 +2,7 @@ using HaveABreak.Cards;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace HaveABreak.Editor
@@ -40,7 +41,11 @@ namespace HaveABreak.Editor
                                  scaler.referenceResolution ==
                                      new Vector2(1920f, 1080f) &&
                                  root.NewRunButton != null &&
-                                 root.ContinueButton != null;
+                                 root.ContinueButton != null &&
+                                 root.GetComponentInChildren<
+                                     InputSystemUIInputModule>(true) != null &&
+                                 root.GetComponentInChildren<
+                                     StandaloneInputModule>(true) == null;
 
                 root.NewRunButton.onClick.Invoke();
                 root.ContinueButton.onClick.Invoke();
@@ -57,7 +62,8 @@ namespace HaveABreak.Editor
                 {
                     Debug.Log(
                         "Final UGUI start screen validation passed: " +
-                        "canvas scaling, start layout, button commands, " +
+                        "canvas scaling, Input System module, start layout, " +
+                        "button commands, " +
                         "and screen visibility.");
                 }
                 else
