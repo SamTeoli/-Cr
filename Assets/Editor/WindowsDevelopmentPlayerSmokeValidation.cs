@@ -82,7 +82,18 @@ namespace HaveABreak.Editor
 
             if (!exitedDuringProbe)
             {
-                player.Kill();
+                try
+                {
+                    if (!player.HasExited)
+                    {
+                        player.Kill();
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    // The player exited between the probe and shutdown request.
+                }
+
                 if (!player.WaitForExit(ShutdownWaitMilliseconds))
                 {
                     throw new TimeoutException(
