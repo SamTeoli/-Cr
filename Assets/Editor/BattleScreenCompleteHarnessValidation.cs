@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using UnityEditor;
 using UnityEngine;
 
@@ -6,6 +7,24 @@ namespace HaveABreak.Editor
 {
     internal static class BattleScreenCompleteHarnessValidation
     {
+        internal static bool? LastResult { get; private set; }
+        internal static DateTime LastCompletedAtUtc { get; private set; }
+        internal static TimeSpan LastDuration { get; private set; }
+
+        internal static bool TryGetRecentPass(
+            TimeSpan maximumAge,
+            out string summary)
+        {
+            bool recent = LastResult == true &&
+                          LastCompletedAtUtc != default &&
+                          DateTime.UtcNow - LastCompletedAtUtc <= maximumAge;
+            summary = recent
+                ? $"최근 전체 하네스 통과 결과 · " +
+                  $"{LastCompletedAtUtc:O} · {LastDuration.TotalSeconds:F1}초"
+                : null;
+            return recent;
+        }
+
         [MenuItem("Have a Break/Tests/Run Complete Test Harness With Battle Screen")]
         private static void RunFromMenu()
         {
@@ -24,6 +43,7 @@ namespace HaveABreak.Editor
 
         internal static bool Run()
         {
+            Stopwatch stopwatch = Stopwatch.StartNew();
             bool existing =
                 BattleRuntimeFullRegressionValidation.RunCompleteTestHarness();
             bool screenBoundary =
@@ -79,6 +99,10 @@ namespace HaveABreak.Editor
                     $"{fullRun}, playerActionFullRun={playerActionFullRun}");
             }
 
+            stopwatch.Stop();
+            LastResult = valid;
+            LastCompletedAtUtc = DateTime.UtcNow;
+            LastDuration = stopwatch.Elapsed;
             return valid;
         }
     }
