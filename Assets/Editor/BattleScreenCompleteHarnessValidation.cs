@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using UnityEditor;
 using UnityEngine;
 
@@ -43,7 +42,7 @@ namespace HaveABreak.Editor
 
         internal static bool Run()
         {
-            Stopwatch stopwatch = Stopwatch.StartNew();
+            System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
             bool existing =
                 BattleRuntimeFullRegressionValidation.RunCompleteTestHarness();
             bool screenBoundary =
