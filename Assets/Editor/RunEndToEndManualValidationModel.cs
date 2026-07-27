@@ -250,7 +250,7 @@ namespace HaveABreak.EditorTools
         {
             session ??= new RunEndToEndManualSession();
             StringBuilder builder = new();
-            builder.AppendLine("# Have a Break 한 런 수동 E2E 검증 보고서");
+            builder.AppendLine("# Have a Break 한 런 자동 E2E 검증 보고서");
             builder.AppendLine();
             builder.AppendLine($"- 검사자: {Value(session.tester)}");
             builder.AppendLine($"- 시작 UTC: {Value(session.startedAtUtc)}");
@@ -258,6 +258,7 @@ namespace HaveABreak.EditorTools
             builder.AppendLine($"- Unity: {Value(session.unityVersion)}");
             builder.AppendLine($"- 브랜치/빌드: {Value(session.branchOrBuild)}");
             builder.AppendLine($"- 프로젝트: {Value(session.projectPath)}");
+            builder.AppendLine("- 판정 방식: 전체 자동 회귀 하네스");
             builder.AppendLine();
 
             int passed = Count(session, RunEndToEndManualStatus.Passed);
@@ -282,7 +283,7 @@ namespace HaveABreak.EditorTools
                     builder.AppendLine();
                     builder.AppendLine($"- ID: `{step.Id}`");
                     builder.AppendLine($"- 상태: {StatusLabel(result.status)}");
-                    builder.AppendLine($"- 실행: {step.Action}");
+                    builder.AppendLine($"- 검증 범위: {step.Action}");
                     builder.AppendLine($"- 기대 결과: {step.Expected}");
                     builder.AppendLine($"- 증거: {step.Evidence}");
                     builder.AppendLine($"- 메모: {Value(result.note)}");
@@ -327,3 +328,4 @@ namespace HaveABreak.EditorTools
         }
     }
 }
+
