@@ -30,6 +30,7 @@ namespace HaveABreak.Editor
             string selectedNodeId = null;
             string resolutionCommandId = null;
             string battleCommandId = null;
+            string rewardCommandId = null;
             CardData validationCard = null;
 
             try
@@ -50,6 +51,8 @@ namespace HaveABreak.Editor
                     commandId => resolutionCommandId = commandId;
                 root.BattleCommandRequested +=
                     commandId => battleCommandId = commandId;
+                root.RewardCommandRequested +=
+                    commandId => rewardCommandId = commandId;
                 root.Initialize();
 
                 CanvasScaler scaler =
@@ -155,9 +158,26 @@ namespace HaveABreak.Editor
                     root.BattleMessageText.text == "전투 명령 메시지" &&
                     battleCommandId == "end-turn";
 
-                root.ShowScreen(RuntimeGameScreen.Battle);
+                RuntimeGameCommandOption[] rewardOptions =
+                {
+                    new("complete", "보상 완료")
+                };
+                root.BindReward(
+                    rewardOptions,
+                    "골드 10 수령 완료",
+                    "보상 검증 메시지");
+                root.ShowScreen(RuntimeGameScreen.Reward);
+                root.RewardCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool reward =
+                    root.CurrentScreen == RuntimeGameScreen.Reward &&
+                    root.RewardSummaryText.text == "골드 10 수령 완료" &&
+                    root.RewardMessageText.text == "보상 검증 메시지" &&
+                    rewardCommandId == "complete";
+
+                root.ShowScreen(RuntimeGameScreen.Reward);
                 bool routing = root.CurrentScreen ==
-                               RuntimeGameScreen.Battle &&
+                               RuntimeGameScreen.Reward &&
                                !root.RunPreparationCardList.gameObject
                                    .activeInHierarchy &&
                                !root.NewRunButton.gameObject
@@ -165,7 +185,7 @@ namespace HaveABreak.Editor
 
                 bool valid = structure && commands && preparation &&
                              nodeSelection && nodeResolution && battle &&
-                             routing;
+                             reward && routing;
                 if (valid)
                 {
                     Debug.Log(
@@ -174,6 +194,7 @@ namespace HaveABreak.Editor
                         "button commands, run preparation binding, " +
                         "node selection and resolution commands, " +
                         "battle state and commands, " +
+                        "reward state and commands, " +
                         "and screen visibility.");
                 }
                 else
@@ -184,6 +205,7 @@ namespace HaveABreak.Editor
                         $"preparation={preparation}, " +
                         $"nodeSelection={nodeSelection}, " +
                         $"nodeResolution={nodeResolution}, battle={battle}, " +
+                        $"reward={reward}, " +
                         $"routing={routing}");
                 }
 

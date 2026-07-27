@@ -40,6 +40,7 @@ namespace HaveABreak.Cards
         private GameObject nodeSelectionScreen;
         private GameObject nodeResolutionScreen;
         private GameObject battleScreen;
+        private GameObject rewardScreen;
         public Canvas RootCanvas { get; private set; }
         public Button NewRunButton { get; private set; }
         public Button ContinueButton { get; private set; }
@@ -59,6 +60,9 @@ namespace HaveABreak.Cards
         public Text BattleSummaryText { get; private set; }
         public Text BattleMessageText { get; private set; }
         public RectTransform BattleCommandList { get; private set; }
+        public Text RewardSummaryText { get; private set; }
+        public Text RewardMessageText { get; private set; }
+        public RectTransform RewardCommandList { get; private set; }
         public RuntimeGameScreen CurrentScreen { get; private set; }
 
         public event Action NewRunRequested;
@@ -69,6 +73,7 @@ namespace HaveABreak.Cards
         public event Action<string> NodeSelectionRequested;
         public event Action<string> NodeResolutionCommandRequested;
         public event Action<string> BattleCommandRequested;
+        public event Action<string> RewardCommandRequested;
 
         public void Initialize()
         {
@@ -84,6 +89,7 @@ namespace HaveABreak.Cards
             BuildNodeSelectionScreen();
             BuildNodeResolutionScreen();
             BuildBattleScreen();
+            BuildRewardScreen();
             ShowScreen(RuntimeGameScreen.Start);
         }
 
@@ -112,6 +118,10 @@ namespace HaveABreak.Cards
             if (battleScreen != null)
             {
                 battleScreen.SetActive(screen == RuntimeGameScreen.Battle);
+            }
+            if (rewardScreen != null)
+            {
+                rewardScreen.SetActive(screen == RuntimeGameScreen.Reward);
             }
         }
 
@@ -212,6 +222,19 @@ namespace HaveABreak.Cards
             BattleTitleText.text = title ?? "전투";
             BattleSummaryText.text = summary ?? string.Empty;
             BattleMessageText.text = message ?? string.Empty;
+        }
+
+        public void BindReward(
+            IReadOnlyList<RuntimeGameCommandOption> options,
+            string summary,
+            string message)
+        {
+            BindCommandList(
+                RewardCommandList,
+                options,
+                commandId => RewardCommandRequested?.Invoke(commandId));
+            RewardSummaryText.text = summary ?? string.Empty;
+            RewardMessageText.text = message ?? string.Empty;
         }
 
         private void EnsureEventSystem()
@@ -520,6 +543,20 @@ namespace HaveABreak.Cards
             BattleSummaryText = summaryText;
             BattleCommandList = commandList;
             BattleMessageText = messageText;
+        }
+
+        private void BuildRewardScreen()
+        {
+            rewardScreen = BuildCommandScreen(
+                "RewardScreen",
+                "전투 보상",
+                out _,
+                out Text summaryText,
+                out RectTransform commandList,
+                out Text messageText);
+            RewardSummaryText = summaryText;
+            RewardCommandList = commandList;
+            RewardMessageText = messageText;
         }
 
         private GameObject BuildCommandScreen(

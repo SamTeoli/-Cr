@@ -66,7 +66,7 @@ namespace HaveABreak.Editor
                 root.CancelRunPreparationButton.onClick.Invoke();
                 bool cancel = root.CurrentScreen == RuntimeGameScreen.Start &&
                               root.RootCanvas.gameObject.activeSelf;
-                bool battle = ValidateBattleBridge(
+            bool battle = ValidateBattleBridge(
                     prototype,
                     root,
                     config);
@@ -77,7 +77,7 @@ namespace HaveABreak.Editor
                     Debug.Log(
                         "Final UI prototype bridge validation passed: " +
                         "start, preparation, card toggle, cancellation, " +
-                        "and battle command routing.");
+                        "battle command routing, and reward completion.");
                 }
                 else
                 {
@@ -165,9 +165,109 @@ namespace HaveABreak.Editor
             bool hadCommand = firstCommand != null &&
                               firstCommand.interactable;
             firstCommand?.onClick.Invoke();
-            return hadCommand &&
-                   root.CurrentScreen == RuntimeGameScreen.Battle &&
-                   root.BattleCommandList.childCount == commandsBefore;
+            bool battleCommand = hadCommand &&
+                                 root.CurrentScreen ==
+                                 RuntimeGameScreen.Battle &&
+                                 root.BattleCommandList.childCount ==
+                                 commandsBefore;
+            return battleCommand &&
+                   ValidateRewardBridge(prototype, root, campaign, progress);
+        }
+
+        private static bool ValidateRewardBridge(
+            RuntimePrototypeScreen prototype,
+            RuntimeGameUiRoot root,
+            RunCampaignState campaign,
+            RunEncounterProgressState progress)
+        {
+            BattleRuntimeEncounterContext context = progress.ActiveEncounter;
+            BattleEnemyRuntimeState[] living = context?.Runtime?.Enemies
+                .Where(enemy => enemy != null && enemy.IsAlive)
+                .ToArray();
+            if (context?.Session == null || living == null ||
+                living.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (BattleEnemyRuntimeState enemy in living)
+            {
+                int health = enemy.Vital.CurrentHealth;
+                if (health <= 0 || enemy.Vital.ApplyDamage(health) <= 0 ||
+                    !context.Runtime.LivingEnemies.TryRemove(enemy.EnemyId))
+                {
+                    return false;
+                }
+            }
+
+            if (!BattleRuntimeSessionService.TryFinalizeTerminalOutcome(
+                    context.Session,
+                    out BattleOutcome outcome,
+                    out _) ||
+                outcome != BattleOutcome.Victory ||
+                !new BattleSettlementViewModel().TrySettle(
+                    campaign,
+                    progress).Succeeded)
+            {
+                return false;
+            }
+
+            const BindingFlags fields =
+                BindingFlags.Instance | BindingFlags.NonPublic;
+            MethodInfo showFinalUi =
+                typeof(RuntimePrototypeScreen).GetMethod(
+                    "TryShowFinalUi",
+                    fields);
+            bool shown = showFinalUi?.Invoke(prototype, null) as bool? == true;
+            if (!shown || root.CurrentScreen != RuntimeGameScreen.Reward ||
+                root.RewardCommandList.childCount == 0 ||
+                string.IsNullOrWhiteSpace(root.RewardSummaryText.text))
+            {
+                return false;
+            }
+
+            for (int pass = 0; pass < 8; pass++)
+            {
+                Button complete = null;
+                Button claim = null;
+                for (int index = 0;
+                     index < root.RewardCommandList.childCount;
+                     index++)
+                {
+                    Button button = root.RewardCommandList.GetChild(index)
+                        .GetComponent<Button>();
+                    Text label = button?.GetComponentInChildren<Text>();
+                    if (label?.text.StartsWith("보상 완료") == true)
+                    {
+                        complete = button;
+                    }
+                    else if (button?.interactable == true && claim == null)
+                    {
+                        claim = button;
+                    }
+                }
+
+                if (complete?.interactable == true)
+                {
+                    complete.onClick.Invoke();
+                    bool advanced = showFinalUi?.Invoke(
+                        prototype,
+                        null) as bool? == true;
+                    return campaign.Phase != RunCampaignPhase.Reward &&
+                           !progress.HasActiveEncounter &&
+                           advanced &&
+                           root.CurrentScreen ==
+                           RuntimeGameScreen.NodeSelection;
+                }
+
+                if (claim == null)
+                {
+                    return false;
+                }
+                claim.onClick.Invoke();
+            }
+
+            return false;
         }
 
         private static RunEncounterProgressState CreateProgress(

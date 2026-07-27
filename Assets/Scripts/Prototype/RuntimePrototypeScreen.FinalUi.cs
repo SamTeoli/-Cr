@@ -26,6 +26,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeResolutionCommandRequested +=
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested += ExecuteFinalBattleCommand;
+            FinalUiRoot.RewardCommandRequested += ExecuteFinalRewardCommand;
             FinalUiRoot.Initialize();
             RefreshFinalUiVisibility();
         }
@@ -47,6 +48,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeResolutionCommandRequested -=
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested -= ExecuteFinalBattleCommand;
+            FinalUiRoot.RewardCommandRequested -= ExecuteFinalRewardCommand;
         }
 
         private bool TryShowFinalUi()
@@ -108,6 +110,17 @@ namespace HaveABreak.Cards
                 }
                 SetFinalUiActive(true);
                 FinalUiRoot.ShowScreen(RuntimeGameScreen.Battle);
+                return true;
+            }
+
+            if (campaign.Phase == RunCampaignPhase.Reward)
+            {
+                if (finalCampaignScreen != RuntimeGameScreen.Reward)
+                {
+                    RefreshFinalReward();
+                }
+                SetFinalUiActive(true);
+                FinalUiRoot.ShowScreen(RuntimeGameScreen.Reward);
                 return true;
             }
 
@@ -711,6 +724,142 @@ namespace HaveABreak.Cards
             else
             {
                 RefreshFinalUiVisibility();
+            }
+        }
+
+        private void RefreshFinalReward()
+        {
+            if (FinalUiRoot == null || campaign == null || progress == null)
+            {
+                return;
+            }
+
+            RunBattleRewardSnapshot snapshot = battleReward.CreateSnapshot(
+                campaign,
+                progress,
+                config.EnchantDatabase);
+            List<RuntimeGameCommandOption> options = new();
+            foreach (RunBattleEnchantRewardOption option in
+                     snapshot.EnchantOptions)
+            {
+                string target = string.IsNullOrWhiteSpace(option.TargetLabel)
+                    ? string.Empty
+                    : $"\n대상: {option.TargetLabel}";
+                string block = string.IsNullOrWhiteSpace(option.BlockReason)
+                    ? string.Empty
+                    : $"\n{option.BlockReason}";
+                options.Add(new RuntimeGameCommandOption(
+                    $"enchant:{option.DefinitionId}",
+                    $"[인첸트] {option.DisplayText}{target}{block}",
+                    option.CanClaim));
+            }
+
+            foreach (RunBattleConsumableRewardOption option in
+                     snapshot.ConsumableOptions)
+            {
+                string block = string.IsNullOrWhiteSpace(option.BlockReason)
+                    ? string.Empty
+                    : $"\n{option.BlockReason}";
+                options.Add(new RuntimeGameCommandOption(
+                    $"reward-consumable:{option.ItemId}",
+                    $"[소모아이템] {option.DisplayText}{block}",
+                    option.CanClaim));
+            }
+
+            string completionBlock = snapshot.CanComplete ||
+                                     !string.IsNullOrWhiteSpace(
+                                         snapshot.ErrorText)
+                ? string.Empty
+                : "\n필수 보상을 모두 선택하세요.";
+            options.Add(new RuntimeGameCommandOption(
+                "complete",
+                $"보상 완료 · 다음 노드{completionBlock}",
+                snapshot.CanComplete));
+            List<string> summaryParts = new()
+            {
+                snapshot.GoldLabel,
+                CreateFinalRunSummary()
+            };
+            if (progress.ActiveEncounter?.VictoryRewards
+                    ?.GrantsFinalBossPermanentReward == true)
+            {
+                summaryParts.Add("영구 카드 보상 · 전투 정산 시 적용 완료");
+            }
+            FinalUiRoot.BindReward(
+                options,
+                string.Join("\n", summaryParts),
+                snapshot.ErrorText ?? message);
+            finalCampaignScreen = RuntimeGameScreen.Reward;
+        }
+
+        private void ExecuteFinalRewardCommand(string commandId)
+        {
+            if (campaign == null || progress == null ||
+                string.IsNullOrWhiteSpace(commandId))
+            {
+                return;
+            }
+
+            bool changed = false;
+            if (commandId == "complete")
+            {
+                changed = battleReward.TryComplete(
+                    campaign,
+                    progress,
+                    out string result,
+                    out RunEncounterProgressFailure failure);
+                message = changed ? result : $"보상 미완료: {failure}";
+            }
+            else if (TryReadCommandValue(
+                         commandId,
+                         "enchant:",
+                         out string definitionId))
+            {
+                changed = battleReward.TryClaimEnchant(
+                    campaign,
+                    progress,
+                    config.EnchantDatabase,
+                    definitionId,
+                    out _,
+                    out string result,
+                    out EnchantAttachmentFailure attachmentFailure,
+                    out BattleVictoryEnchantRewardFailure failure);
+                message = changed
+                    ? result
+                    : $"인첸트 보상 실패: {failure} / {attachmentFailure}";
+            }
+            else if (TryReadCommandValue(
+                         commandId,
+                         "reward-consumable:",
+                         out string itemId))
+            {
+                changed = battleReward.TryClaimConsumable(
+                    campaign,
+                    progress,
+                    itemId,
+                    out _,
+                    out string result,
+                    out BattleVictoryConsumableRewardFailure failure);
+                message = changed
+                    ? result
+                    : $"소모아이템 보상 실패: {failure}";
+            }
+
+            if (changed)
+            {
+                SaveRun(null);
+            }
+
+            finalCampaignScreen = null;
+            if (campaign.Phase == RunCampaignPhase.Reward)
+            {
+                RefreshFinalReward();
+                SetFinalUiActive(true);
+                FinalUiRoot.ShowScreen(RuntimeGameScreen.Reward);
+            }
+            else
+            {
+                TryShowFinalUi();
             }
         }
 
