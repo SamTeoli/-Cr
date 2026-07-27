@@ -270,15 +270,75 @@ namespace HaveABreak.EditorTools
 
         private void RunAutomatedPreflight()
         {
-            bool passed = BattleScreenCompleteHarnessValidation.Run();
+            if (BattleScreenCompleteHarnessValidation.TryGetRecentPass(
+                    TimeSpan.FromMinutes(30),
+                    out string recentSummary))
+            {
+                int choice = EditorUtility.DisplayDialogComplex(
+                    "자동 사전 검사",
+                    recentSummary + "\n\n이미 통과한 결과를 사용할 수 있습니다.",
+                    "최근 결과 사용",
+                    "취소",
+                    "다시 실행");
+                if (choice == 1)
+                {
+                    return;
+                }
+
+                if (choice == 0)
+                {
+                    ApplyPreflightResult(true, recentSummary);
+                    return;
+                }
+            }
+            else if (!EditorUtility.DisplayDialog(
+                         "자동 사전 검사 실행",
+                         "전체 회귀 하네스를 다시 실행합니다. Unity가 검사 중 " +
+                         "응답하지 않는 것처럼 보일 수 있습니다.",
+                         "실행",
+                         "취소"))
+            {
+                return;
+            }
+
+            System.Diagnostics.Stopwatch stopwatch =
+                System.Diagnostics.Stopwatch.StartNew();
+            bool passed = false;
+            string note;
+            try
+            {
+                EditorUtility.DisplayProgressBar(
+                    "자동 사전 검사",
+                    "전체 회귀 하네스를 실행하고 있습니다.",
+                    0.5f);
+                passed = BattleScreenCompleteHarnessValidation.Run();
+                note = passed
+                    ? $"자동 통합 하네스 통과 · {stopwatch.Elapsed.TotalSeconds:F1}초"
+                    : $"자동 통합 하네스 실패 · {stopwatch.Elapsed.TotalSeconds:F1}초";
+            }
+            catch (Exception exception)
+            {
+                note = "자동 통합 하네스 예외 · " +
+                       exception.GetType().Name + ": " + exception.Message;
+                Debug.LogException(exception);
+            }
+            finally
+            {
+                stopwatch.Stop();
+                EditorUtility.ClearProgressBar();
+            }
+
+            ApplyPreflightResult(passed, note);
+        }
+
+        private void ApplyPreflightResult(bool passed, string note)
+        {
             RunEndToEndManualStepResult result =
                 session.FindOrCreate("preflight-harness");
             result.status = passed
                 ? RunEndToEndManualStatus.Passed
                 : RunEndToEndManualStatus.Failed;
-            result.note = passed
-                ? "자동 통합 하네스 통과. Console 오류와 경고를 함께 확인함."
-                : "자동 통합 하네스 실패. Console의 첫 오류를 확인할 것.";
+            result.note = note;
             result.updatedAtUtc = DateTime.UtcNow.ToString("O");
             TouchAndSave();
             Repaint();
@@ -361,7 +421,7 @@ namespace HaveABreak.EditorTools
                 updatedAtUtc = now,
                 unityVersion = Application.unityVersion,
                 projectPath = Application.dataPath,
-                branchOrBuild = "main",
+                branchOrBuild = ResolveCurrentBranch(),
                 generalNotes = string.Empty,
                 steps = new List<RunEndToEndManualStepResult>()
             };
@@ -371,6 +431,46 @@ namespace HaveABreak.EditorTools
                 value.FindOrCreate(step.Id);
             }
             return value;
+        }
+
+        private static string ResolveCurrentBranch()
+        {
+            string projectRoot =
+                Directory.GetParent(Application.dataPath)?.FullName;
+            if (string.IsNullOrWhiteSpace(projectRoot))
+            {
+                return "unknown";
+            }
+
+            try
+            {
+                System.Diagnostics.ProcessStartInfo startInfo = new()
+                {
+                    FileName = "git",
+                    Arguments = "rev-parse --abbrev-ref HEAD",
+                    WorkingDirectory = projectRoot,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                using System.Diagnostics.Process process =
+                    System.Diagnostics.Process.Start(startInfo);
+                if (process == null || !process.WaitForExit(3000) ||
+                    process.ExitCode != 0)
+                {
+                    return "unknown";
+                }
+
+                string branch = process.StandardOutput.ReadToEnd().Trim();
+                return string.IsNullOrWhiteSpace(branch)
+                    ? "unknown"
+                    : branch;
+            }
+            catch (Exception)
+            {
+                return "unknown";
+            }
         }
 
         private void SaveSession()
