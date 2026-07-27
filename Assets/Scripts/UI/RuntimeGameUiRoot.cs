@@ -39,6 +39,7 @@ namespace HaveABreak.Cards
         private GameObject runPreparationScreen;
         private GameObject nodeSelectionScreen;
         private GameObject nodeResolutionScreen;
+        private GameObject battleScreen;
         public Canvas RootCanvas { get; private set; }
         public Button NewRunButton { get; private set; }
         public Button ContinueButton { get; private set; }
@@ -54,6 +55,10 @@ namespace HaveABreak.Cards
         public Text NodeResolutionSummaryText { get; private set; }
         public Text NodeResolutionMessageText { get; private set; }
         public RectTransform NodeResolutionCommandList { get; private set; }
+        public Text BattleTitleText { get; private set; }
+        public Text BattleSummaryText { get; private set; }
+        public Text BattleMessageText { get; private set; }
+        public RectTransform BattleCommandList { get; private set; }
         public RuntimeGameScreen CurrentScreen { get; private set; }
 
         public event Action NewRunRequested;
@@ -63,6 +68,7 @@ namespace HaveABreak.Cards
         public event Action RunPreparationConfirmed;
         public event Action<string> NodeSelectionRequested;
         public event Action<string> NodeResolutionCommandRequested;
+        public event Action<string> BattleCommandRequested;
 
         public void Initialize()
         {
@@ -77,6 +83,7 @@ namespace HaveABreak.Cards
             BuildRunPreparationScreen();
             BuildNodeSelectionScreen();
             BuildNodeResolutionScreen();
+            BuildBattleScreen();
             ShowScreen(RuntimeGameScreen.Start);
         }
 
@@ -101,6 +108,10 @@ namespace HaveABreak.Cards
             {
                 nodeResolutionScreen.SetActive(
                     screen == RuntimeGameScreen.NodeResolution);
+            }
+            if (battleScreen != null)
+            {
+                battleScreen.SetActive(screen == RuntimeGameScreen.Battle);
             }
         }
 
@@ -186,6 +197,21 @@ namespace HaveABreak.Cards
             NodeResolutionTitleText.text = title ?? "노드 진행";
             NodeResolutionSummaryText.text = summary ?? string.Empty;
             NodeResolutionMessageText.text = message ?? string.Empty;
+        }
+
+        public void BindBattle(
+            string title,
+            IReadOnlyList<RuntimeGameCommandOption> options,
+            string summary,
+            string message)
+        {
+            BindCommandList(
+                BattleCommandList,
+                options,
+                commandId => BattleCommandRequested?.Invoke(commandId));
+            BattleTitleText.text = title ?? "전투";
+            BattleSummaryText.text = summary ?? string.Empty;
+            BattleMessageText.text = message ?? string.Empty;
         }
 
         private void EnsureEventSystem()
@@ -475,6 +501,25 @@ namespace HaveABreak.Cards
             NodeResolutionSummaryText = summaryText;
             NodeResolutionCommandList = commandList;
             NodeResolutionMessageText = messageText;
+        }
+
+        private void BuildBattleScreen()
+        {
+            Text titleText;
+            Text summaryText;
+            RectTransform commandList;
+            Text messageText;
+            battleScreen = BuildCommandScreen(
+                "BattleScreen",
+                "전투",
+                out titleText,
+                out summaryText,
+                out commandList,
+                out messageText);
+            BattleTitleText = titleText;
+            BattleSummaryText = summaryText;
+            BattleCommandList = commandList;
+            BattleMessageText = messageText;
         }
 
         private GameObject BuildCommandScreen(

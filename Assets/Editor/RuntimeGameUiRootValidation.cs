@@ -29,6 +29,7 @@ namespace HaveABreak.Editor
             bool preparationConfirmed = false;
             string selectedNodeId = null;
             string resolutionCommandId = null;
+            string battleCommandId = null;
             CardData validationCard = null;
 
             try
@@ -47,6 +48,8 @@ namespace HaveABreak.Editor
                     nodeId => selectedNodeId = nodeId;
                 root.NodeResolutionCommandRequested +=
                     commandId => resolutionCommandId = commandId;
+                root.BattleCommandRequested +=
+                    commandId => battleCommandId = commandId;
                 root.Initialize();
 
                 CanvasScaler scaler =
@@ -133,6 +136,25 @@ namespace HaveABreak.Editor
                     root.NodeResolutionMessageText.text == "노드 진행 메시지" &&
                     resolutionCommandId == "leave";
 
+                RuntimeGameCommandOption[] battleOptions =
+                {
+                    new("end-turn", "턴 종료")
+                };
+                root.BindBattle(
+                    "검증 전투",
+                    battleOptions,
+                    "전투 상태 요약",
+                    "전투 명령 메시지");
+                root.ShowScreen(RuntimeGameScreen.Battle);
+                root.BattleCommandList.GetChild(0)
+                    .GetComponent<Button>().onClick.Invoke();
+                bool battle =
+                    root.CurrentScreen == RuntimeGameScreen.Battle &&
+                    root.BattleTitleText.text == "검증 전투" &&
+                    root.BattleSummaryText.text == "전투 상태 요약" &&
+                    root.BattleMessageText.text == "전투 명령 메시지" &&
+                    battleCommandId == "end-turn";
+
                 root.ShowScreen(RuntimeGameScreen.Battle);
                 bool routing = root.CurrentScreen ==
                                RuntimeGameScreen.Battle &&
@@ -142,7 +164,8 @@ namespace HaveABreak.Editor
                                     .transform.parent.parent.gameObject.activeSelf;
 
                 bool valid = structure && commands && preparation &&
-                             nodeSelection && nodeResolution && routing;
+                             nodeSelection && nodeResolution && battle &&
+                             routing;
                 if (valid)
                 {
                     Debug.Log(
@@ -150,6 +173,7 @@ namespace HaveABreak.Editor
                         "canvas scaling, Input System module, start layout, " +
                         "button commands, run preparation binding, " +
                         "node selection and resolution commands, " +
+                        "battle state and commands, " +
                         "and screen visibility.");
                 }
                 else
@@ -159,7 +183,8 @@ namespace HaveABreak.Editor
                         $"structure={structure}, commands={commands}, " +
                         $"preparation={preparation}, " +
                         $"nodeSelection={nodeSelection}, " +
-                        $"nodeResolution={nodeResolution}, routing={routing}");
+                        $"nodeResolution={nodeResolution}, battle={battle}, " +
+                        $"routing={routing}");
                 }
 
                 return valid;

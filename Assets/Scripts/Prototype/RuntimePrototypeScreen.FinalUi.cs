@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace HaveABreak.Cards
@@ -24,6 +25,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeSelectionRequested += SelectFinalNode;
             FinalUiRoot.NodeResolutionCommandRequested +=
                 ExecuteFinalNodeCommand;
+            FinalUiRoot.BattleCommandRequested += ExecuteFinalBattleCommand;
             FinalUiRoot.Initialize();
             RefreshFinalUiVisibility();
         }
@@ -44,6 +46,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeSelectionRequested -= SelectFinalNode;
             FinalUiRoot.NodeResolutionCommandRequested -=
                 ExecuteFinalNodeCommand;
+            FinalUiRoot.BattleCommandRequested -= ExecuteFinalBattleCommand;
         }
 
         private bool TryShowFinalUi()
@@ -94,6 +97,17 @@ namespace HaveABreak.Cards
                 }
                 SetFinalUiActive(true);
                 FinalUiRoot.ShowScreen(RuntimeGameScreen.NodeResolution);
+                return true;
+            }
+
+            if (campaign.Phase == RunCampaignPhase.Battle)
+            {
+                if (finalCampaignScreen != RuntimeGameScreen.Battle)
+                {
+                    RefreshFinalBattle();
+                }
+                SetFinalUiActive(true);
+                FinalUiRoot.ShowScreen(RuntimeGameScreen.Battle);
                 return true;
             }
 
@@ -477,6 +491,243 @@ namespace HaveABreak.Cards
                    $"{config.RunStartProgressionConfig.TotalNodeCount} · " +
                    $"HP {run.CurrentHealth}/{run.MaximumHealth} · " +
                    $"골드 {run.Gold}";
+        }
+
+        private void RefreshFinalBattle()
+        {
+            if (FinalUiRoot == null || campaign == null || progress == null)
+            {
+                return;
+            }
+
+            BattleScreenSnapshot snapshot =
+                battleScreen.CreateSnapshot(progress, campaign);
+            List<RuntimeGameCommandOption> options = new();
+            if (!snapshot.Available)
+            {
+                options.Add(new RuntimeGameCommandOption(
+                    "restart",
+                    "전투 다시 시작"));
+                FinalUiRoot.BindBattle(
+                    "전투",
+                    options,
+                    snapshot.ErrorText ?? "활성 전투를 찾을 수 없습니다.",
+                    message);
+                finalCampaignScreen = RuntimeGameScreen.Battle;
+                return;
+            }
+
+            foreach (BattleEnemyDisplayOption enemy in snapshot.Enemies)
+            {
+                if (!enemy.IsOccupied)
+                {
+                    continue;
+                }
+                string status = string.IsNullOrWhiteSpace(enemy.StatusText)
+                    ? string.Empty
+                    : $"\n{enemy.StatusText}";
+                options.Add(new RuntimeGameCommandOption(
+                    $"enemy:{enemy.EnemyId}",
+                    $"[적 대상] {enemy.DisplayText}{status}",
+                    enemy.CanSelect));
+            }
+
+            foreach (BattleHandCardActionOption card in snapshot.Hand)
+            {
+                if (card.BanishTargets.Length > 0)
+                {
+                    string target =
+                        card.SelectedBanishTarget?.DisplayLabel ??
+                        "소멸 대상 선택";
+                    options.Add(new RuntimeGameCommandOption(
+                        $"banish:{card.BattleCardId}",
+                        $"[소멸 대상 변경] {target}",
+                        !snapshot.SessionFinished));
+                }
+                string block = string.IsNullOrWhiteSpace(card.BlockReason)
+                    ? string.Empty
+                    : $"\n{card.BlockReason}";
+                options.Add(new RuntimeGameCommandOption(
+                    $"play:{card.BattleCardId}",
+                    $"[카드 사용] {card.DisplayText}{block}",
+                    card.CanPlay));
+            }
+
+            foreach (BattleMonsterDisplayOption monster in snapshot.Monsters)
+            {
+                if (!monster.IsOccupied)
+                {
+                    continue;
+                }
+                string block = string.IsNullOrWhiteSpace(monster.BlockReason)
+                    ? string.Empty
+                    : $"\n{monster.BlockReason}";
+                options.Add(new RuntimeGameCommandOption(
+                    $"attack:{monster.BattleCardId}",
+                    $"[공격] {monster.DisplayText}{block}",
+                    monster.CanAttack));
+            }
+
+            foreach (BattleConsumableActionOption consumable in
+                     snapshot.Consumables)
+            {
+                options.Add(new RuntimeGameCommandOption(
+                    $"consumable:{consumable.ItemId}",
+                    $"[소모품] {consumable.DisplayLabel}",
+                    consumable.CanUse));
+            }
+
+            options.Add(new RuntimeGameCommandOption(
+                "end-turn",
+                "턴 종료",
+                snapshot.CanEndTurn));
+            options.Add(new RuntimeGameCommandOption(
+                "settle",
+                snapshot.FinishedText ?? "전투 정산",
+                snapshot.CanSettle));
+
+            List<string> summaryParts = new()
+            {
+                snapshot.PlayerSummaryText,
+                snapshot.ZoneSummaryText
+            };
+            if (!string.IsNullOrWhiteSpace(snapshot.PlayerStatusText))
+            {
+                summaryParts.Add(snapshot.PlayerStatusText);
+            }
+            if (snapshot.InstalledCards.Length > 0)
+            {
+                summaryParts.Add(
+                    "설치: " + string.Join(
+                        ", ",
+                        snapshot.InstalledCards.Select(
+                            option => option.DisplayName)));
+            }
+            if (snapshot.RecentEvents.Length > 0)
+            {
+                summaryParts.Add(
+                    "최근: " + string.Join(
+                        "\n",
+                        snapshot.RecentEvents
+                            .TakeLast(3)
+                            .Select(option => option.DisplayText)));
+            }
+
+            FinalUiRoot.BindBattle(
+                snapshot.TitleText,
+                options,
+                string.Join("\n", summaryParts),
+                message);
+            finalCampaignScreen = RuntimeGameScreen.Battle;
+        }
+
+        private void ExecuteFinalBattleCommand(string commandId)
+        {
+            if (campaign == null || progress == null ||
+                string.IsNullOrWhiteSpace(commandId))
+            {
+                return;
+            }
+
+            if (commandId == "restart")
+            {
+                BeginSelectedBattle();
+            }
+            else if (commandId == "end-turn")
+            {
+                BattleEndTurnCommandResult command =
+                    battleScreen.TryEndPlayerTurn(progress, campaign);
+                message = command.Message;
+                if (command.Succeeded)
+                {
+                    SaveRun(null);
+                }
+            }
+            else if (commandId == "settle")
+            {
+                SettleBattle();
+            }
+            else if (TryReadCommandValue(
+                         commandId,
+                         "enemy:",
+                         out string enemyId))
+            {
+                battleScreen.SelectEnemy(progress, enemyId);
+            }
+            else if (TryReadCommandValue(
+                         commandId,
+                         "banish:",
+                         out string banishSourceId))
+            {
+                battleScreen.CycleBanishTarget(progress, banishSourceId);
+            }
+            else if (TryReadCommandValue(
+                         commandId,
+                         "play:",
+                         out string cardId))
+            {
+                BattleCardPlayCommandResult command =
+                    battleScreen.TryPlayCard(progress, cardId);
+                message = command.Message;
+                if (command.Succeeded)
+                {
+                    SaveRun(null);
+                }
+            }
+            else if (TryReadCommandValue(
+                         commandId,
+                         "attack:",
+                         out string monsterId))
+            {
+                BattleMonsterAttackCommandResult command =
+                    battleScreen.TryAttack(progress, monsterId);
+                message = command.Message;
+                if (command.Succeeded)
+                {
+                    SaveRun(null);
+                }
+            }
+            else if (TryReadCommandValue(
+                         commandId,
+                         "consumable:",
+                         out string itemId))
+            {
+                BattleConsumableCommandResult command =
+                    battleScreen.TryUseConsumable(progress, itemId);
+                message = command.Message;
+                if (command.Succeeded)
+                {
+                    SaveRun(null);
+                }
+            }
+
+            finalCampaignScreen = null;
+            if (campaign.Phase == RunCampaignPhase.Battle)
+            {
+                RefreshFinalBattle();
+                SetFinalUiActive(true);
+                FinalUiRoot.ShowScreen(RuntimeGameScreen.Battle);
+            }
+            else
+            {
+                RefreshFinalUiVisibility();
+            }
+        }
+
+        private static bool TryReadCommandValue(
+            string commandId,
+            string prefix,
+            out string value)
+        {
+            if (commandId.StartsWith(prefix) &&
+                commandId.Length > prefix.Length)
+            {
+                value = commandId.Substring(prefix.Length);
+                return true;
+            }
+
+            value = null;
+            return false;
         }
 
         private void SetFinalUiActive(bool active)

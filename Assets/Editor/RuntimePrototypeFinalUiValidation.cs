@@ -1,5 +1,7 @@
-using System.Reflection;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using HaveABreak.Cards;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -64,12 +66,18 @@ namespace HaveABreak.Editor
                 root.CancelRunPreparationButton.onClick.Invoke();
                 bool cancel = root.CurrentScreen == RuntimeGameScreen.Start &&
                               root.RootCanvas.gameObject.activeSelf;
-                bool valid = start && preparation && toggle && cancel;
+                bool battle = ValidateBattleBridge(
+                    prototype,
+                    root,
+                    config);
+                bool valid = start && preparation && toggle && cancel &&
+                             battle;
                 if (valid)
                 {
                     Debug.Log(
                         "Final UI prototype bridge validation passed: " +
-                        "start, preparation, card toggle, and cancellation.");
+                        "start, preparation, card toggle, cancellation, " +
+                        "and battle command routing.");
                 }
                 else
                 {
@@ -77,7 +85,7 @@ namespace HaveABreak.Editor
                         "Final UI prototype bridge validation failed. " +
                         $"start={start}, preparation={preparation}, " +
                         $"toggle={toggle} ({selectedBefore}->{selectedAfter}), " +
-                        $"cancel={cancel}");
+                        $"cancel={cancel}, battle={battle}");
                 }
 
                 return valid;
@@ -104,6 +112,100 @@ namespace HaveABreak.Editor
                    int.TryParse(parts[1].TrimEnd('장'), out int count)
                 ? count
                 : -1;
+        }
+
+        private static bool ValidateBattleBridge(
+            RuntimePrototypeScreen prototype,
+            RuntimeGameUiRoot root,
+            RuntimePrototypeConfig config)
+        {
+            RunEncounterProgressState progress =
+                CreateProgress(config?.CardDatabase);
+            RunCampaignState campaign = new(20260727);
+            RunNodeChoice battleNode = RunCampaignService
+                .GetChoices(campaign)
+                .FirstOrDefault(option => option.IsBattle);
+            if (progress == null || battleNode == null ||
+                !RunCampaignService.TrySelectNode(
+                    campaign,
+                    battleNode.NodeId,
+                    out _) ||
+                !new BattleStartViewModel().TryStart(
+                    campaign,
+                    progress,
+                    config).BattleStarted)
+            {
+                return false;
+            }
+
+            const BindingFlags fields =
+                BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(RuntimePrototypeScreen).GetField("campaign", fields)
+                ?.SetValue(prototype, campaign);
+            typeof(RuntimePrototypeScreen).GetField("progress", fields)
+                ?.SetValue(prototype, progress);
+            MethodInfo showFinalUi =
+                typeof(RuntimePrototypeScreen).GetMethod(
+                    "TryShowFinalUi",
+                    fields);
+            bool shown = showFinalUi?.Invoke(prototype, null) as bool? == true;
+            bool initial = shown &&
+                           root.CurrentScreen == RuntimeGameScreen.Battle &&
+                           root.BattleCommandList.childCount > 0 &&
+                           !string.IsNullOrWhiteSpace(
+                               root.BattleSummaryText.text);
+            if (!initial)
+            {
+                return false;
+            }
+
+            int commandsBefore = root.BattleCommandList.childCount;
+            Button firstCommand = root.BattleCommandList.GetChild(0)
+                .GetComponent<Button>();
+            bool hadCommand = firstCommand != null &&
+                              firstCommand.interactable;
+            firstCommand?.onClick.Invoke();
+            return hadCommand &&
+                   root.CurrentScreen == RuntimeGameScreen.Battle &&
+                   root.BattleCommandList.childCount == commandsBefore;
+        }
+
+        private static RunEncounterProgressState CreateProgress(
+            CardDatabase database)
+        {
+            if (database == null)
+            {
+                return null;
+            }
+
+            RunDeckState deck = new();
+            for (int number = 1; number <= 12; number++)
+            {
+                string catalogCardId = $"C{number:00}";
+                CardData data = database.Cards.FirstOrDefault(card =>
+                    card != null && string.Equals(
+                        card.CatalogCardId,
+                        catalogCardId,
+                        StringComparison.OrdinalIgnoreCase));
+                if (data == null ||
+                    !deck.TryAdd(
+                        new RunCardInstance(
+                            data,
+                            $"OWNED-FINAL-UI-{catalogCardId}"),
+                        out RunDeckFailure failure) ||
+                    failure != RunDeckFailure.None)
+                {
+                    return null;
+                }
+            }
+
+            return new RunEncounterProgressState(
+                new RunBattleState(
+                    30,
+                    20,
+                    0,
+                    Array.Empty<string>()),
+                deck);
         }
     }
 }
