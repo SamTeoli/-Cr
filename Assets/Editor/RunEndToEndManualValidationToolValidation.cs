@@ -101,7 +101,10 @@ namespace HaveABreak.Editor
             string report = RunEndToEndManualReportBuilder.Build(restored);
             return !string.IsNullOrWhiteSpace(report) &&
                    report.Contains(
-                       "# Have a Break 한 런 수동 E2E 검증 보고서",
+                       "# Have a Break 한 런 자동 E2E 검증 보고서",
+                       StringComparison.Ordinal) &&
+                   report.Contains(
+                       "판정 방식: 전체 자동 회귀 하네스",
                        StringComparison.Ordinal) &&
                    report.Contains(
                        "통과 1 / 실패 0 / 차단 1",
@@ -112,3 +115,4 @@ namespace HaveABreak.Editor
         }
     }
 }
+
