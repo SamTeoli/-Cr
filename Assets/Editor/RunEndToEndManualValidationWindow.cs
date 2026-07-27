@@ -16,6 +16,7 @@ namespace HaveABreak.EditorTools
         private RunEndToEndManualSession session;
         private Vector2 scroll;
         private GUIStyle wrappedLabel;
+        private string focusedStepId;
 
         private static string PreferenceKey =>
             "HaveABreak.RunEndToEndManualValidation." + Application.dataPath;
@@ -107,6 +108,14 @@ namespace HaveABreak.EditorTools
                 ExportReport();
             }
 
+            if (GUILayout.Button(
+                    "다음 수동 검사",
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(110f)))
+            {
+                FocusNextPendingManualStep();
+            }
+
             GUILayout.FlexibleSpace();
             if (GUILayout.Button(
                     "새 검증 세션",
@@ -120,20 +129,31 @@ namespace HaveABreak.EditorTools
 
         private void DrawProgress()
         {
-            int total = RunEndToEndManualValidationCatalog.Steps.Length;
-            int completed = RunEndToEndManualValidationCatalog.Steps.Count(step =>
+            RunEndToEndManualStepResult automatic =
+                session.FindOrCreate("preflight-harness");
+            string automaticLabel = automatic.status switch
             {
-                RunEndToEndManualStatus status =
-                    session.FindOrCreate(step.Id).status;
-                return status != RunEndToEndManualStatus.NotRun;
-            });
-            int passed = RunEndToEndManualValidationCatalog.Steps.Count(step =>
+                RunEndToEndManualStatus.Passed => "통과",
+                RunEndToEndManualStatus.Failed => "실패",
+                RunEndToEndManualStatus.Blocked => "차단",
+                _ => "미실행"
+            };
+
+            RunEndToEndManualStep[] manualSteps =
+                RunEndToEndManualValidationCatalog.Steps
+                    .Where(step => step.Id != "preflight-harness")
+                    .ToArray();
+            int total = manualSteps.Length;
+            int completed = manualSteps.Count(step =>
+                session.FindOrCreate(step.Id).status !=
+                RunEndToEndManualStatus.NotRun);
+            int passed = manualSteps.Count(step =>
                 session.FindOrCreate(step.Id).status ==
                 RunEndToEndManualStatus.Passed);
-            int failed = RunEndToEndManualValidationCatalog.Steps.Count(step =>
+            int failed = manualSteps.Count(step =>
                 session.FindOrCreate(step.Id).status ==
                 RunEndToEndManualStatus.Failed);
-            int blocked = RunEndToEndManualValidationCatalog.Steps.Count(step =>
+            int blocked = manualSteps.Count(step =>
                 session.FindOrCreate(step.Id).status ==
                 RunEndToEndManualStatus.Blocked);
 
@@ -145,7 +165,15 @@ namespace HaveABreak.EditorTools
             EditorGUI.ProgressBar(
                 rect,
                 ratio,
-                $"진행 {completed}/{total} · 통과 {passed} · 실패 {failed} · 차단 {blocked}");
+                $"자동 검사 1/1: {automaticLabel} · 수동 검사 {completed}/{total} " +
+                $"(통과 {passed} · 실패 {failed} · 차단 {blocked})");
+
+            RunEndToEndManualStep next = FindNextPendingManualStep();
+            EditorGUILayout.HelpBox(
+                next == null
+                    ? "모든 수동 검사의 상태가 기록되었습니다."
+                    : $"다음 수동 검사: [{next.Section}] {next.Title}",
+                next == null ? MessageType.Info : MessageType.None);
             EditorGUILayout.Space(4f);
         }
 
@@ -182,6 +210,30 @@ namespace HaveABreak.EditorTools
 
         private void DrawSteps()
         {
+            if (!string.IsNullOrWhiteSpace(focusedStepId))
+            {
+                RunEndToEndManualStep focused =
+                    RunEndToEndManualValidationCatalog.Steps.FirstOrDefault(
+                        step => step.Id == focusedStepId);
+                if (focused != null)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField(
+                        $"현재 수동 검사 · {focused.Section}",
+                        EditorStyles.boldLabel);
+                    if (GUILayout.Button("전체 목록 보기", GUILayout.Width(110f)))
+                    {
+                        focusedStepId = null;
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    DrawStep(focused);
+                    EditorGUILayout.Space(6f);
+                    return;
+                }
+
+                focusedStepId = null;
+            }
+
             foreach (IGrouping<string, RunEndToEndManualStep> section in
                      RunEndToEndManualValidationCatalog.Steps.GroupBy(step =>
                          step.Section))
@@ -231,6 +283,25 @@ namespace HaveABreak.EditorTools
             }
             EditorGUILayout.EndHorizontal();
 
+            EditorGUILayout.BeginHorizontal();
+            DrawStatusButton(
+                result,
+                RunEndToEndManualStatus.Passed,
+                "통과");
+            DrawStatusButton(
+                result,
+                RunEndToEndManualStatus.Failed,
+                "실패");
+            DrawStatusButton(
+                result,
+                RunEndToEndManualStatus.Blocked,
+                "차단");
+            DrawStatusButton(
+                result,
+                RunEndToEndManualStatus.NotRun,
+                "미실행");
+            EditorGUILayout.EndHorizontal();
+
             EditorGUILayout.LabelField(
                 $"<b>실행</b>  {step.Action}",
                 wrappedLabel);
@@ -252,6 +323,48 @@ namespace HaveABreak.EditorTools
                 TouchAndSave();
             }
             EditorGUILayout.EndVertical();
+        }
+
+        private void DrawStatusButton(
+            RunEndToEndManualStepResult result,
+            RunEndToEndManualStatus status,
+            string label)
+        {
+            EditorGUI.BeginDisabledGroup(result.status == status);
+            if (GUILayout.Button(label))
+            {
+                result.status = status;
+                result.updatedAtUtc = DateTime.UtcNow.ToString("O");
+                TouchAndSave();
+                Repaint();
+            }
+            EditorGUI.EndDisabledGroup();
+        }
+
+        private RunEndToEndManualStep FindNextPendingManualStep()
+        {
+            return RunEndToEndManualValidationCatalog.Steps.FirstOrDefault(
+                step => step.Id != "preflight-harness" &&
+                        session.FindOrCreate(step.Id).status ==
+                        RunEndToEndManualStatus.NotRun);
+        }
+
+        private void FocusNextPendingManualStep()
+        {
+            RunEndToEndManualStep next = FindNextPendingManualStep();
+            if (next == null)
+            {
+                EditorUtility.DisplayDialog(
+                    "수동 검사",
+                    "모든 수동 검사의 상태가 기록되었습니다.",
+                    "확인");
+                focusedStepId = null;
+                return;
+            }
+
+            focusedStepId = next.Id;
+            scroll = Vector2.zero;
+            Repaint();
         }
 
         private void DrawGeneralNotes()
@@ -513,3 +626,4 @@ namespace HaveABreak.EditorTools
         }
     }
 }
+
