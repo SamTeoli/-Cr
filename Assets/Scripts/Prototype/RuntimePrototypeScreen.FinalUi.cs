@@ -638,6 +638,8 @@ namespace HaveABreak.Cards
                     message);
                 FinalUiRoot.BindBattleHand(
                     System.Array.Empty<RuntimeCardPresentation>());
+                FinalUiRoot.BindBattleConsumables(
+                    System.Array.Empty<BattleConsumableActionOption>());
                 finalCampaignScreen = RuntimeGameScreen.Battle;
                 return;
             }
@@ -690,15 +692,6 @@ namespace HaveABreak.Cards
                     monster.CanAttack));
             }
 
-            foreach (BattleConsumableActionOption consumable in
-                     snapshot.Consumables)
-            {
-                options.Add(new RuntimeGameCommandOption(
-                    $"consumable:{consumable.ItemId}",
-                    $"[소모품] {consumable.DisplayLabel}",
-                    consumable.CanUse));
-            }
-
             options.Add(new RuntimeGameCommandOption(
                 "end-turn",
                 "턴 종료",
@@ -741,6 +734,7 @@ namespace HaveABreak.Cards
                 string.Join("\n", summaryParts),
                 message);
             FinalUiRoot.BindBattleHand(handCards);
+            FinalUiRoot.BindBattleConsumables(snapshot.Consumables);
             finalCampaignScreen = RuntimeGameScreen.Battle;
         }
 

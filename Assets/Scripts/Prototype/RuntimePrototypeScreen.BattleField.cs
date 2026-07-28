@@ -96,9 +96,9 @@ namespace HaveABreak.Cards
             finalBattleFieldView.Initialize(ExecuteFinalBattleCommand);
             finalBattleFieldView.Bind(RuntimeBattleFieldPresentation.Empty);
 
-            int fieldIndex = FinalUiRoot.BattleCardPlayZone == null
+            int fieldIndex = FinalUiRoot.BattleConsumableBar == null
                 ? 0
-                : FinalUiRoot.BattleCardPlayZone.GetSiblingIndex() + 1;
+                : FinalUiRoot.BattleConsumableBar.GetSiblingIndex() + 1;
             finalBattleFieldObject.transform.SetSiblingIndex(fieldIndex);
 
             Transform handScroll =
@@ -142,6 +142,9 @@ namespace HaveABreak.Cards
                                         StringComparison.Ordinal) ||
                                     text.StartsWith(
                                         "[공격]",
+                                        StringComparison.Ordinal) ||
+                                    text.StartsWith(
+                                        "[소모품]",
                                         StringComparison.Ordinal);
                 if (fieldCommand && child.activeSelf)
                 {

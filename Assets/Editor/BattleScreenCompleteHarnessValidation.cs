@@ -68,6 +68,7 @@ namespace HaveABreak.Editor
             bool finalUiPreviewCommand =
                 RuntimeGameUiPreviewCommandValidation.Validate();
             bool cardDrag = RuntimeCardDragHandlerValidation.Validate();
+            bool consumableBar = RuntimeConsumableBarValidation.Validate();
             bool battleField = RuntimeBattleFieldViewValidation.Validate();
             bool battleFieldBridge =
                 RuntimeBattleFieldBridgeValidation.Validate();
@@ -86,7 +87,8 @@ namespace HaveABreak.Editor
                          lifecycleBoundary && lifecycle && finalUiRouter &&
                          finalUiRoot && finalUiPrototype &&
                          finalUiPreviewBootstrap && finalUiPreviewCommand &&
-                         cardDrag && battleField && battleFieldBridge &&
+                         cardDrag && consumableBar && battleField &&
+                         battleFieldBridge &&
                          manualE2ETool && autoplayBoundary && autoplay &&
                          fullRun && playerActionFullRun;
             if (valid)
@@ -97,8 +99,9 @@ namespace HaveABreak.Editor
                     "guard, display snapshot flow, settlement command flow, " +
                     "battle start checkpoint flow, run lifecycle flow, final " +
                     "UI screen routing, preview bootstrap and new-run command, " +
-                    "card drag input and layout restore, battle field 3x3 slots " +
-                    "and final UI bridge, manual run E2E validation tool, battle " +
+                    "card drag input and layout restore, consumable icon bar, " +
+                    "battle field 3x3 slots and final UI bridge, manual run E2E " +
+                    "validation tool, battle " +
                     "player-action autoplay boundary and command flow, full run " +
                     "end-to-end progression, and player-action full run " +
                     "progression.");
@@ -116,7 +119,8 @@ namespace HaveABreak.Editor
                     $"finalUiPrototype={finalUiPrototype}, " +
                     $"finalUiPreviewBootstrap={finalUiPreviewBootstrap}, " +
                     $"finalUiPreviewCommand={finalUiPreviewCommand}, " +
-                    $"cardDrag={cardDrag}, battleField={battleField}, " +
+                    $"cardDrag={cardDrag}, consumableBar={consumableBar}, " +
+                    $"battleField={battleField}, " +
                     $"battleFieldBridge={battleFieldBridge}, " +
                     $"manualE2ETool={manualE2ETool}, " +
                     $"autoplayBoundary={autoplayBoundary}, " +

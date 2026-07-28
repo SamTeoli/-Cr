@@ -65,7 +65,9 @@ namespace HaveABreak.Cards
         public Text BattleTitleText { get; private set; }
         public Text BattleSummaryText { get; private set; }
         public Text BattleMessageText { get; private set; }
-        public RectTransform BattleCardPlayZone { get; private set; }
+        public RectTransform BattleConsumableBar { get; private set; }
+        public RectTransform BattleConsumableIconList { get; private set; }
+        public Text BattleConsumableTooltipText { get; private set; }
         public RectTransform BattleHandCardList { get; private set; }
         public RectTransform BattleCommandList { get; private set; }
         public Text RewardSummaryText { get; private set; }
@@ -295,6 +297,36 @@ namespace HaveABreak.Cards
                     commandId =>
                         BattleCommandRequested?.Invoke(commandId),
                     true);
+            }
+        }
+
+        public void BindBattleConsumables(
+            IReadOnlyList<BattleConsumableActionOption> options)
+        {
+            if (BattleConsumableIconList == null)
+            {
+                throw new InvalidOperationException(
+                    "RuntimeGameUiRoot.Initialize must be called before binding.");
+            }
+
+            HideBattleConsumableTooltip();
+            ClearChildren(BattleConsumableIconList);
+            int optionCount = options?.Count ?? 0;
+            for (int index = 0; index < optionCount; index++)
+            {
+                BattleConsumableActionOption option = options[index];
+                if (option == null)
+                {
+                    continue;
+                }
+
+                CreateBattleConsumableIcon(option, index);
+            }
+
+            if (optionCount == 0)
+            {
+                BattleConsumableTooltipText.text = "사용 가능한 소모품 없음";
+                BattleConsumableTooltipText.gameObject.SetActive(true);
             }
         }
 
@@ -655,30 +687,8 @@ namespace HaveABreak.Cards
 
             Transform panel = titleText.transform.parent;
             (panel as RectTransform).sizeDelta = new Vector2(1120f, 1040f);
-            Image playZone = CreateImage(
-                "BattleCardPlayZone",
-                panel,
-                new Color(0.08f, 0.22f, 0.3f, 0.9f));
-            BattleCardPlayZone = playZone.rectTransform;
-            LayoutElement playZoneLayout =
-                playZone.gameObject.AddComponent<LayoutElement>();
-            playZoneLayout.preferredHeight = 92f;
-            Text playZoneText = CreateText(
-                "Instruction",
-                BattleCardPlayZone,
-                "카드를 이곳에 놓아 사용",
-                22,
-                FontStyle.Bold,
-                92f);
-            Stretch(playZoneText.rectTransform);
-            RuntimeCardDropZone playDropZone =
-                playZone.gameObject.AddComponent<RuntimeCardDropZone>();
-            playDropZone.Configure(
-                string.Empty,
-                playZone,
-                new Color(0.08f, 0.22f, 0.3f, 0.9f),
-                new Color(0.18f, 0.58f, 0.76f, 1f));
-            BattleCardPlayZone.SetSiblingIndex(
+            BuildBattleConsumableBar(panel);
+            BattleConsumableBar.SetSiblingIndex(
                 summaryText.transform.GetSiblingIndex() + 1);
 
             BattleHandCardList = BuildCardScroll(
@@ -686,9 +696,167 @@ namespace HaveABreak.Cards
                 "BattleHandScroll",
                 360f);
             BattleHandCardList.transform.parent.parent.SetSiblingIndex(
-                BattleCardPlayZone.GetSiblingIndex() + 1);
+                BattleConsumableBar.GetSiblingIndex() + 1);
             BattleCommandList.transform.parent.parent
                 .GetComponent<LayoutElement>().preferredHeight = 150f;
+        }
+
+        private void BuildBattleConsumableBar(Transform panel)
+        {
+            Image bar = CreateImage(
+                "BattleConsumableBar",
+                panel,
+                new Color(0.035f, 0.075f, 0.12f, 0.98f));
+            BattleConsumableBar = bar.rectTransform;
+            LayoutElement barLayout =
+                bar.gameObject.AddComponent<LayoutElement>();
+            barLayout.preferredHeight = 88f;
+
+            HorizontalLayoutGroup layout =
+                bar.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(14, 14, 8, 8);
+            layout.spacing = 12f;
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+
+            Text label = CreateText(
+                "Label",
+                BattleConsumableBar,
+                "소모품",
+                20,
+                FontStyle.Bold,
+                68f);
+            LayoutElement labelLayout = label.GetComponent<LayoutElement>();
+            labelLayout.preferredWidth = 76f;
+            labelLayout.flexibleWidth = 0f;
+
+            GameObject iconListObject = new(
+                "Icons",
+                typeof(RectTransform),
+                typeof(HorizontalLayoutGroup),
+                typeof(LayoutElement));
+            iconListObject.transform.SetParent(BattleConsumableBar, false);
+            BattleConsumableIconList =
+                iconListObject.GetComponent<RectTransform>();
+            HorizontalLayoutGroup iconLayout =
+                iconListObject.GetComponent<HorizontalLayoutGroup>();
+            iconLayout.spacing = 8f;
+            iconLayout.childAlignment = TextAnchor.MiddleLeft;
+            iconLayout.childControlWidth = true;
+            iconLayout.childControlHeight = true;
+            iconLayout.childForceExpandWidth = false;
+            iconLayout.childForceExpandHeight = false;
+            LayoutElement iconListLayout =
+                iconListObject.GetComponent<LayoutElement>();
+            iconListLayout.preferredWidth = 246f;
+            iconListLayout.preferredHeight = 68f;
+            iconListLayout.flexibleWidth = 0f;
+
+            BattleConsumableTooltipText = CreateText(
+                "Tooltip",
+                BattleConsumableBar,
+                string.Empty,
+                17,
+                FontStyle.Normal,
+                68f);
+            BattleConsumableTooltipText.alignment = TextAnchor.MiddleLeft;
+            LayoutElement tooltipLayout =
+                BattleConsumableTooltipText.GetComponent<LayoutElement>();
+            tooltipLayout.flexibleWidth = 1f;
+            BattleConsumableTooltipText.gameObject.SetActive(false);
+        }
+
+        private void CreateBattleConsumableIcon(
+            BattleConsumableActionOption option,
+            int index)
+        {
+            string commandId = $"consumable:{option.ItemId}";
+            GameObject iconObject = new(
+                $"Consumable_{index}_{option.ItemId}",
+                typeof(RectTransform),
+                typeof(Image),
+                typeof(Button),
+                typeof(LayoutElement),
+                typeof(RuntimeConsumableTooltipTrigger));
+            iconObject.transform.SetParent(BattleConsumableIconList, false);
+
+            Image icon = iconObject.GetComponent<Image>();
+            icon.sprite = RuntimeConsumableIconCatalog.Load(option.ItemId);
+            icon.preserveAspect = true;
+            icon.color = icon.sprite != null
+                ? Color.white
+                : SecondaryColor;
+
+            Button button = iconObject.GetComponent<Button>();
+            button.targetGraphic = icon;
+            button.interactable = option.CanUse;
+            button.onClick.AddListener(
+                () => BattleCommandRequested?.Invoke(commandId));
+            ColorBlock colors = button.colors;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 1f);
+            colors.pressedColor = new Color(0.72f, 0.82f, 0.94f, 1f);
+            colors.disabledColor = new Color(0.4f, 0.4f, 0.4f, 0.62f);
+            button.colors = colors;
+
+            LayoutElement iconLayout =
+                iconObject.GetComponent<LayoutElement>();
+            iconLayout.preferredWidth = 68f;
+            iconLayout.preferredHeight = 68f;
+            iconLayout.flexibleWidth = 0f;
+            iconLayout.flexibleHeight = 0f;
+
+            Text count = CreateText(
+                "Count",
+                iconObject.transform,
+                $"×{option.RemainingCount}",
+                16,
+                FontStyle.Bold,
+                24f);
+            count.alignment = TextAnchor.MiddleCenter;
+            count.gameObject.AddComponent<Outline>().effectColor =
+                new Color(0f, 0f, 0f, 0.95f);
+            RectTransform countRect = count.rectTransform;
+            countRect.anchorMin = new Vector2(0.48f, 0f);
+            countRect.anchorMax = new Vector2(1f, 0.34f);
+            countRect.offsetMin = Vector2.zero;
+            countRect.offsetMax = Vector2.zero;
+
+            RuntimeConsumableTooltipTrigger tooltip =
+                iconObject.GetComponent<RuntimeConsumableTooltipTrigger>();
+            tooltip.Configure(
+                () => ShowBattleConsumableTooltip(option),
+                HideBattleConsumableTooltip);
+        }
+
+        private void ShowBattleConsumableTooltip(
+            BattleConsumableActionOption option)
+        {
+            if (BattleConsumableTooltipText == null || option == null)
+            {
+                return;
+            }
+
+            string unavailable = string.IsNullOrWhiteSpace(option.BlockReason)
+                ? string.Empty
+                : $"\n{option.BlockReason}";
+            BattleConsumableTooltipText.text =
+                $"{option.DisplayName} ×{option.RemainingCount}\n" +
+                $"{option.Item.RulesText}{unavailable}";
+            BattleConsumableTooltipText.gameObject.SetActive(true);
+        }
+
+        private void HideBattleConsumableTooltip()
+        {
+            if (BattleConsumableTooltipText == null)
+            {
+                return;
+            }
+
+            BattleConsumableTooltipText.text = string.Empty;
+            BattleConsumableTooltipText.gameObject.SetActive(false);
         }
 
         private void BuildRewardScreen()

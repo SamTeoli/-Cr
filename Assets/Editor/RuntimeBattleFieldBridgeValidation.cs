@@ -115,10 +115,25 @@ namespace HaveABreak.Editor
                                                 StringComparison.Ordinal) ||
                                             text.StartsWith(
                                                 "[공격]",
+                                                StringComparison.Ordinal) ||
+                                            text.StartsWith(
+                                                "[소모품]",
                                                 StringComparison.Ordinal));
+                bool consumableBar = root?.BattleConsumableIconList != null &&
+                                     root.BattleConsumableIconList.childCount ==
+                                     3 &&
+                                     Enumerable.Range(
+                                             0,
+                                             root.BattleConsumableIconList
+                                                 .childCount)
+                                         .All(index =>
+                                             root.BattleConsumableIconList
+                                                 .GetChild(index)
+                                                 .GetComponent<Image>()
+                                                 ?.sprite != null);
 
                 bool valid = structure && enemyState && fieldDrops &&
-                             legacyHidden;
+                             legacyHidden && consumableBar;
                 if (valid)
                 {
                     Debug.Log(
@@ -133,7 +148,8 @@ namespace HaveABreak.Editor
                         $"structure={structure}, enemyState={enemyState}, " +
                         $"monsterDrops={monsterDropCount}, " +
                         $"skillDrops={skillDropCount}, " +
-                        $"legacyHidden={legacyHidden}");
+                        $"legacyHidden={legacyHidden}, " +
+                        $"consumableBar={consumableBar}");
                 }
 
                 return valid;
@@ -182,7 +198,12 @@ namespace HaveABreak.Editor
                     30,
                     20,
                     0,
-                    Array.Empty<string>()),
+                    new[]
+                    {
+                        PrototypeConsumableCatalog.HealingPotion,
+                        PrototypeConsumableCatalog.CleanseScroll,
+                        PrototypeConsumableCatalog.ManaBattery
+                    }),
                 deck);
         }
     }
