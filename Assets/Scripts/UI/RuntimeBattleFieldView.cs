@@ -196,6 +196,23 @@ namespace HaveABreak.Cards
             result.raycastTarget = false;
             return result;
         }
+
+        internal static bool AcceptsCardType(
+            RuntimeBattleFieldZone zone,
+            CardType cardType)
+        {
+            return zone switch
+            {
+                RuntimeBattleFieldZone.Enemy => true,
+                RuntimeBattleFieldZone.PlayerMonster =>
+                    cardType == CardType.Monster,
+                RuntimeBattleFieldZone.PlayerSkill =>
+                    cardType == CardType.Skill ||
+                    cardType == CardType.Trap ||
+                    cardType == CardType.Barrier,
+                _ => false
+            };
+        }
     }
 
     [DisallowMultipleComponent]
@@ -271,11 +288,17 @@ namespace HaveABreak.Cards
                     button.onClick.AddListener(() => command?.Invoke(clickCommand));
                 }
             }
+
+            RuntimeBattleFieldZone zone =
+                value?.Zone ?? RuntimeBattleFieldZone.Enemy;
             dropZone?.Configure(
                 value?.DropCommandId,
                 background,
                 idleColor,
-                hoverColor);
+                hoverColor,
+                card => RuntimeBattleFieldView.AcceptsCardType(
+                    zone,
+                    card.CardType));
         }
     }
 }
