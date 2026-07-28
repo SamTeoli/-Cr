@@ -196,19 +196,46 @@ namespace HaveABreak.Cards
         IPointerEnterHandler,
         IPointerExitHandler
     {
+        private static readonly HashSet<RuntimeCardDropZone> RegisteredZones =
+            new();
         private static RuntimeCardPresentation activePresentation;
+
         private Graphic highlightGraphic;
         private Color idleColor;
-        private Color hoverColor;
+        private Color availableColor;
+        private Color pointerColor;
         private Func<RuntimeCardPresentation, bool> acceptsPresentation;
+        private bool pointerInside;
 
         public bool AcceptsCards { get; private set; }
         public string TargetCommandId { get; private set; }
+        public bool IsAvailableHighlighted { get; private set; }
 
-        internal static void SetActivePresentation(
+        public static void SetActivePresentation(
             RuntimeCardPresentation presentation)
         {
             activePresentation = presentation;
+            foreach (RuntimeCardDropZone zone in RegisteredZones)
+            {
+                zone?.RefreshHighlight();
+            }
+        }
+
+        private void OnEnable()
+        {
+            RegisteredZones.Add(this);
+            RefreshHighlight();
+        }
+
+        private void OnDisable()
+        {
+            RegisteredZones.Remove(this);
+            pointerInside = false;
+            IsAvailableHighlighted = false;
+            if (highlightGraphic != null)
+            {
+                highlightGraphic.color = idleColor;
+            }
         }
 
         public void Configure(
@@ -223,12 +250,13 @@ namespace HaveABreak.Cards
             acceptsPresentation = cardPredicate;
             highlightGraphic = graphic;
             idleColor = idle;
-            hoverColor = hover;
+            availableColor = hover;
+            pointerColor = Color.Lerp(hover, Color.white, 0.28f);
             if (highlightGraphic != null)
             {
-                highlightGraphic.color = idleColor;
                 highlightGraphic.raycastTarget = true;
             }
+            RefreshHighlight();
         }
 
         public bool Accepts(RuntimeCardPresentation presentation)
@@ -240,18 +268,28 @@ namespace HaveABreak.Cards
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (Accepts(activePresentation) && highlightGraphic != null)
-            {
-                highlightGraphic.color = hoverColor;
-            }
+            pointerInside = true;
+            RefreshHighlight();
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
-            if (highlightGraphic != null)
+            pointerInside = false;
+            RefreshHighlight();
+        }
+
+        private void RefreshHighlight()
+        {
+            bool available = Accepts(activePresentation);
+            IsAvailableHighlighted = available;
+            if (highlightGraphic == null)
             {
-                highlightGraphic.color = idleColor;
+                return;
             }
+
+            highlightGraphic.color = available
+                ? pointerInside ? pointerColor : availableColor
+                : idleColor;
         }
     }
 }
