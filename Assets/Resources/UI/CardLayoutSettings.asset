@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98b3eb2d80fd4673bfb858b36faed1a4, type: 3}
+  m_Name: CardLayoutSettings
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.CardLayoutSettings
+  mana:
+    serializedVersion: 2
+    x: 0.029689789
+    y: 0.82870275
+    width: 0.20000008
+    height: 0.14285706
+  cardName:
+    serializedVersion: 2
+    x: 0.23999998
+    y: 0.8772206
+    width: 0.52000004
+    height: 0.045822278
+  artwork:
+    serializedVersion: 2
+    x: 0.119999975
+    y: 0.38999996
+    width: 0.76000005
+    height: 0.42000002
+  rulesPanel:
+    serializedVersion: 2
+    x: 0.119999975
+    y: 0.13000001
+    width: 0.76000005
+    height: 0.25
+  effect:
+    serializedVersion: 2
+    x: 0.13083959
+    y: 0.2572132
+    width: 0.7371199
+    height: 0.108977586
+  attack:
+    serializedVersion: 2
+    x: 0.02526545
+    y: 0.100999966
+    width: 0.20000005
+    height: 0.14285718
+  health:
+    serializedVersion: 2
+    x: 0.774347
+    y: 0.100999966
+    width: 0.19999997
+    height: 0.14285718
+  cardType:
+    serializedVersion: 2
+    x: 0.3925872
+    y: 0.09109435
+    width: 0.22157584
+    height: 0.046690054
+  selection:
+    serializedVersion: 2
+    x: 0.6000001
+    y: 0.765
+    width: 0.25999993
+    height: 0.049999967
+  blockReason:
+    serializedVersion: 2
+    x: 0.099999994
+    y: 0.39
+    width: 0.8
+    height: 0.08000001
+  koreanOsFontName: Malgun Gothic
+  manaSize: 60
+  nameSize: 30
+  effectSize: 13
+  statSize: 60
+  typeSize: 20

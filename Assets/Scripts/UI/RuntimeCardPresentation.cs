@@ -19,7 +19,8 @@ namespace HaveABreak.Cards
             int selectionOrder,
             bool interactable,
             string blockReason,
-            string accessibilityText)
+            string accessibilityText,
+            Sprite artwork = null)
         {
             CommandId = commandId;
             DisplayName = string.IsNullOrWhiteSpace(displayName)
@@ -37,6 +38,7 @@ namespace HaveABreak.Cards
             Interactable = interactable;
             BlockReason = blockReason ?? string.Empty;
             AccessibilityText = accessibilityText ?? string.Empty;
+            Artwork = artwork;
         }
 
         public string CommandId { get; }
@@ -53,9 +55,19 @@ namespace HaveABreak.Cards
         public bool Interactable { get; }
         public string BlockReason { get; }
         public string AccessibilityText { get; }
+        public Sprite Artwork { get; }
         public bool HasMonsterStats => Attack.HasValue && Health.HasValue;
 
         public string TypeLabel => CardType switch
+        {
+            CardType.Monster => "몬스터",
+            CardType.Skill => "스킬",
+            CardType.Trap => "트랩",
+            CardType.Barrier => "결계",
+            _ => CardType.ToString()
+        };
+
+        private string LegacyTypeLabel => CardType switch
         {
             CardType.Monster => "몬스터",
             CardType.Skill => "스킬",
@@ -126,7 +138,8 @@ namespace HaveABreak.Cards
                 option.SelectionOrder,
                 true,
                 null,
-                accessibility);
+                accessibility,
+                card.Artwork);
         }
 
         public static RuntimeCardPresentation FromBattleHand(
@@ -164,7 +177,8 @@ namespace HaveABreak.Cards
                 0,
                 option.CanPlay,
                 blockReason,
-                accessibility);
+                accessibility,
+                card.SourceCard.Artwork);
         }
     }
 }

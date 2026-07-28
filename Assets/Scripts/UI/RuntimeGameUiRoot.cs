@@ -65,6 +65,7 @@ namespace HaveABreak.Cards
         public Text BattleTitleText { get; private set; }
         public Text BattleSummaryText { get; private set; }
         public Text BattleMessageText { get; private set; }
+        public RectTransform BattleCardPlayZone { get; private set; }
         public RectTransform BattleHandCardList { get; private set; }
         public RectTransform BattleCommandList { get; private set; }
         public Text RewardSummaryText { get; private set; }
@@ -87,6 +88,7 @@ namespace HaveABreak.Cards
         public event Action<string> NodeSelectionRequested;
         public event Action<string> NodeResolutionCommandRequested;
         public event Action<string> BattleCommandRequested;
+        public event Action<string, string> BattleCardDropped;
         public event Action<string> RewardCommandRequested;
         public event Action RunResultNewRunRequested;
         public event Action ReturnToStartRequested;
@@ -262,7 +264,9 @@ namespace HaveABreak.Cards
                 commandId => BattleCommandRequested?.Invoke(commandId));
             BattleTitleText.text = title ?? "전투";
             BattleSummaryText.text = summary ?? string.Empty;
-            BattleMessageText.text = message ?? string.Empty;
+            BattleMessageText.text =
+                $"{message ?? string.Empty}\n" +
+                "손패 카드를 전장 또는 적 위로 드래그하세요.";
         }
 
         public void BindBattleHand(
@@ -289,7 +293,8 @@ namespace HaveABreak.Cards
                     BattleHandCardList,
                     card,
                     commandId =>
-                        BattleCommandRequested?.Invoke(commandId));
+                        BattleCommandRequested?.Invoke(commandId),
+                    true);
             }
         }
 
@@ -649,12 +654,39 @@ namespace HaveABreak.Cards
             BattleMessageText = messageText;
 
             Transform panel = titleText.transform.parent;
+            (panel as RectTransform).sizeDelta = new Vector2(1120f, 1040f);
+            Image playZone = CreateImage(
+                "BattleCardPlayZone",
+                panel,
+                new Color(0.08f, 0.22f, 0.3f, 0.9f));
+            BattleCardPlayZone = playZone.rectTransform;
+            LayoutElement playZoneLayout =
+                playZone.gameObject.AddComponent<LayoutElement>();
+            playZoneLayout.preferredHeight = 92f;
+            Text playZoneText = CreateText(
+                "Instruction",
+                BattleCardPlayZone,
+                "카드를 이곳에 놓아 사용",
+                22,
+                FontStyle.Bold,
+                92f);
+            Stretch(playZoneText.rectTransform);
+            RuntimeCardDropZone playDropZone =
+                playZone.gameObject.AddComponent<RuntimeCardDropZone>();
+            playDropZone.Configure(
+                string.Empty,
+                playZone,
+                new Color(0.08f, 0.22f, 0.3f, 0.9f),
+                new Color(0.18f, 0.58f, 0.76f, 1f));
+            BattleCardPlayZone.SetSiblingIndex(
+                summaryText.transform.GetSiblingIndex() + 1);
+
             BattleHandCardList = BuildCardScroll(
                 panel,
                 "BattleHandScroll",
                 360f);
             BattleHandCardList.transform.parent.parent.SetSiblingIndex(
-                summaryText.transform.GetSiblingIndex() + 1);
+                BattleCardPlayZone.GetSiblingIndex() + 1);
             BattleCommandList.transform.parent.parent
                 .GetComponent<LayoutElement>().preferredHeight = 150f;
         }
@@ -868,11 +900,12 @@ namespace HaveABreak.Cards
             return content;
         }
 
-        private static RuntimeCardView CreateCardView(
+        private RuntimeCardView CreateCardView(
             string name,
             Transform parent,
             RuntimeCardPresentation presentation,
-            Action<string> clicked)
+            Action<string> clicked,
+            bool draggable = false)
         {
             GameObject cardObject = new(
                 name,
@@ -885,6 +918,18 @@ namespace HaveABreak.Cards
             RuntimeCardView view =
                 cardObject.GetComponent<RuntimeCardView>();
             view.Bind(presentation, clicked);
+            if (draggable)
+            {
+                RuntimeCardDragHandler drag =
+                    cardObject.AddComponent<RuntimeCardDragHandler>();
+                drag.Configure(
+                    view,
+                    RootCanvas,
+                    (cardCommand, targetCommand) =>
+                        BattleCardDropped?.Invoke(
+                            cardCommand,
+                            targetCommand));
+            }
             return view;
         }
 
@@ -911,6 +956,20 @@ namespace HaveABreak.Cards
                     option.Interactable ? PrimaryColor : SecondaryColor,
                     () => command?.Invoke(commandId));
                 button.interactable = option.Interactable;
+                if (option.Interactable &&
+                    commandId.StartsWith(
+                        "enemy:",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    RuntimeCardDropZone dropZone =
+                        button.gameObject.AddComponent<RuntimeCardDropZone>();
+                    Image image = button.GetComponent<Image>();
+                    dropZone.Configure(
+                        commandId,
+                        image,
+                        image.color,
+                        new Color(0.72f, 0.25f, 0.18f, 1f));
+                }
             }
         }
 

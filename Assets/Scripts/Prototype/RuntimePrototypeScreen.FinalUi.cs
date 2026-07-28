@@ -29,6 +29,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeResolutionCommandRequested +=
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested += ExecuteFinalBattleCommand;
+            FinalUiRoot.BattleCardDropped += ExecuteFinalBattleCardDrop;
             FinalUiRoot.RewardCommandRequested += ExecuteFinalRewardCommand;
             FinalUiRoot.RunResultNewRunRequested += RequestFinalStartNewRun;
             FinalUiRoot.ReturnToStartRequested += ShowFinalStartScreen;
@@ -55,6 +56,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeResolutionCommandRequested -=
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested -= ExecuteFinalBattleCommand;
+            FinalUiRoot.BattleCardDropped -= ExecuteFinalBattleCardDrop;
             FinalUiRoot.RewardCommandRequested -= ExecuteFinalRewardCommand;
             FinalUiRoot.RunResultNewRunRequested -= RequestFinalStartNewRun;
             FinalUiRoot.ReturnToStartRequested -= ShowFinalStartScreen;
@@ -740,6 +742,22 @@ namespace HaveABreak.Cards
                 message);
             FinalUiRoot.BindBattleHand(handCards);
             finalCampaignScreen = RuntimeGameScreen.Battle;
+        }
+
+        private void ExecuteFinalBattleCardDrop(
+            string cardCommandId,
+            string targetCommandId)
+        {
+            if (!string.IsNullOrWhiteSpace(targetCommandId) &&
+                TryReadCommandValue(
+                    targetCommandId,
+                    "enemy:",
+                    out string enemyId))
+            {
+                battleScreen.SelectEnemy(progress, enemyId);
+            }
+
+            ExecuteFinalBattleCommand(cardCommandId);
         }
 
         private void ExecuteFinalBattleCommand(string commandId)
