@@ -1,4 +1,4 @@
-name: Apply selectable monster placement
+name: Finalize selectable monster placement
 
 on:
   pull_request:
@@ -10,13 +10,13 @@ permissions:
   contents: write
 
 jobs:
-  apply:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
-      - name: Connect selected monster slot command
+      - name: Format and validate selected placement source
         shell: bash
         run: |
           python3 - <<'PY'
@@ -30,10 +30,9 @@ jobs:
 
           path = 'Assets/Scripts/Prototype/BattlePlayerActionViewModel.cs'
           text = load(path)
-          if 'PlayerMonsterFieldPosition? monsterPosition' not in text:
-              start = text.index('        public BattleCardPlayCommandResult TryPlayCard(')
-              end = text.index('        public BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(', start)
-              method = '''        public BattleCardPlayCommandResult TryPlayCard(
+          start = text.index('        public BattleCardPlayCommandResult TryPlayCard(')
+          end = text.index('        public BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(', start)
+          method = '''        public BattleCardPlayCommandResult TryPlayCard(
               BattleRuntimeEncounterContext context,
               string battleCardId)
           {
@@ -53,18 +52,29 @@ jobs:
               if (option == null)
               {
                   return new BattleCardPlayCommandResult(
-                      false, null, null, default, default, default,
+                      false,
+                      null,
+                      null,
+                      default,
+                      default,
+                      default,
                       context?.Session?.Outcome ?? BattleOutcome.Ongoing,
                       "카드 사용 실패: 선택한 카드를 현재 패에서 찾을 수 없습니다.");
               }
+
               if (!option.CanPlay)
               {
                   return new BattleCardPlayCommandResult(
-                      false, option, null,
-                      option.ActionFailure, option.PlayFailure, option.CardFailure,
+                      false,
+                      option,
+                      null,
+                      option.ActionFailure,
+                      option.PlayFailure,
+                      option.CardFailure,
                       context?.Session?.Outcome ?? BattleOutcome.Ongoing,
                       $"카드 사용 실패: {option.BlockReason}");
               }
+
               if (!BattleRuntimePlayerCardActionService.TryResolve(
                       context.Runtime,
                       option.BattleCardId,
@@ -80,12 +90,17 @@ jobs:
                       ? $" / 몬스터존 {monsterPosition.Value}"
                       : string.Empty;
                   return new BattleCardPlayCommandResult(
-                      false, option, null,
-                      actionFailure, playFailure, cardFailure,
+                      false,
+                      option,
+                      null,
+                      actionFailure,
+                      playFailure,
+                      cardFailure,
                       context?.Session?.Outcome ?? BattleOutcome.Ongoing,
                       $"카드 사용 실패{positionText}: {actionFailure} / " +
                       $"{playFailure} / {cardFailure}");
               }
+
               selectedBanishCardIds.Remove(option.BattleCardId);
               BattleOutcome outcome = FinalizeOutcome(context);
               Refresh(context);
@@ -97,21 +112,29 @@ jobs:
               {
                   message += $" 전투 종료 · {outcome}";
               }
+
               return new BattleCardPlayCommandResult(
-                  true, option, result,
-                  actionFailure, playFailure, cardFailure,
-                  outcome, message);
+                  true,
+                  option,
+                  result,
+                  actionFailure,
+                  playFailure,
+                  cardFailure,
+                  outcome,
+                  message);
           }
 
           '''
-              text = text[:start] + method + text[end:]
-              save(path, text)
+          text = text[:start] + method + text[end:]
+          save(path, text)
 
           path = 'Assets/Scripts/Prototype/BattleScreenViewModel.Core.cs'
           text = load(path)
-          if 'string battleCardId,\n            PlayerMonsterFieldPosition position)' not in text:
-              marker = '        public BattleMonsterAttackCommandResult TryAttack(\n'
-              addition = '''        public BattleCardPlayCommandResult TryPlayCard(
+          first = text.index(
+              '        public BattleCardPlayCommandResult TryPlayCard(',
+              text.index('        public BattleCardPlayCommandResult TryPlayCard(') + 1)
+          end = text.index('        public BattleMonsterAttackCommandResult TryAttack(', first)
+          method = '''        public BattleCardPlayCommandResult TryPlayCard(
               RunEncounterProgressState progress,
               string battleCardId,
               PlayerMonsterFieldPosition position)
@@ -123,32 +146,31 @@ jobs:
           }
 
           '''
-              if marker not in text:
-                  raise RuntimeError('BattleScreenViewModel attack marker missing')
-              text = text.replace(marker, addition + marker, 1)
-              save(path, text)
+          text = text[:first] + method + text[end:]
+          save(path, text)
 
           path = 'Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs'
           text = load(path)
-          if 'TryExecuteFinalFieldCardDrop(' not in text:
-              method_start = text.index('        private void ExecuteFinalBattleCardDrop(')
-              body_start = text.index('        {', method_start) + len('        {')
-              hook = '''
+          start = text.index('        private void ExecuteFinalBattleCardDrop(')
+          body = text.index('        {', start)
+          enemy = text.index('            if (!string.IsNullOrWhiteSpace(targetCommandId)', body)
+          hook = '''        {
               if (TryExecuteFinalFieldCardDrop(
                       cardCommandId,
                       targetCommandId))
               {
                   return;
               }
+
           '''
-              text = text[:body_start] + hook + text[body_start:]
-              save(path, text)
+          text = text[:body] + hook + text[enemy:]
+          save(path, text)
 
           path = 'Assets/Scripts/Prototype/RuntimePrototypeScreen.BattleField.cs'
           text = load(path)
-          if 'private bool TryExecuteFinalFieldCardDrop(' not in text:
-              marker = '        private static string CreateBattleFieldSignature(\n'
-              method = '''        private bool TryExecuteFinalFieldCardDrop(
+          start = text.index('        private bool TryExecuteFinalFieldCardDrop(')
+          end = text.index('        private static string CreateBattleFieldSignature(', start)
+          method = '''        private bool TryExecuteFinalFieldCardDrop(
               string cardCommandId,
               string targetCommandId)
           {
@@ -159,6 +181,7 @@ jobs:
               {
                   return false;
               }
+
               if (!TryResolveMonsterPosition(
                       slotText,
                       out PlayerMonsterFieldPosition position))
@@ -166,6 +189,7 @@ jobs:
                   message = $"몬스터 소환 실패: 잘못된 몬스터존 {slotText}";
                   return true;
               }
+
               if (!TryReadCommandValue(
                       cardCommandId,
                       "play:",
@@ -174,6 +198,7 @@ jobs:
                   message = "몬스터 소환 실패: 드래그한 카드를 찾을 수 없습니다.";
                   return true;
               }
+
               BattleCardPlayCommandResult command = battleScreen.TryPlayCard(
                   progress,
                   battleCardId,
@@ -183,6 +208,7 @@ jobs:
               {
                   SaveRun(null);
               }
+
               finalCampaignScreen = null;
               finalBattleFieldSignature = null;
               if (campaign?.Phase == RunCampaignPhase.Battle)
@@ -207,6 +233,7 @@ jobs:
               {
                   return false;
               }
+
               switch (index)
               {
                   case 0:
@@ -224,29 +251,46 @@ jobs:
           }
 
           '''
-              if marker not in text:
-                  raise RuntimeError('BattleField signature marker missing')
-              text = text.replace(marker, method + marker, 1)
-              save(path, text)
-
-          path = 'Assets/Editor/RuntimeBattleFieldBridgeValidation.cs'
-          text = load(path)
-          text = text.replace(
-              'bool fieldDrops = monsterDropCount == 1 &&',
-              'bool fieldDrops = monsterDropCount == 3 &&',
-              1)
-          text = text.replace(
-              'selection and first-empty card-drop routing.',
-              'selection and all-empty monster-zone card-drop routing.')
+          text = text[:start] + method + text[end:]
           save(path, text)
 
-          report = Path('MonsterPlacementApiReport.txt')
-          if report.exists():
-              report.unlink()
+          path = 'Assets/Editor/BattlePlayerActionViewModelValidation.cs'
+          text = load(path)
+          old = '''                BattleCardPlayCommandResult play =
+                      viewModel.TryPlayCard(
+                          context,
+                          c01.Ids.BattleCardId);'''
+          new = '''                BattleCardPlayCommandResult play =
+                      viewModel.TryPlayCard(
+                          context,
+                          c01.Ids.BattleCardId,
+                          PlayerMonsterFieldPosition.Right);'''
+          if old not in text:
+              raise RuntimeError('C01 play validation block missing')
+          text = text.replace(old, new, 1)
+          old = '''                    !play.Succeeded || play.Result == null ||
+                      string.IsNullOrWhiteSpace(play.Message) ||
+                      runtime.Deck.Zones.Count(CardZone.Hand) !='''
+          new = '''                    !play.Succeeded || play.Result == null ||
+                      string.IsNullOrWhiteSpace(play.Message) ||
+                      runtime.PlayerMonsterPositions.GetOccupant(
+                          PlayerMonsterFieldPosition.Right) !=
+                      c01.Ids.BattleCardId ||
+                      !string.IsNullOrWhiteSpace(
+                          runtime.PlayerMonsterPositions.GetOccupant(
+                              PlayerMonsterFieldPosition.Left)) ||
+                      !string.IsNullOrWhiteSpace(
+                          runtime.PlayerMonsterPositions.GetOccupant(
+                              PlayerMonsterFieldPosition.Center)) ||
+                      runtime.Deck.Zones.Count(CardZone.Hand) !='''
+          if old not in text:
+              raise RuntimeError('C01 result validation block missing')
+          text = text.replace(old, new, 1)
+          save(path, text)
           PY
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m '몬스터존 선택 소환 명령을 전투 상태에 연결'
+          git commit -m '선택 몬스터존 소환 회귀검사와 코드 형식 정리'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
