@@ -1,0 +1,133 @@
+name: 전투 필드 UGUI 연결 적용
+
+on:
+  push:
+    branches:
+      - codex/battle-field-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/battle-field-foundation
+          fetch-depth: 0
+
+      - name: 전투 필드 구조 연결
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root_path = Path('Assets/Scripts/UI/RuntimeGameUiRoot.cs')
+          root = root_path.read_text(encoding='utf-8')
+          root = root.replace(
+              'public sealed class RuntimeGameUiRoot : MonoBehaviour',
+              'public sealed partial class RuntimeGameUiRoot : MonoBehaviour',
+              1)
+
+          old_field_anchor = '''            BattleCardPlayZone.SetSiblingIndex(
+                summaryText.transform.GetSiblingIndex() + 1);
+
+            BattleHandCardList = BuildCardScroll('''
+          new_field_anchor = '''            BattleCardPlayZone.SetSiblingIndex(
+                summaryText.transform.GetSiblingIndex() + 1);
+
+            BuildBattleField(panel);
+            BattleFieldRoot.SetSiblingIndex(
+                BattleCardPlayZone.GetSiblingIndex() + 1);
+
+            BattleHandCardList = BuildCardScroll('''
+          if old_field_anchor not in root:
+              raise SystemExit('battle field insertion anchor missing')
+          root = root.replace(old_field_anchor, new_field_anchor, 1)
+
+          old_hand_order = '''            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
+                BattleCardPlayZone.GetSiblingIndex() + 1);'''
+          new_hand_order = '''            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
+                BattleFieldRoot.GetSiblingIndex() + 1);'''
+          if old_hand_order not in root:
+              raise SystemExit('battle hand ordering anchor missing')
+          root = root.replace(old_hand_order, new_hand_order, 1)
+          root_path.write_text(root, encoding='utf-8', newline='\n')
+
+          controller_path = Path('Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs')
+          controller = controller_path.read_text(encoding='utf-8')
+
+          unavailable = '''                FinalUiRoot.BindBattleHand(
+                    System.Array.Empty<RuntimeCardPresentation>());
+                finalCampaignScreen = RuntimeGameScreen.Battle;'''
+          unavailable_new = '''                FinalUiRoot.BindBattleHand(
+                    System.Array.Empty<RuntimeCardPresentation>());
+                FinalUiRoot.BindBattleField(
+                    RuntimeBattleFieldPresentation.Empty);
+                finalCampaignScreen = RuntimeGameScreen.Battle;'''
+          if unavailable not in controller:
+              raise SystemExit('unavailable battle binding anchor missing')
+          controller = controller.replace(unavailable, unavailable_new, 1)
+
+          enemy_block = '''            foreach (BattleEnemyDisplayOption enemy in snapshot.Enemies)
+            {
+                if (!enemy.IsOccupied)
+                {
+                    continue;
+                }
+                string status = string.IsNullOrWhiteSpace(enemy.StatusText)
+                    ? string.Empty
+                    : $"\\n{enemy.StatusText}";
+                options.Add(new RuntimeGameCommandOption(
+                    $"enemy:{enemy.EnemyId}",
+                    $"[적 대상] {enemy.DisplayText}{status}",
+                    enemy.CanSelect));
+            }
+
+'''
+          if enemy_block not in controller:
+              raise SystemExit('enemy command block missing')
+          controller = controller.replace(enemy_block, '', 1)
+
+          monster_block = '''            foreach (BattleMonsterDisplayOption monster in snapshot.Monsters)
+            {
+                if (!monster.IsOccupied)
+                {
+                    continue;
+                }
+                string block = string.IsNullOrWhiteSpace(monster.BlockReason)
+                    ? string.Empty
+                    : $"\\n{monster.BlockReason}";
+                options.Add(new RuntimeGameCommandOption(
+                    $"attack:{monster.BattleCardId}",
+                    $"[공격] {monster.DisplayText}{block}",
+                    monster.CanAttack));
+            }
+
+'''
+          if monster_block not in controller:
+              raise SystemExit('monster command block missing')
+          controller = controller.replace(monster_block, '', 1)
+
+          hand_bind = '''            FinalUiRoot.BindBattleHand(handCards);
+            finalCampaignScreen = RuntimeGameScreen.Battle;'''
+          hand_bind_new = '''            FinalUiRoot.BindBattleHand(handCards);
+            FinalUiRoot.BindBattleField(
+                RuntimeBattleFieldPresentation.FromSnapshot(snapshot));
+            finalCampaignScreen = RuntimeGameScreen.Battle;'''
+          if hand_bind not in controller:
+              raise SystemExit('battle field bind anchor missing')
+          controller = controller.replace(hand_bind, hand_bind_new, 1)
+          controller_path.write_text(controller, encoding='utf-8', newline='\n')
+          PY
+
+          rm -f .github/workflows/apply-battle-field-foundation.yml
+          git add Assets/Scripts/UI/RuntimeGameUiRoot.cs \
+                  Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs \
+                  .github/workflows/apply-battle-field-foundation.yml
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "전투 화면에 3구역 필드 UGUI 연결"
+          git push origin HEAD:codex/battle-field-foundation
