@@ -75,7 +75,7 @@ namespace HaveABreak.Editor
                 RuntimeGameUiRoot root = prototype.FinalUiRoot;
                 RuntimeBattleFieldView field =
                     root?.GetComponentInChildren<RuntimeBattleFieldView>(true);
-                bool structure = shown &&
+                bool structure = shown && root != null &&
                                  root.CurrentScreen == RuntimeGameScreen.Battle &&
                                  field != null &&
                                  field.EnemySlots.Count == 3 &&
@@ -86,17 +86,18 @@ namespace HaveABreak.Editor
                     slot.Presentation.Selected &&
                     slot.Button.interactable &&
                     slot.DropZone.AcceptsCards);
-                bool fieldDrops = field != null &&
-                                  field.MonsterSlots.All(slot =>
-                                      slot.DropZone.AcceptsCards &&
-                                      slot.DropZone.TargetCommandId.StartsWith(
-                                          "field:monster:",
-                                          StringComparison.Ordinal)) &&
-                                  field.SkillSlots.All(slot =>
-                                      slot.DropZone.AcceptsCards &&
-                                      slot.DropZone.TargetCommandId.StartsWith(
-                                          "field:skill:",
-                                          StringComparison.Ordinal));
+                int monsterDropCount = field?.MonsterSlots.Count(slot =>
+                    slot.DropZone.AcceptsCards &&
+                    slot.DropZone.TargetCommandId.StartsWith(
+                        "field:monster:",
+                        StringComparison.Ordinal)) ?? 0;
+                int skillDropCount = field?.SkillSlots.Count(slot =>
+                    slot.DropZone.AcceptsCards &&
+                    slot.DropZone.TargetCommandId.StartsWith(
+                        "field:skill:",
+                        StringComparison.Ordinal)) ?? 0;
+                bool fieldDrops = monsterDropCount == 1 &&
+                                  skillDropCount == 1;
                 bool legacyHidden = root?.BattleCommandList != null &&
                                     !Enumerable.Range(
                                             0,
@@ -123,14 +124,16 @@ namespace HaveABreak.Editor
                     Debug.Log(
                         "Runtime battle field bridge validation passed: final " +
                         "UGUI exposes three enemy, monster, and skill slots with " +
-                        "selection and card-drop routing.");
+                        "selection and first-empty card-drop routing.");
                 }
                 else
                 {
                     Debug.LogError(
                         "Runtime battle field bridge validation failed. " +
                         $"structure={structure}, enemyState={enemyState}, " +
-                        $"fieldDrops={fieldDrops}, legacyHidden={legacyHidden}");
+                        $"monsterDrops={monsterDropCount}, " +
+                        $"skillDrops={skillDropCount}, " +
+                        $"legacyHidden={legacyHidden}");
                 }
 
                 return valid;
