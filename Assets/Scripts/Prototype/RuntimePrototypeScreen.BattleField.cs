@@ -88,12 +88,14 @@ namespace HaveABreak.Cards
 
             LayoutElement fieldLayout =
                 finalBattleFieldObject.GetComponent<LayoutElement>();
-            fieldLayout.preferredHeight = 210f;
-            fieldLayout.minHeight = 198f;
+            fieldLayout.preferredHeight = 390f;
+            fieldLayout.minHeight = 340f;
 
             finalBattleFieldView =
                 finalBattleFieldObject.GetComponent<RuntimeBattleFieldView>();
-            finalBattleFieldView.Initialize(ExecuteFinalBattleCommand);
+            finalBattleFieldView.Initialize(
+                ExecuteFinalBattleCommand,
+                FinalUiRoot.ShowBattleFieldDetail);
             finalBattleFieldView.Bind(RuntimeBattleFieldPresentation.Empty);
 
             int fieldIndex = FinalUiRoot.BattleConsumableBar == null
@@ -110,7 +112,7 @@ namespace HaveABreak.Cards
                     handScroll.GetComponent<LayoutElement>();
                 if (handLayout != null)
                 {
-                    handLayout.preferredHeight = 210f;
+                    handLayout.preferredHeight = 240f;
                 }
             }
 
@@ -120,7 +122,7 @@ namespace HaveABreak.Cards
                 commandScroll?.GetComponent<LayoutElement>();
             if (commandLayout != null)
             {
-                commandLayout.preferredHeight = 90f;
+                commandLayout.preferredHeight = 66f;
             }
         }
 

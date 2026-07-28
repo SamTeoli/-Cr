@@ -190,8 +190,7 @@ namespace HaveABreak.Editor
                     "전투 상태 요약",
                     "전투 명령 메시지");
                 root.ShowScreen(RuntimeGameScreen.Battle);
-                root.BattleCommandList.GetChild(0)
-                    .GetComponent<Button>().onClick.Invoke();
+                root.BattleEndTurnButton.onClick.Invoke();
                 bool genericBattleCommand = battleCommandId == "end-turn";
                 RuntimeCardPresentation[] battleCards =
                 {
@@ -234,6 +233,11 @@ namespace HaveABreak.Editor
                     root.BattleHandCardList.GetChild(1)
                         .GetComponent<RuntimeCardView>();
                 activeCard.ClickButton.onClick.Invoke();
+                bool detailOpened =
+                    root.BattleDetailPanel.activeSelf &&
+                    root.BattleDetailTitleText.text == "검증 스킬" &&
+                    root.BattleDetailBodyText.text.Contains("카드 효과 검증");
+                root.BattleDetailActionButton.onClick.Invoke();
                 bool cardFoundation =
                     root.BattleHandCardList.childCount == 2 &&
                     activeCard.ArtPlaceholderText.text == "일러스트" &&
@@ -246,13 +250,14 @@ namespace HaveABreak.Editor
                     blockedCard.StatsText.text == "공격 4, 생명력 5" &&
                     blockedCard.MetadataText.text == "몬스터" &&
                     blockedCard.Presentation.Rarity == CardRarity.Rare &&
-                    !blockedCard.ClickButton.interactable &&
+                    blockedCard.ClickButton.interactable &&
                     blockedCard.BlockReasonText.gameObject.activeSelf &&
                     blockedCard.BlockReasonText.text.Contains(
                         "마력이 부족합니다.") &&
                     blockedCard.FrameOverlayImage != null &&
                     (blockedCard.FrameOverlayImage.sprite != null ||
                      blockedCard.FrameImage.color != Color.clear) &&
+                    detailOpened &&
                     battleCommandId == "play:ACTIVE";
                 bool battle =
                     root.CurrentScreen == RuntimeGameScreen.Battle &&
@@ -261,7 +266,6 @@ namespace HaveABreak.Editor
                     root.BattleMessageText.text.StartsWith(
                         "전투 명령 메시지",
                         StringComparison.Ordinal) &&
-                    root.BattleMessageText.text.Contains("드래그") &&
                     genericBattleCommand &&
                     cardFoundation;
 

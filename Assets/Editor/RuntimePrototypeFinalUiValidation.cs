@@ -152,7 +152,7 @@ namespace HaveABreak.Editor
             bool shown = showFinalUi?.Invoke(prototype, null) as bool? == true;
             bool initial = shown &&
                            root.CurrentScreen == RuntimeGameScreen.Battle &&
-                           root.BattleCommandList.childCount > 0 &&
+                           root.BattleEndTurnButton != null &&
                            root.BattleHandCardList.childCount > 0 &&
                            root.BattleHandCardList.GetChild(0)
                                .GetComponent<RuntimeCardView>() != null &&
@@ -164,11 +164,10 @@ namespace HaveABreak.Editor
             }
 
             int commandsBefore = root.BattleCommandList.childCount;
-            Button firstCommand = root.BattleCommandList.GetChild(0)
-                .GetComponent<Button>();
-            bool hadCommand = firstCommand != null &&
-                              firstCommand.interactable;
-            firstCommand?.onClick.Invoke();
+            Button endTurnButton = root.BattleEndTurnButton;
+            bool hadCommand = endTurnButton != null &&
+                              endTurnButton.interactable;
+            endTurnButton?.onClick.Invoke();
             bool battleCommand = hadCommand &&
                                  root.CurrentScreen ==
                                  RuntimeGameScreen.Battle &&
@@ -185,17 +184,7 @@ namespace HaveABreak.Editor
                  playableCard == null && attempt < 2;
                  attempt++)
             {
-                Button endTurn = Enumerable.Range(
-                        0,
-                        root.BattleCommandList.childCount)
-                    .Select(index => root.BattleCommandList.GetChild(index)
-                        .GetComponent<Button>())
-                    .FirstOrDefault(button =>
-                        button != null &&
-                        button.interactable &&
-                        button.GetComponentInChildren<Text>().text ==
-                        "턴 종료");
-                endTurn?.onClick.Invoke();
+                root.BattleEndTurnButton?.onClick.Invoke();
                 playableCard = Enumerable.Range(
                         0,
                         root.BattleHandCardList.childCount)
@@ -207,7 +196,12 @@ namespace HaveABreak.Editor
             string playedCommand = playableCard?.Presentation.CommandId;
             bool hadPlayableCard = playableCard != null;
             playableCard?.ClickButton.onClick.Invoke();
+            bool detailOpened =
+                root.BattleDetailPanel?.activeSelf == true &&
+                root.BattleDetailActionButton.interactable;
+            root.BattleDetailActionButton?.onClick.Invoke();
             bool cardCommand = hadPlayableCard &&
+                               detailOpened &&
                                root.CurrentScreen ==
                                RuntimeGameScreen.Battle &&
                                !Enumerable.Range(

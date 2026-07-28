@@ -23,15 +23,19 @@ namespace HaveABreak.Cards
         private readonly List<RuntimeBattleFieldSlotView> monsterSlots = new();
         private readonly List<RuntimeBattleFieldSlotView> skillSlots = new();
         private Action<string> commandRequested;
+        private Action<RuntimeBattleFieldSlotPresentation> detailRequested;
         private bool initialized;
 
         public IReadOnlyList<RuntimeBattleFieldSlotView> EnemySlots => enemySlots;
         public IReadOnlyList<RuntimeBattleFieldSlotView> MonsterSlots => monsterSlots;
         public IReadOnlyList<RuntimeBattleFieldSlotView> SkillSlots => skillSlots;
 
-        public void Initialize(Action<string> command)
+        public void Initialize(
+            Action<string> command,
+            Action<RuntimeBattleFieldSlotPresentation> inspect = null)
         {
             commandRequested = command;
+            detailRequested = inspect;
             if (initialized)
             {
                 return;
@@ -96,7 +100,7 @@ namespace HaveABreak.Cards
             row.childControlHeight = true;
             row.childForceExpandWidth = true;
             row.childForceExpandHeight = true;
-            rowObject.GetComponent<LayoutElement>().preferredHeight = 60f;
+            rowObject.GetComponent<LayoutElement>().preferredHeight = 124f;
 
             Text rowLabel = CreateText(
                 "ZoneLabel",
@@ -128,7 +132,7 @@ namespace HaveABreak.Cards
                 LayoutElement slotLayout = slotObject.GetComponent<LayoutElement>();
                 slotLayout.preferredWidth = 250f;
                 slotLayout.flexibleWidth = 1f;
-                slotLayout.preferredHeight = 56f;
+                slotLayout.preferredHeight = 116f;
 
                 Text text = CreateText(
                     "Label",
@@ -167,7 +171,8 @@ namespace HaveABreak.Cards
                     zoneColor,
                     EmptyColor,
                     HoverColor,
-                    commandId => commandRequested?.Invoke(commandId));
+                    commandId => commandRequested?.Invoke(commandId),
+                    value => detailRequested?.Invoke(value));
             }
         }
 
@@ -252,7 +257,8 @@ namespace HaveABreak.Cards
             Color occupiedColor,
             Color emptyColor,
             Color hoverColor,
-            Action<string> command)
+            Action<string> command,
+            Action<RuntimeBattleFieldSlotPresentation> inspect = null)
         {
             presentation = value;
             bool occupied = value?.Occupied == true;
@@ -285,7 +291,17 @@ namespace HaveABreak.Cards
                 string clickCommand = value?.ClickCommandId;
                 if (button.interactable)
                 {
-                    button.onClick.AddListener(() => command?.Invoke(clickCommand));
+                    button.onClick.AddListener(() =>
+                    {
+                        if (inspect != null)
+                        {
+                            inspect(value);
+                        }
+                        else
+                        {
+                            command?.Invoke(clickCommand);
+                        }
+                    });
                 }
             }
 

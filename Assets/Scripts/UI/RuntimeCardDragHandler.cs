@@ -21,6 +21,7 @@ namespace HaveABreak.Cards
         private int originalSiblingIndex;
         private Vector2 pointerOffset;
         private Vector3 originalScale;
+        private Quaternion originalRotation;
         private Action<string, string> dropped;
         private bool dragging;
         private bool suppressNextClick;
@@ -56,13 +57,15 @@ namespace HaveABreak.Cards
 
             dragging = true;
             suppressNextClick = true;
+            GetComponent<RuntimeBattleHandCardHover>()?.ResetPresentation();
             RuntimeCardDropZone.SetActivePresentation(cardView.Presentation);
             originalParent = transform.parent;
             originalSiblingIndex = transform.GetSiblingIndex();
             originalScale = transform.localScale;
+            originalRotation = transform.localRotation;
             transform.SetParent(rootCanvas.transform, true);
             transform.SetAsLastSibling();
-            transform.localScale = originalScale * 1.12f;
+            transform.localRotation = Quaternion.identity;
             canvasGroup.blocksRaycasts = false;
             canvasGroup.alpha = 0.94f;
 
@@ -188,6 +191,7 @@ namespace HaveABreak.Cards
                 0,
                 Mathf.Max(0, parent.childCount - 1)));
             transform.localScale = scale;
+            transform.localRotation = originalRotation;
         }
     }
 

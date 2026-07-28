@@ -92,7 +92,8 @@ namespace HaveABreak.Editor
                     root.BattleSummaryText.transform.GetSiblingIndex() + 1 &&
                     !root.GetComponentsInChildren<Text>(true).Any(text =>
                         text.text == "카드를 이곳에 놓아 사용") &&
-                    root.BattleCommandList.childCount == 1 &&
+                    root.BattleCommandList.childCount == 0 &&
+                    root.BattleEndTurnButton != null &&
                     !root.BattleCommandList.GetComponentsInChildren<Text>(true)
                         .Any(text => text.text.StartsWith(
                             "[소모품]",
