@@ -149,10 +149,20 @@ namespace HaveABreak.Editor
                 BattleCardPlayCommandResult play =
                     viewModel.TryPlayCard(
                         context,
-                        c01.Ids.BattleCardId);
+                        c01.Ids.BattleCardId,
+                        PlayerMonsterFieldPosition.Right);
                 if (c01Option == null || !c01Option.CanPlay ||
                     !play.Succeeded || play.Result == null ||
                     string.IsNullOrWhiteSpace(play.Message) ||
+                    runtime.PlayerMonsterPositions.GetOccupant(
+                PlayerMonsterFieldPosition.Right) !=
+            c01.Ids.BattleCardId ||
+            !string.IsNullOrWhiteSpace(
+                runtime.PlayerMonsterPositions.GetOccupant(
+                    PlayerMonsterFieldPosition.Left)) ||
+            !string.IsNullOrWhiteSpace(
+                runtime.PlayerMonsterPositions.GetOccupant(
+                    PlayerMonsterFieldPosition.Center)) ||
                     runtime.Deck.Zones.Count(CardZone.Hand) !=
                         handCountBeforeInvalid - 1 ||
                     viewModel.TryPlayCard(
