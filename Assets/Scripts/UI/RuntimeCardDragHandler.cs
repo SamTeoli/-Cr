@@ -107,13 +107,14 @@ namespace HaveABreak.Cards
 
             dragging = false;
             RuntimeCardDropZone zone = FindDropZone(eventData);
-            string cardCommand = cardView?.Presentation?.CommandId;
+            RuntimeCardPresentation presentation = cardView?.Presentation;
+            string cardCommand = presentation?.CommandId;
             string targetCommand = zone?.TargetCommandId;
 
             ReturnToHand();
 
             if (zone != null &&
-                zone.AcceptsCards &&
+                zone.Accepts(presentation) &&
                 !string.IsNullOrWhiteSpace(cardCommand) &&
                 !string.IsNullOrWhiteSpace(targetCommand))
             {
@@ -140,7 +141,7 @@ namespace HaveABreak.Cards
             {
                 RuntimeCardDropZone zone =
                     result.gameObject.GetComponentInParent<RuntimeCardDropZone>();
-                if (zone != null && zone.AcceptsCards)
+                if (zone != null && zone.Accepts(cardView?.Presentation))
                 {
                     return zone;
                 }
@@ -184,6 +185,7 @@ namespace HaveABreak.Cards
         private Graphic highlightGraphic;
         private Color idleColor;
         private Color hoverColor;
+        private Func<RuntimeCardPresentation, bool> acceptsPresentation;
 
         public bool AcceptsCards { get; private set; }
         public string TargetCommandId { get; private set; }
@@ -192,10 +194,12 @@ namespace HaveABreak.Cards
             string targetCommandId,
             Graphic graphic,
             Color idle,
-            Color hover)
+            Color hover,
+            Func<RuntimeCardPresentation, bool> cardPredicate = null)
         {
             TargetCommandId = targetCommandId ?? string.Empty;
             AcceptsCards = !string.IsNullOrWhiteSpace(TargetCommandId);
+            acceptsPresentation = cardPredicate;
             highlightGraphic = graphic;
             idleColor = idle;
             hoverColor = hover;
@@ -204,6 +208,13 @@ namespace HaveABreak.Cards
                 highlightGraphic.color = idleColor;
                 highlightGraphic.raycastTarget = true;
             }
+        }
+
+        public bool Accepts(RuntimeCardPresentation presentation)
+        {
+            return AcceptsCards && presentation != null &&
+                   (acceptsPresentation == null ||
+                    acceptsPresentation(presentation));
         }
 
         public void OnPointerEnter(PointerEventData eventData)
