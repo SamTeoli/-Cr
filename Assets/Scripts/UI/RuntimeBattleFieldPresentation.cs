@@ -89,7 +89,6 @@ namespace HaveABreak.Cards
                 new RuntimeBattleFieldSlotPresentation[SlotCount];
             RuntimeBattleFieldSlotPresentation[] skills =
                 new RuntimeBattleFieldSlotPresentation[SlotCount];
-            int firstEmptyMonsterIndex = FindFirstEmptyMonsterIndex(snapshot);
             int firstEmptySkillIndex = snapshot.InstalledCards.Length < SlotCount
                 ? snapshot.InstalledCards.Length
                 : -1;
@@ -123,8 +122,7 @@ namespace HaveABreak.Cards
                         : null;
                 bool monsterOccupied = monster?.IsOccupied == true;
                 bool acceptsMonster = !snapshot.SessionFinished &&
-                                      !monsterOccupied &&
-                                      index == firstEmptyMonsterIndex;
+                                      !monsterOccupied;
                 monsters[index] = new RuntimeBattleFieldSlotPresentation(
                     RuntimeBattleFieldZone.PlayerMonster,
                     index,
@@ -133,9 +131,7 @@ namespace HaveABreak.Cards
                         ? JoinDetail(monster.StatusText, monster.BlockReason)
                         : acceptsMonster
                             ? "몬스터 카드를 놓아 소환"
-                            : firstEmptyMonsterIndex < 0
-                                ? "몬스터존이 가득 참"
-                                : "앞쪽 빈칸부터 사용",
+                            : "이 몬스터존은 사용할 수 없음",
                     monsterOccupied,
                     false,
                     monster?.CanAttack == true,
@@ -178,24 +174,6 @@ namespace HaveABreak.Cards
                 enemies,
                 monsters,
                 skills);
-        }
-
-        private static int FindFirstEmptyMonsterIndex(
-            BattleScreenSnapshot snapshot)
-        {
-            for (int index = 0; index < SlotCount; index++)
-            {
-                BattleMonsterDisplayOption monster =
-                    index < snapshot.Monsters.Length
-                        ? snapshot.Monsters[index]
-                        : null;
-                if (monster?.IsOccupied != true)
-                {
-                    return index;
-                }
-            }
-
-            return -1;
         }
 
         private static RuntimeBattleFieldSlotPresentation[] Normalize(
