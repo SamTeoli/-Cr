@@ -55,18 +55,21 @@ namespace HaveABreak.Cards
             string battleCardId,
             string displayName,
             CardType cardType,
-            bool isRegisteredTrap)
+            bool isRegisteredTrap,
+            PlayerMonsterFieldPosition position)
         {
             BattleCardId = battleCardId;
             DisplayName = displayName ?? string.Empty;
             CardType = cardType;
             IsRegisteredTrap = isRegisteredTrap;
+            Position = position;
         }
 
         public string BattleCardId { get; }
         public string DisplayName { get; }
         public CardType CardType { get; }
         public bool IsRegisteredTrap { get; }
+        public PlayerMonsterFieldPosition Position { get; }
         public string DisplayText =>
             $"{DisplayName}\n{CardType}" +
             (IsRegisteredTrap ? " · 대기 중" : string.Empty);

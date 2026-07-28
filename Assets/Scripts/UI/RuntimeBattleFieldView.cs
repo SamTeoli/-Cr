@@ -208,7 +208,8 @@ namespace HaveABreak.Cards
         {
             return zone switch
             {
-                RuntimeBattleFieldZone.Enemy => true,
+                RuntimeBattleFieldZone.Enemy =>
+                    cardType != CardType.Monster,
                 RuntimeBattleFieldZone.PlayerMonster =>
                     cardType == CardType.Monster,
                 RuntimeBattleFieldZone.PlayerSkill =>

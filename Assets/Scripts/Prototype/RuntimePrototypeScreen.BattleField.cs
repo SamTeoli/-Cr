@@ -164,7 +164,9 @@ namespace HaveABreak.Cards
             "field:monster:",
             out string slotText))
     {
-        return false;
+        return TryExecuteFinalSkillFieldCardDrop(
+            cardCommandId,
+            targetCommandId);
     }
     if (!TryResolveMonsterPosition(
             slotText,
@@ -188,6 +190,68 @@ namespace HaveABreak.Cards
     message = command.Message;
     if (command.Succeeded)
     {
+        SaveRun(null);
+    }
+    finalCampaignScreen = null;
+    finalBattleFieldSignature = null;
+    if (campaign?.Phase == RunCampaignPhase.Battle)
+    {
+        RefreshFinalBattle();
+        SetFinalUiActive(true);
+        FinalUiRoot.ShowScreen(RuntimeGameScreen.Battle);
+    }
+    else
+    {
+        RefreshFinalUiVisibility();
+    }
+    return true;
+}
+
+private bool TryExecuteFinalSkillFieldCardDrop(
+    string cardCommandId,
+    string targetCommandId)
+{
+    if (!TryReadCommandValue(
+            targetCommandId,
+            "field:skill:",
+            out string slotText) ||
+        !TryResolveMonsterPosition(
+            slotText,
+            out PlayerMonsterFieldPosition position))
+    {
+        return false;
+    }
+    if (!TryReadCommandValue(
+            cardCommandId,
+            "play:",
+            out string battleCardId))
+    {
+        message = "카드 설치 실패: 드래그한 카드를 찾을 수 없습니다.";
+        return true;
+    }
+
+    BattleRuntimeState runtime =
+        progress?.ActiveEncounter?.Session?.Runtime;
+    if (runtime == null ||
+        !string.IsNullOrWhiteSpace(
+            runtime.PlayerSkillPositions.GetOccupant(position)))
+    {
+        message = $"카드 설치 실패: 선택한 스킬존 {slotText}은 사용할 수 없습니다.";
+        return true;
+    }
+
+    BattleCardPlayCommandResult command =
+        battleScreen.TryPlayCard(progress, battleCardId);
+    message = command.Message;
+    if (command.Succeeded)
+    {
+        BattleCardInstance played = runtime.Deck.Zones.Find(battleCardId);
+        if (played?.Zone == CardZone.SkillField)
+        {
+            runtime.PlayerSkillPositions.TryPlace(
+                battleCardId,
+                position);
+        }
         SaveRun(null);
     }
     finalCampaignScreen = null;

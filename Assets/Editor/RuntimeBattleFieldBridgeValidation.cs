@@ -97,7 +97,7 @@ namespace HaveABreak.Editor
                         "field:skill:",
                         StringComparison.Ordinal)) ?? 0;
                 bool fieldDrops = monsterDropCount == 3 &&
-                                  skillDropCount == 1;
+                                  skillDropCount == 3;
                 bool legacyHidden = root?.BattleCommandList != null &&
                                     !Enumerable.Range(
                                             0,

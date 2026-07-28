@@ -55,15 +55,43 @@ namespace HaveABreak.Cards
                 .CreateMonsterAttackOptions(context)
                 .Select(CreateMonsterOption)
                 .ToArray();
-            BattleInstalledCardDisplayOption[] installed = runtime.Deck.Zones
-                .GetCards(CardZone.SkillField)
+            foreach (PlayerMonsterFieldPosition position in
+                     Enum.GetValues(typeof(PlayerMonsterFieldPosition)))
+            {
+                string occupant =
+                    runtime.PlayerSkillPositions.GetOccupant(position);
+                if (!string.IsNullOrWhiteSpace(occupant) &&
+                    runtime.Deck.Zones.Find(occupant)?.Zone !=
+                    CardZone.SkillField)
+                {
+                    runtime.PlayerSkillPositions.TryRemove(occupant);
+                }
+            }
+            IReadOnlyList<BattleCardInstance> installedCards =
+                runtime.Deck.Zones.GetCards(CardZone.SkillField);
+            foreach (BattleCardInstance card in installedCards)
+            {
+                if (!runtime.PlayerSkillPositions.FindPosition(
+                        card.Ids.BattleCardId).HasValue &&
+                    runtime.PlayerSkillPositions.TryGetFirstEmpty(
+                        out PlayerMonsterFieldPosition emptyPosition))
+                {
+                    runtime.PlayerSkillPositions.TryPlace(
+                        card.Ids.BattleCardId,
+                        emptyPosition);
+                }
+            }
+            BattleInstalledCardDisplayOption[] installed = installedCards
                 .Where(card => card != null)
                 .Select(card => new BattleInstalledCardDisplayOption(
                     card.Ids.BattleCardId,
                     card.SourceCard.DisplayName,
                     card.SourceCard.CardType,
                     runtime.TrapInstallations.Find(
-                        card.Ids.BattleCardId) != null))
+                        card.Ids.BattleCardId) != null,
+                    runtime.PlayerSkillPositions.FindPosition(
+                        card.Ids.BattleCardId) ??
+                    PlayerMonsterFieldPosition.Left))
                 .ToArray();
             IReadOnlyList<BattleEventRecord> eventLog =
                 runtime.EventLog.Events;

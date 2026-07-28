@@ -89,10 +89,6 @@ namespace HaveABreak.Cards
                 new RuntimeBattleFieldSlotPresentation[SlotCount];
             RuntimeBattleFieldSlotPresentation[] skills =
                 new RuntimeBattleFieldSlotPresentation[SlotCount];
-            int firstEmptySkillIndex = snapshot.InstalledCards.Length < SlotCount
-                ? snapshot.InstalledCards.Length
-                : -1;
-
             for (int index = 0; index < SlotCount; index++)
             {
                 BattleEnemyDisplayOption enemy =
@@ -143,13 +139,13 @@ namespace HaveABreak.Cards
                         : string.Empty);
 
                 BattleInstalledCardDisplayOption installed =
-                    index < snapshot.InstalledCards.Length
-                        ? snapshot.InstalledCards[index]
-                        : null;
+                    Array.Find(
+                        snapshot.InstalledCards,
+                        option => option != null &&
+                                  (int)option.Position == index);
                 bool installedOccupied = installed != null;
                 bool acceptsSkill = !snapshot.SessionFinished &&
-                                    !installedOccupied &&
-                                    index == firstEmptySkillIndex;
+                                    !installedOccupied;
                 skills[index] = new RuntimeBattleFieldSlotPresentation(
                     RuntimeBattleFieldZone.PlayerSkill,
                     index,
@@ -158,9 +154,7 @@ namespace HaveABreak.Cards
                         ? installed.DisplayText
                         : acceptsSkill
                             ? "스킬·트랩·결계 카드를 놓아 설치"
-                            : firstEmptySkillIndex < 0
-                                ? "스킬존이 가득 참"
-                                : "앞쪽 빈칸부터 사용",
+                            : "스킬존이 가득 참",
                     installedOccupied,
                     false,
                     false,

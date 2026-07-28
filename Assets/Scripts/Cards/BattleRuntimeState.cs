@@ -14,6 +14,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleTurnState turn;
         [SerializeField] private BattleMonsterRegistry monsters;
         [SerializeField] private BattlePlayerMonsterPositionState playerMonsterPositions;
+        [SerializeField] private BattlePlayerSkillPositionState playerSkillPositions;
         [SerializeField] private BattlePlayerState player;
         [SerializeField] private BattleEnemyTracker livingEnemies;
         [SerializeField] private BattleEnemyPositionState enemyPositions;
@@ -47,6 +48,8 @@ namespace HaveABreak.Cards
             monsters = new BattleMonsterRegistry();
             playerMonsterPositions =
                 new BattlePlayerMonsterPositionState();
+            playerSkillPositions =
+                new BattlePlayerSkillPositionState();
             player = new BattlePlayerState(playerMaximumHealth);
             livingEnemies = new BattleEnemyTracker();
             enemyPositions = new BattleEnemyPositionState();
@@ -69,6 +72,9 @@ namespace HaveABreak.Cards
         public BattlePlayerMonsterPositionState PlayerMonsterPositions =>
             playerMonsterPositions ??=
                 new BattlePlayerMonsterPositionState();
+        public BattlePlayerSkillPositionState PlayerSkillPositions =>
+            playerSkillPositions ??=
+                new BattlePlayerSkillPositionState();
         public BattlePlayerState Player => player;
         public BattleEnemyTracker LivingEnemies => livingEnemies;
         public BattleEnemyPositionState EnemyPositions => enemyPositions;

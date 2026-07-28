@@ -61,7 +61,17 @@ namespace HaveABreak.Editor
                             RuntimeBattleFieldZone.PlayerSkill, 0,
                             "빈 스킬존", "스킬 카드를 놓아 설치",
                             false, false, false,
-                            string.Empty, "field:skill:0")
+                            string.Empty, "field:skill:0"),
+                        new RuntimeBattleFieldSlotPresentation(
+                            RuntimeBattleFieldZone.PlayerSkill, 1,
+                            "빈 스킬존", "스킬 카드를 놓아 설치",
+                            false, false, false,
+                            string.Empty, "field:skill:1"),
+                        new RuntimeBattleFieldSlotPresentation(
+                            RuntimeBattleFieldZone.PlayerSkill, 2,
+                            "빈 스킬존", "스킬 카드를 놓아 설치",
+                            false, false, false,
+                            string.Empty, "field:skill:2")
                     });
                 view.Bind(presentation);
 
@@ -74,6 +84,10 @@ namespace HaveABreak.Editor
                 RuntimeBattleFieldSlotView centerDrop = view.MonsterSlots[1];
                 RuntimeBattleFieldSlotView rightDrop = view.MonsterSlots[2];
                 RuntimeBattleFieldSlotView skillDrop = view.SkillSlots[0];
+                RuntimeBattleFieldSlotView centerSkillDrop =
+                    view.SkillSlots[1];
+                RuntimeBattleFieldSlotView rightSkillDrop =
+                    view.SkillSlots[2];
 
                 enemy.Button.onClick.Invoke();
                 bool enemyCommand = commandId == "enemy:ENEMY-01" &&
@@ -97,8 +111,11 @@ namespace HaveABreak.Editor
                 bool cardTypeRouting =
                     centerDrop.DropZone.Accepts(monsterCard) &&
                     rightDrop.DropZone.Accepts(monsterCard) &&
+                    !enemy.DropZone.Accepts(monsterCard) &&
                     !centerDrop.DropZone.Accepts(skillCard) &&
                     skillDrop.DropZone.Accepts(skillCard) &&
+                    centerSkillDrop.DropZone.Accepts(skillCard) &&
+                    rightSkillDrop.DropZone.Accepts(skillCard) &&
                     skillDrop.DropZone.Accepts(trapCard) &&
                     skillDrop.DropZone.Accepts(barrierCard) &&
                     !skillDrop.DropZone.Accepts(monsterCard);
@@ -106,6 +123,7 @@ namespace HaveABreak.Editor
                 RuntimeCardDropZone.SetActivePresentation(monsterCard);
                 bool allEmptyMonsterZonesHighlighted =
                     !occupiedMonster.DropZone.IsAvailableHighlighted &&
+                    !enemy.DropZone.IsAvailableHighlighted &&
                     centerDrop.DropZone.IsAvailableHighlighted &&
                     rightDrop.DropZone.IsAvailableHighlighted &&
                     !skillDrop.DropZone.IsAvailableHighlighted;
@@ -113,7 +131,9 @@ namespace HaveABreak.Editor
                 bool skillOnlyHighlight =
                     !centerDrop.DropZone.IsAvailableHighlighted &&
                     !rightDrop.DropZone.IsAvailableHighlighted &&
-                    skillDrop.DropZone.IsAvailableHighlighted;
+                    skillDrop.DropZone.IsAvailableHighlighted &&
+                    centerSkillDrop.DropZone.IsAvailableHighlighted &&
+                    rightSkillDrop.DropZone.IsAvailableHighlighted;
                 RuntimeCardDropZone.SetActivePresentation(null);
 
                 bool labels = enemy.LabelText.text.Contains("검증 적") &&
