@@ -1,4 +1,4 @@
-name: Inspect monster placement API
+name: Apply selectable monster placement
 
 on:
   pull_request:
@@ -10,26 +10,271 @@ permissions:
   contents: write
 
 jobs:
-  inspect:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
-      - name: Write placement API report
+      - name: Connect selected monster slot command
         shell: bash
         run: |
-          report=MonsterPlacementApiReport.txt
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def load(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def save(path, text):
+              Path(path).write_text(text, encoding='utf-8', newline='\n')
+
+          def once(text, old, new, name):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{name}: {count} matches')
+              return text.replace(old, new, 1)
+
+          path = 'Assets/Scripts/Prototype/BattlePlayerActionViewModel.cs'
+          text = load(path)
+          start = text.index('        public BattleCardPlayCommandResult TryPlayCard(')
+          end = text.index('        public BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(', start)
+          method = '''        public BattleCardPlayCommandResult TryPlayCard(
+              BattleRuntimeEncounterContext context,
+              string battleCardId)
           {
-            echo '=== Player monster position references ==='
-            grep -R -n -C 20 --include='*.cs' 'PlayerMonsterPositions\|PlayerMonsterFieldPosition' Assets/Scripts Assets/Editor || true
-            echo '=== Card action service definitions ==='
-            grep -R -n -C 50 --include='*.cs' 'class BattleRuntimePlayerCardActionService\|class BattleRuntimeCardPlayService' Assets/Scripts || true
-            echo '=== Position mutation candidates ==='
-            grep -R -n -C 15 --include='*.cs' 'TryPlace\|TryAssign\|TrySet\|TryMove\|SetOccupant\|RemoveOccupant\|TryRegister' Assets/Scripts || true
-          } > "$report"
+              return TryPlayCard(context, battleCardId, null);
+          }
+
+          public BattleCardPlayCommandResult TryPlayCard(
+              BattleRuntimeEncounterContext context,
+              string battleCardId,
+              PlayerMonsterFieldPosition? monsterPosition)
+          {
+              BattleHandCardActionOption option = CreateHandOptions(context)
+                  .FirstOrDefault(value => string.Equals(
+                      value.BattleCardId,
+                      battleCardId,
+                      StringComparison.OrdinalIgnoreCase));
+              if (option == null)
+              {
+                  return new BattleCardPlayCommandResult(
+                      false, null, null, default, default, default,
+                      context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+                      "카드 사용 실패: 선택한 카드를 현재 패에서 찾을 수 없습니다.");
+              }
+
+              if (!option.CanPlay)
+              {
+                  return new BattleCardPlayCommandResult(
+                      false, option, null,
+                      option.ActionFailure, option.PlayFailure, option.CardFailure,
+                      context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+                      $"카드 사용 실패: {option.BlockReason}");
+              }
+
+              if (!BattleRuntimePlayerCardActionService.TryResolve(
+                      context.Runtime,
+                      option.BattleCardId,
+                      selectedEnemyId,
+                      option.SelectedBanishTargetId,
+                      monsterPosition,
+                      out BattleRuntimePlayerCardActionResult result,
+                      out BattleRuntimePlayerCardActionFailure actionFailure,
+                      out BattleRuntimeCardPlayFailure playFailure,
+                      out CardPlayFailure cardFailure))
+              {
+                  string positionText = monsterPosition.HasValue
+                      ? $" / 몬스터존 {monsterPosition.Value}"
+                      : string.Empty;
+                  return new BattleCardPlayCommandResult(
+                      false, option, null,
+                      actionFailure, playFailure, cardFailure,
+                      context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+                      $"카드 사용 실패{positionText}: {actionFailure} / " +
+                      $"{playFailure} / {cardFailure}");
+              }
+
+              selectedBanishCardIds.Remove(option.BattleCardId);
+              BattleOutcome outcome = FinalizeOutcome(context);
+              Refresh(context);
+              string message = monsterPosition.HasValue
+                  ? $"{result.Play.Card.SourceCard.DisplayName} 사용 완료 · " +
+                    $"몬스터존 {monsterPosition.Value}"
+                  : $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
+              if (outcome != BattleOutcome.Ongoing)
+              {
+                  message += $" 전투 종료 · {outcome}";
+              }
+
+              return new BattleCardPlayCommandResult(
+                  true, option, result,
+                  actionFailure, playFailure, cardFailure,
+                  outcome, message);
+          }
+
+          '''
+          text = text[:start] + method + text[end:]
+          save(path, text)
+
+          path = 'Assets/Scripts/Prototype/BattleScreenViewModel.Core.cs'
+          text = load(path)
+          block = '''        public BattleCardPlayCommandResult TryPlayCard(
+              RunEncounterProgressState progress,
+              string battleCardId)
+          {
+              return actions.TryPlayCard(
+                  progress?.ActiveEncounter,
+                  battleCardId);
+          }
+          '''
+          addition = block + '''
+          public BattleCardPlayCommandResult TryPlayCard(
+              RunEncounterProgressState progress,
+              string battleCardId,
+              PlayerMonsterFieldPosition position)
+          {
+              return actions.TryPlayCard(
+                  progress?.ActiveEncounter,
+                  battleCardId,
+                  position);
+          }
+          '''
+          text = once(text, block, addition, 'battle screen position overload')
+          save(path, text)
+
+          path = 'Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs'
+          text = load(path)
+          old = '''        {
+              if (!string.IsNullOrWhiteSpace(targetCommandId) &&
+                  TryReadCommandValue(
+                      targetCommandId,
+                      "enemy:",'''
+          new = '''        {
+              if (TryExecuteFinalFieldCardDrop(
+                      cardCommandId,
+                      targetCommandId))
+              {
+                  return;
+              }
+
+              if (!string.IsNullOrWhiteSpace(targetCommandId) &&
+                  TryReadCommandValue(
+                      targetCommandId,
+                      "enemy:",'''
+          text = once(text, old, new, 'final UI field drop hook')
+          save(path, text)
+
+          path = 'Assets/Scripts/Prototype/RuntimePrototypeScreen.BattleField.cs'
+          text = load(path)
+          marker = '        private static string CreateBattleFieldSignature(\n'
+          method = '''        private bool TryExecuteFinalFieldCardDrop(
+              string cardCommandId,
+              string targetCommandId)
+          {
+              if (!TryReadCommandValue(
+                      targetCommandId,
+                      "field:monster:",
+                      out string slotText))
+              {
+                  return false;
+              }
+
+              if (!TryResolveMonsterPosition(
+                      slotText,
+                      out PlayerMonsterFieldPosition position))
+              {
+                  message = $"몬스터 소환 실패: 잘못된 몬스터존 {slotText}";
+                  return true;
+              }
+
+              if (!TryReadCommandValue(
+                      cardCommandId,
+                      "play:",
+                      out string battleCardId))
+              {
+                  message = "몬스터 소환 실패: 드래그한 카드를 찾을 수 없습니다.";
+                  return true;
+              }
+
+              BattleCardPlayCommandResult command = battleScreen.TryPlayCard(
+                  progress,
+                  battleCardId,
+                  position);
+              message = command.Message;
+              if (command.Succeeded)
+              {
+                  SaveRun(null);
+              }
+
+              finalCampaignScreen = null;
+              finalBattleFieldSignature = null;
+              if (campaign?.Phase == RunCampaignPhase.Battle)
+              {
+                  RefreshFinalBattle();
+                  SetFinalUiActive(true);
+                  FinalUiRoot.ShowScreen(RuntimeGameScreen.Battle);
+              }
+              else
+              {
+                  RefreshFinalUiVisibility();
+              }
+              return true;
+          }
+
+          private static bool TryResolveMonsterPosition(
+              string slotText,
+              out PlayerMonsterFieldPosition position)
+          {
+              position = default;
+              if (!int.TryParse(slotText, out int index))
+              {
+                  return false;
+              }
+
+              switch (index)
+              {
+                  case 0:
+                      position = PlayerMonsterFieldPosition.Left;
+                      return true;
+                  case 1:
+                      position = PlayerMonsterFieldPosition.Center;
+                      return true;
+                  case 2:
+                      position = PlayerMonsterFieldPosition.Right;
+                      return true;
+                  default:
+                      return false;
+              }
+          }
+
+          '''
+          text = once(text, marker, method + marker, 'field placement command')
+          save(path, text)
+
+          path = 'Assets/Editor/RuntimeBattleFieldBridgeValidation.cs'
+          text = load(path)
+          text = once(
+              text,
+              '''                bool fieldDrops = monsterDropCount == 1 &&
+                                    skillDropCount == 1;''',
+              '''                int emptyMonsterCount = field?.MonsterSlots.Count(slot =>
+                      slot.Presentation?.Occupied != true) ?? 0;
+                  bool fieldDrops = monsterDropCount == emptyMonsterCount &&
+                                    monsterDropCount > 0 &&
+                                    skillDropCount == 1;''',
+              'bridge all empty monster slots')
+          text = text.replace(
+              'selection and first-empty card-drop routing.',
+              'selection and all-empty monster-zone card-drop routing.')
+          save(path, text)
+
+          report = Path('MonsterPlacementApiReport.txt')
+          if report.exists():
+              report.unlink()
+          PY
+          git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "$report"
-          git commit -m '임시: 몬스터 배치 API 검사 결과 기록'
+          git add -A
+          git commit -m '몬스터존 선택 소환 명령을 전투 상태에 연결'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
