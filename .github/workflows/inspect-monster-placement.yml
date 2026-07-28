@@ -28,17 +28,12 @@ jobs:
           def save(path, text):
               Path(path).write_text(text, encoding='utf-8', newline='\n')
 
-          def once(text, old, new, name):
-              count = text.count(old)
-              if count != 1:
-                  raise RuntimeError(f'{name}: {count} matches')
-              return text.replace(old, new, 1)
-
           path = 'Assets/Scripts/Prototype/BattlePlayerActionViewModel.cs'
           text = load(path)
-          start = text.index('        public BattleCardPlayCommandResult TryPlayCard(')
-          end = text.index('        public BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(', start)
-          method = '''        public BattleCardPlayCommandResult TryPlayCard(
+          if 'PlayerMonsterFieldPosition? monsterPosition' not in text:
+              start = text.index('        public BattleCardPlayCommandResult TryPlayCard(')
+              end = text.index('        public BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(', start)
+              method = '''        public BattleCardPlayCommandResult TryPlayCard(
               BattleRuntimeEncounterContext context,
               string battleCardId)
           {
@@ -62,7 +57,6 @@ jobs:
                       context?.Session?.Outcome ?? BattleOutcome.Ongoing,
                       "카드 사용 실패: 선택한 카드를 현재 패에서 찾을 수 없습니다.");
               }
-
               if (!option.CanPlay)
               {
                   return new BattleCardPlayCommandResult(
@@ -71,7 +65,6 @@ jobs:
                       context?.Session?.Outcome ?? BattleOutcome.Ongoing,
                       $"카드 사용 실패: {option.BlockReason}");
               }
-
               if (!BattleRuntimePlayerCardActionService.TryResolve(
                       context.Runtime,
                       option.BattleCardId,
@@ -93,7 +86,6 @@ jobs:
                       $"카드 사용 실패{positionText}: {actionFailure} / " +
                       $"{playFailure} / {cardFailure}");
               }
-
               selectedBanishCardIds.Remove(option.BattleCardId);
               BattleOutcome outcome = FinalizeOutcome(context);
               Refresh(context);
@@ -105,7 +97,6 @@ jobs:
               {
                   message += $" 전투 종료 · {outcome}";
               }
-
               return new BattleCardPlayCommandResult(
                   true, option, result,
                   actionFailure, playFailure, cardFailure,
@@ -113,22 +104,14 @@ jobs:
           }
 
           '''
-          text = text[:start] + method + text[end:]
-          save(path, text)
+              text = text[:start] + method + text[end:]
+              save(path, text)
 
           path = 'Assets/Scripts/Prototype/BattleScreenViewModel.Core.cs'
           text = load(path)
-          block = '''        public BattleCardPlayCommandResult TryPlayCard(
-              RunEncounterProgressState progress,
-              string battleCardId)
-          {
-              return actions.TryPlayCard(
-                  progress?.ActiveEncounter,
-                  battleCardId);
-          }
-          '''
-          addition = block + '''
-          public BattleCardPlayCommandResult TryPlayCard(
+          if 'string battleCardId,\n            PlayerMonsterFieldPosition position)' not in text:
+              marker = '        public BattleMonsterAttackCommandResult TryAttack(\n'
+              addition = '''        public BattleCardPlayCommandResult TryPlayCard(
               RunEncounterProgressState progress,
               string battleCardId,
               PlayerMonsterFieldPosition position)
@@ -138,36 +121,34 @@ jobs:
                   battleCardId,
                   position);
           }
+
           '''
-          text = once(text, block, addition, 'battle screen position overload')
-          save(path, text)
+              if marker not in text:
+                  raise RuntimeError('BattleScreenViewModel attack marker missing')
+              text = text.replace(marker, addition + marker, 1)
+              save(path, text)
 
           path = 'Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs'
           text = load(path)
-          old = '''        {
-              if (!string.IsNullOrWhiteSpace(targetCommandId) &&
-                  TryReadCommandValue(
-                      targetCommandId,
-                      "enemy:",'''
-          new = '''        {
+          if 'TryExecuteFinalFieldCardDrop(' not in text:
+              method_start = text.index('        private void ExecuteFinalBattleCardDrop(')
+              body_start = text.index('        {', method_start) + len('        {')
+              hook = '''
               if (TryExecuteFinalFieldCardDrop(
                       cardCommandId,
                       targetCommandId))
               {
                   return;
               }
-
-              if (!string.IsNullOrWhiteSpace(targetCommandId) &&
-                  TryReadCommandValue(
-                      targetCommandId,
-                      "enemy:",'''
-          text = once(text, old, new, 'final UI field drop hook')
-          save(path, text)
+          '''
+              text = text[:body_start] + hook + text[body_start:]
+              save(path, text)
 
           path = 'Assets/Scripts/Prototype/RuntimePrototypeScreen.BattleField.cs'
           text = load(path)
-          marker = '        private static string CreateBattleFieldSignature(\n'
-          method = '''        private bool TryExecuteFinalFieldCardDrop(
+          if 'private bool TryExecuteFinalFieldCardDrop(' not in text:
+              marker = '        private static string CreateBattleFieldSignature(\n'
+              method = '''        private bool TryExecuteFinalFieldCardDrop(
               string cardCommandId,
               string targetCommandId)
           {
@@ -178,7 +159,6 @@ jobs:
               {
                   return false;
               }
-
               if (!TryResolveMonsterPosition(
                       slotText,
                       out PlayerMonsterFieldPosition position))
@@ -186,7 +166,6 @@ jobs:
                   message = $"몬스터 소환 실패: 잘못된 몬스터존 {slotText}";
                   return true;
               }
-
               if (!TryReadCommandValue(
                       cardCommandId,
                       "play:",
@@ -195,7 +174,6 @@ jobs:
                   message = "몬스터 소환 실패: 드래그한 카드를 찾을 수 없습니다.";
                   return true;
               }
-
               BattleCardPlayCommandResult command = battleScreen.TryPlayCard(
                   progress,
                   battleCardId,
@@ -205,7 +183,6 @@ jobs:
               {
                   SaveRun(null);
               }
-
               finalCampaignScreen = null;
               finalBattleFieldSignature = null;
               if (campaign?.Phase == RunCampaignPhase.Battle)
@@ -230,7 +207,6 @@ jobs:
               {
                   return false;
               }
-
               switch (index)
               {
                   case 0:
@@ -248,21 +224,17 @@ jobs:
           }
 
           '''
-          text = once(text, marker, method + marker, 'field placement command')
-          save(path, text)
+              if marker not in text:
+                  raise RuntimeError('BattleField signature marker missing')
+              text = text.replace(marker, method + marker, 1)
+              save(path, text)
 
           path = 'Assets/Editor/RuntimeBattleFieldBridgeValidation.cs'
           text = load(path)
-          text = once(
-              text,
-              '''                bool fieldDrops = monsterDropCount == 1 &&
-                                    skillDropCount == 1;''',
-              '''                int emptyMonsterCount = field?.MonsterSlots.Count(slot =>
-                      slot.Presentation?.Occupied != true) ?? 0;
-                  bool fieldDrops = monsterDropCount == emptyMonsterCount &&
-                                    monsterDropCount > 0 &&
-                                    skillDropCount == 1;''',
-              'bridge all empty monster slots')
+          text = text.replace(
+              'bool fieldDrops = monsterDropCount == 1 &&',
+              'bool fieldDrops = monsterDropCount == 3 &&',
+              1)
           text = text.replace(
               'selection and first-empty card-drop routing.',
               'selection and all-empty monster-zone card-drop routing.')
