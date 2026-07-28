@@ -636,6 +636,15 @@ namespace HaveABreak.Cards
                     options,
                     snapshot.ErrorText ?? "활성 전투를 찾을 수 없습니다.",
                     message);
+                FinalUiRoot.BindBattleHud(
+                    progress.RunState.CurrentHealth,
+                    progress.RunState.MaximumHealth,
+                    progress.RunState.Gold,
+                    campaign.CompletedNodeCount + 1,
+                    0,
+                    0,
+                    "활성 전투가 없습니다.",
+                    $"덱 {progress.RunDeck.Count}장");
                 FinalUiRoot.BindBattleHand(
                     System.Array.Empty<RuntimeCardPresentation>());
                 FinalUiRoot.BindBattleConsumables(
@@ -733,6 +742,36 @@ namespace HaveABreak.Cards
                 options,
                 string.Join("\n", summaryParts),
                 message);
+            BattleRuntimeState runtime =
+                progress.ActiveEncounter?.Session?.Runtime;
+            string path = campaign.SelectedNodePath.Count == 0
+                ? "아직 이동한 노드가 없습니다."
+                : string.Join(
+                    "\n",
+                    campaign.SelectedNodePath.Select(
+                        (nodeId, index) => $"{index + 1}. {nodeId}"));
+            string currentNode = campaign.ActiveNode == null
+                ? string.Empty
+                : $"\n\n현재: {campaign.ActiveNode.DisplayName}";
+            string deckDetails = string.Join(
+                "\n",
+                progress.RunDeck.Cards.Select(
+                    (card, index) =>
+                        $"{index + 1}. " +
+                        $"{card?.Card?.DisplayName ?? "알 수 없는 카드"}"));
+            FinalUiRoot.BindBattleHud(
+                runtime?.Player.CurrentHealth ??
+                    progress.RunState.CurrentHealth,
+                runtime?.Player.MaximumHealth ??
+                    progress.RunState.MaximumHealth,
+                progress.RunState.Gold,
+                campaign.CompletedNodeCount + 1,
+                runtime?.CardPlay.Mana.CurrentMana ?? 0,
+                runtime?.CardPlay.Mana.MaximumMana ?? 0,
+                path + currentNode,
+                string.IsNullOrWhiteSpace(deckDetails)
+                    ? "덱이 비어 있습니다."
+                    : deckDetails);
             FinalUiRoot.BindBattleHand(handCards);
             FinalUiRoot.BindBattleConsumables(snapshot.Consumables);
             finalCampaignScreen = RuntimeGameScreen.Battle;

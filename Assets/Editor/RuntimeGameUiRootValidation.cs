@@ -189,7 +189,29 @@ namespace HaveABreak.Editor
                     battleOptions,
                     "전투 상태 요약",
                     "전투 명령 메시지");
+                root.BindBattleHud(
+                    24,
+                    30,
+                    77,
+                    4,
+                    3,
+                    5,
+                    "1. 시작\n2. 전투",
+                    "1. 검증 스킬");
                 root.ShowScreen(RuntimeGameScreen.Battle);
+                Button mapButton =
+                    root.BattleTopHudBar.Find("Map")?.GetComponent<Button>();
+                mapButton?.onClick.Invoke();
+                bool battleHud =
+                    root.BattleHealthText.text == "♥ 24/30" &&
+                    root.BattleGoldText.text == "● 77" &&
+                    root.BattleManaText.text == "마나 3/5" &&
+                    root.BattleFloorText.text == "층 4" &&
+                    root.BattleRelicText.text == "보유 유물 없음" &&
+                    root.BattleUtilityPanel.activeSelf &&
+                    root.BattleUtilityTitleText.text == "지도" &&
+                    root.BattleUtilityBodyText.text.Contains("2. 전투");
+                root.BattleUtilityPanel.SetActive(false);
                 root.BattleEndTurnButton.onClick.Invoke();
                 bool genericBattleCommand = battleCommandId == "end-turn";
                 RuntimeCardPresentation[] battleCards =
@@ -277,6 +299,7 @@ namespace HaveABreak.Editor
                     root.BattleMessageText.text.StartsWith(
                         "전투 명령 메시지",
                         StringComparison.Ordinal) &&
+                    battleHud &&
                     genericBattleCommand &&
                     cardFoundation;
 

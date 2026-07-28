@@ -75,6 +75,16 @@ namespace HaveABreak.Cards
         public Text BattleDetailBodyText { get; private set; }
         public Button BattleDetailActionButton { get; private set; }
         public Button BattleEndTurnButton { get; private set; }
+        public RectTransform BattleTopHudBar { get; private set; }
+        public RectTransform BattleRelicBar { get; private set; }
+        public Text BattleHealthText { get; private set; }
+        public Text BattleGoldText { get; private set; }
+        public Text BattleFloorText { get; private set; }
+        public Text BattleManaText { get; private set; }
+        public Text BattleRelicText { get; private set; }
+        public GameObject BattleUtilityPanel { get; private set; }
+        public Text BattleUtilityTitleText { get; private set; }
+        public Text BattleUtilityBodyText { get; private set; }
         public Text RewardSummaryText { get; private set; }
         public Text RewardMessageText { get; private set; }
         public RectTransform RewardCommandList { get; private set; }
@@ -323,6 +333,27 @@ namespace HaveABreak.Cards
                 view.GetComponent<RuntimeBattleHandCardHover>()
                     ?.Configure(index);
             }
+        }
+
+        public void BindBattleHud(
+            int currentHealth,
+            int maximumHealth,
+            int gold,
+            int floor,
+            int currentMana,
+            int maximumMana,
+            string mapDetails,
+            string deckDetails)
+        {
+            BattleHealthText.text =
+                $"♥ {Mathf.Max(0, currentHealth)}/{Mathf.Max(1, maximumHealth)}";
+            BattleGoldText.text = $"● {Mathf.Max(0, gold)}";
+            BattleFloorText.text = $"층 {Mathf.Max(1, floor)}";
+            BattleManaText.text =
+                $"마나 {Mathf.Max(0, currentMana)}/{Mathf.Max(0, maximumMana)}";
+            battleMapDetails = mapDetails ?? "이동 경로가 없습니다.";
+            battleDeckDetails = deckDetails ?? "덱 정보가 없습니다.";
+            BattleRelicText.text = "보유 유물 없음";
         }
 
         public void BindBattleConsumables(
@@ -723,9 +754,10 @@ namespace HaveABreak.Cards
             panelLayout.padding = new RectOffset(28, 28, 22, 22);
             panelLayout.spacing = 8f;
 
+            BuildBattleTopHud(panel);
             BuildBattleConsumableBar(panel);
             BattleConsumableBar.SetSiblingIndex(
-                summaryText.transform.GetSiblingIndex() + 1);
+                BattleRelicBar.GetSiblingIndex() + 1);
 
             BattleHandCardList = BuildBattleHand(
                 panel,
@@ -738,9 +770,169 @@ namespace HaveABreak.Cards
 
             titleText.GetComponent<LayoutElement>().preferredHeight = 48f;
             summaryText.GetComponent<LayoutElement>().preferredHeight = 52f;
+            titleText.gameObject.SetActive(false);
+            summaryText.gameObject.SetActive(false);
             messageText.GetComponent<LayoutElement>().preferredHeight = 40f;
             BuildBattleDetailPanel(battleScreen.transform);
+            BuildBattleUtilityPanel(battleScreen.transform);
             BuildBattleEndTurnButton(battleScreen.transform);
+        }
+
+        private string battleMapDetails;
+        private string battleDeckDetails;
+
+        private void BuildBattleTopHud(Transform panel)
+        {
+            Image top = CreateImage(
+                "BattleTopHud",
+                panel,
+                new Color(0.025f, 0.055f, 0.085f, 0.98f));
+            BattleTopHudBar = top.rectTransform;
+            LayoutElement topElement =
+                top.gameObject.AddComponent<LayoutElement>();
+            topElement.preferredHeight = 68f;
+            HorizontalLayoutGroup topLayout =
+                top.gameObject.AddComponent<HorizontalLayoutGroup>();
+            topLayout.padding = new RectOffset(16, 16, 8, 8);
+            topLayout.spacing = 10f;
+            topLayout.childAlignment = TextAnchor.MiddleLeft;
+            topLayout.childControlWidth = true;
+            topLayout.childControlHeight = true;
+            topLayout.childForceExpandWidth = false;
+            topLayout.childForceExpandHeight = false;
+
+            BattleHealthText = CreateHudLabel("Health", top.transform, 190f);
+            BattleGoldText = CreateHudLabel("Gold", top.transform, 126f);
+            BattleManaText = CreateHudLabel("Mana", top.transform, 170f);
+            BattleFloorText = CreateHudLabel("Floor", top.transform, 126f);
+            CreateHudSpacer(top.transform);
+            CreateHudButton("Map", top.transform, "지도",
+                () => ShowBattleUtility("지도", battleMapDetails));
+            CreateHudButton("Deck", top.transform, "덱",
+                () => ShowBattleUtility("덱", battleDeckDetails));
+            CreateHudButton("Options", top.transform, "옵션",
+                () => ShowBattleUtility(
+                    "옵션",
+                    "전투 일시정지\n\n계속하려면 닫기를 누르세요."));
+
+            Image relic = CreateImage(
+                "BattleRelicBar",
+                panel,
+                new Color(0.035f, 0.07f, 0.105f, 0.96f));
+            BattleRelicBar = relic.rectTransform;
+            LayoutElement relicElement =
+                relic.gameObject.AddComponent<LayoutElement>();
+            relicElement.preferredHeight = 46f;
+            HorizontalLayoutGroup relicLayout =
+                relic.gameObject.AddComponent<HorizontalLayoutGroup>();
+            relicLayout.padding = new RectOffset(16, 16, 5, 5);
+            relicLayout.spacing = 10f;
+            relicLayout.childAlignment = TextAnchor.MiddleLeft;
+            relicLayout.childControlWidth = true;
+            relicLayout.childControlHeight = true;
+            relicLayout.childForceExpandWidth = false;
+            relicLayout.childForceExpandHeight = false;
+            Text relicLabel = CreateHudLabel("RelicLabel", relic.transform, 72f);
+            relicLabel.text = "유물";
+            BattleRelicText =
+                CreateHudLabel("Relics", relic.transform, 420f);
+            BattleRelicText.fontStyle = FontStyle.Italic;
+            BattleRelicText.color = new Color(0.7f, 0.74f, 0.8f, 1f);
+        }
+
+        private static Text CreateHudLabel(
+            string name,
+            Transform parent,
+            float width)
+        {
+            Text text = CreateText(
+                name,
+                parent,
+                string.Empty,
+                20,
+                FontStyle.Bold,
+                52f);
+            text.alignment = TextAnchor.MiddleLeft;
+            LayoutElement element = text.GetComponent<LayoutElement>();
+            element.preferredWidth = width;
+            element.flexibleWidth = 0f;
+            return text;
+        }
+
+        private static void CreateHudSpacer(Transform parent)
+        {
+            GameObject spacer = new(
+                "FlexibleSpace",
+                typeof(RectTransform),
+                typeof(LayoutElement));
+            spacer.transform.SetParent(parent, false);
+            spacer.GetComponent<LayoutElement>().flexibleWidth = 1f;
+        }
+
+        private static Button CreateHudButton(
+            string name,
+            Transform parent,
+            string label,
+            UnityEngine.Events.UnityAction action)
+        {
+            Button button = CreateButton(
+                name,
+                parent,
+                label,
+                SecondaryColor,
+                action);
+            LayoutElement element = button.GetComponent<LayoutElement>();
+            element.preferredWidth = 112f;
+            element.preferredHeight = 52f;
+            element.flexibleWidth = 0f;
+            Text text = button.GetComponentInChildren<Text>();
+            text.fontSize = 20;
+            return button;
+        }
+
+        private void BuildBattleUtilityPanel(Transform parent)
+        {
+            Image panel = CreateImage(
+                "BattleUtilityPanel",
+                parent,
+                new Color(0.025f, 0.045f, 0.075f, 0.99f));
+            BattleUtilityPanel = panel.gameObject;
+            RectTransform rect = panel.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(660f, 720f);
+
+            VerticalLayoutGroup layout =
+                panel.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(24, 24, 24, 24);
+            layout.spacing = 14f;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            BattleUtilityTitleText = CreateText(
+                "Title", rect, string.Empty, 32, FontStyle.Bold, 64f);
+            BattleUtilityBodyText = CreateText(
+                "Body", rect, string.Empty, 20, FontStyle.Normal, 520f);
+            BattleUtilityBodyText.alignment = TextAnchor.UpperLeft;
+            CreateButton(
+                "Close",
+                rect,
+                "닫기",
+                SecondaryColor,
+                () => BattleUtilityPanel.SetActive(false));
+            BattleUtilityPanel.SetActive(false);
+        }
+
+        private void ShowBattleUtility(string title, string body)
+        {
+            HideBattleDetail();
+            BattleUtilityTitleText.text = title ?? string.Empty;
+            BattleUtilityBodyText.text = body ?? string.Empty;
+            BattleUtilityPanel.SetActive(true);
+            BattleUtilityPanel.transform.SetAsLastSibling();
         }
 
         private void BuildBattleDetailPanel(Transform parent)
