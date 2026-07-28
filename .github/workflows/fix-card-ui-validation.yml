@@ -21,97 +21,86 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
+          import re
           from pathlib import Path
 
           path = Path('Assets/Editor/RuntimeGameUiRootValidation.cs')
           text = path.read_text(encoding='utf-8')
 
-          def replace_once(old, new, label):
-              global text
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
-              text = text.replace(old, new, 1)
-
-          art_count = text.count('ArtPlaceholderText.text == "아트 자리"')
-          if art_count != 2:
-              raise SystemExit(f'art placeholder: expected 2 occurrences, found {art_count}')
           text = text.replace(
               'ArtPlaceholderText.text == "아트 자리"',
               'ArtPlaceholderText.text == "일러스트"')
+          text = text.replace(
+              'preparationCard.MetadataText.text.Contains("스킬")',
+              'preparationCard.MetadataText.text == "스킬"')
+          text = text.replace(
+              'preparationCard.MetadataText.text.Contains("일반")',
+              'preparationCard.Presentation.Rarity == CardRarity.Common')
+          text = text.replace(
+              'preparationCard.SelectionText.text == "[선택 1번]"',
+              'preparationCard.SelectionText.text == "선택 1"')
 
-          replace_once(
-              'preparationCard.MetadataText.text.Contains("스킬") &&',
-              'preparationCard.MetadataText.text == "스킬" &&',
-              'preparation type')
-          replace_once(
-              'preparationCard.MetadataText.text.Contains("일반") &&',
-              'preparationCard.Presentation.Rarity == CardRarity.Common &&',
-              'preparation rarity')
-          replace_once(
-              'preparationCard.SelectionText.text == "[선택 1번]" &&',
-              'preparationCard.SelectionText.text == "선택 1" &&',
-              'selection label')
-          replace_once(
-              '''                    preparationCard.FrameImage.color !=
-                        preparationCard.Presentation.TypeColor &&''',
-              '''                    preparationCard.FrameOverlayImage != null &&
-                    (preparationCard.FrameOverlayImage.sprite != null ||
-                     preparationCard.FrameImage.color != Color.clear) &&''',
-              'preparation frame')
+          text = re.sub(
+              r'(?m)^(\s*)preparationCard\.FrameImage\.color !=\s*\n\s*preparationCard\.Presentation\.TypeColor &&',
+              lambda m: (
+                  f'{m.group(1)}preparationCard.FrameOverlayImage != null &&\n'
+                  f'{m.group(1)}(preparationCard.FrameOverlayImage.sprite != null ||\n'
+                  f'{m.group(1)} preparationCard.FrameImage.color != Color.clear) &&'),
+              text)
 
-          replace_once(
+          text = text.replace(
               'activeCard.MetadataText.text.Contains("전설") &&',
-              '''activeCard.MetadataText.text == "스킬" &&
-                    activeCard.Presentation.Rarity == CardRarity.Legendary &&''',
-              'active card metadata')
-          replace_once(
-              '''                    activeCard.FrameImage.color ==
-                        battleCards[0].TypeColor &&
-                    activeCard.RarityAccentImage.color ==
-                        battleCards[0].RarityColor &&''',
-              '''                    activeCard.FrameOverlayImage != null &&
-                    (activeCard.FrameOverlayImage.sprite != null ||
-                     activeCard.FrameImage.color != Color.clear) &&
-                    !activeCard.RarityAccentImage.gameObject.activeSelf &&''',
-              'active card frame')
-          replace_once(
-              'blockedCard.StatsText.text == "공격 4  생명 5" &&',
-              'blockedCard.StatsText.text == "공격 4, 생명력 5" &&',
-              'monster stats')
-          replace_once(
-              'blockedCard.MetadataText.text.Contains("희귀") &&',
-              '''blockedCard.MetadataText.text == "몬스터" &&
-                    blockedCard.Presentation.Rarity == CardRarity.Rare &&''',
-              'blocked card metadata')
-          replace_once(
-              '''                    blockedCard.FrameImage.color !=
-                        battleCards[1].TypeColor &&
-                    battleCards[0].TypeColor != battleCards[1].TypeColor &&
-                    battleCards[0].RarityColor !=
-                        battleCards[1].RarityColor &&''',
-              '''                    blockedCard.FrameOverlayImage != null &&
-                    (blockedCard.FrameOverlayImage.sprite != null ||
-                     blockedCard.FrameImage.color != Color.clear) &&''',
-              'blocked card frame')
+              'activeCard.MetadataText.text == "스킬" &&\n'
+              '                    activeCard.Presentation.Rarity == CardRarity.Legendary &&')
+          text = re.sub(
+              r'(?m)^(\s*)activeCard\.FrameImage\.color ==\s*\n\s*battleCards\[0\]\.TypeColor &&\s*\n\s*activeCard\.RarityAccentImage\.color ==\s*\n\s*battleCards\[0\]\.RarityColor &&',
+              lambda m: (
+                  f'{m.group(1)}activeCard.FrameOverlayImage != null &&\n'
+                  f'{m.group(1)}(activeCard.FrameOverlayImage.sprite != null ||\n'
+                  f'{m.group(1)} activeCard.FrameImage.color != Color.clear) &&\n'
+                  f'{m.group(1)}!activeCard.RarityAccentImage.gameObject.activeSelf &&'),
+              text)
 
-          replace_once(
+          text = text.replace(
+              'blockedCard.StatsText.text == "공격 4  생명 5"',
+              'blockedCard.StatsText.text == "공격 4, 생명력 5"')
+          text = text.replace(
+              'blockedCard.MetadataText.text.Contains("희귀") &&',
+              'blockedCard.MetadataText.text == "몬스터" &&\n'
+              '                    blockedCard.Presentation.Rarity == CardRarity.Rare &&')
+          text = re.sub(
+              r'(?m)^(\s*)blockedCard\.FrameImage\.color !=\s*\n\s*battleCards\[1\]\.TypeColor &&\s*\n\s*battleCards\[0\]\.TypeColor != battleCards\[1\]\.TypeColor &&\s*\n\s*battleCards\[0\]\.RarityColor !=\s*\n\s*battleCards\[1\]\.RarityColor &&',
+              lambda m: (
+                  f'{m.group(1)}blockedCard.FrameOverlayImage != null &&\n'
+                  f'{m.group(1)}(blockedCard.FrameOverlayImage.sprite != null ||\n'
+                  f'{m.group(1)} blockedCard.FrameImage.color != Color.clear) &&'),
+              text)
+
+          text = text.replace(
               '                    root.BattleMessageText.text == "전투 명령 메시지" &&',
-              '''                    root.BattleMessageText.text.StartsWith(
-                        "전투 명령 메시지",
-                        StringComparison.Ordinal) &&
-                    root.BattleMessageText.text.Contains("드래그") &&''',
-              'battle message')
-          replace_once(
+              '                    root.BattleMessageText.text.StartsWith(\n'
+              '                        "전투 명령 메시지",\n'
+              '                        StringComparison.Ordinal) &&\n'
+              '                    root.BattleMessageText.text.Contains("드래그") &&')
+          text = text.replace(
               '"type and rarity colors, selection and disabled states, " +',
-              '"type labels and rarity frames, selection and disabled states, " +',
-              'success message')
+              '"type labels and rarity frames, selection and disabled states, " +')
+
+          required = [
+              'ArtPlaceholderText.text == "일러스트"',
+              'preparationCard.Presentation.Rarity == CardRarity.Common',
+              'activeCard.Presentation.Rarity == CardRarity.Legendary',
+              'blockedCard.Presentation.Rarity == CardRarity.Rare',
+              'root.BattleMessageText.text.Contains("드래그")',
+          ]
+          missing = [value for value in required if value not in text]
+          if missing:
+              raise SystemExit(f'missing updated markers: {missing}')
 
           path.write_text(text, encoding='utf-8', newline='\n')
           PY
 
-          rm -f .github/workflows/fix-card-ui-validation.yml
-          git add Assets/Editor/RuntimeGameUiRootValidation.cs .github/workflows/fix-card-ui-validation.yml
+          git add Assets/Editor/RuntimeGameUiRootValidation.cs
           git diff --cached --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
