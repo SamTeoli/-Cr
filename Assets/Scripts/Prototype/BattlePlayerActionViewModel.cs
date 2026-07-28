@@ -323,31 +323,35 @@ namespace HaveABreak.Cards
 
     public sealed class BattlePlayerActionViewModel
     {
-        private readonly Dictionary<string, string> selectedBanishCardIds =
-            new(StringComparer.OrdinalIgnoreCase);
         private string selectedEnemyId;
-        private string pendingTargetedCardId;
         private string pendingAttackerId;
+        private PendingEffectActivation pendingCardEffect;
         private BattleRuntimePlayerAttackDeclaration pendingAttackDeclaration;
-        private string pendingActivationCardId;
-        private string pendingActivationTargetId;
 
         public string SelectedEnemyId => selectedEnemyId;
-        public string PendingTargetedCardId => pendingTargetedCardId;
+        public string PendingTargetedCardId =>
+            IsSelectingEnemyEffectTarget
+                ? pendingCardEffect.SourceCardId
+                : null;
         public string PendingAttackerId => pendingAttackerId;
         public bool IsSelectingEnemyTarget =>
-            !string.IsNullOrWhiteSpace(pendingTargetedCardId) ||
+            IsSelectingEnemyEffectTarget ||
             !string.IsNullOrWhiteSpace(pendingAttackerId);
+        private bool HasPendingEffectTargetSelection =>
+            pendingCardEffect?.IsAwaitingTarget == true;
+        private bool IsSelectingEnemyEffectTarget =>
+            HasPendingEffectTargetSelection &&
+            pendingCardEffect.TargetSpec?.Side ==
+                EffectTargetSide.Enemy &&
+            pendingCardEffect.TargetSpec.Kind ==
+                EffectTargetKind.Monster;
 
         public void Reset()
         {
             selectedEnemyId = null;
-            pendingTargetedCardId = null;
             pendingAttackerId = null;
+            pendingCardEffect = null;
             pendingAttackDeclaration = null;
-            pendingActivationCardId = null;
-            pendingActivationTargetId = null;
-            selectedBanishCardIds.Clear();
         }
 
         public void Refresh(BattleRuntimeEncounterContext context)
@@ -364,11 +368,18 @@ namespace HaveABreak.Cards
             {
                 selectedEnemyId = null;
             }
-            if (!string.IsNullOrWhiteSpace(pendingTargetedCardId) &&
-                runtime.Deck.Zones.Find(pendingTargetedCardId)?.Zone !=
-                CardZone.Hand)
+            if (pendingCardEffect?.IsAwaitingTarget == true)
             {
-                pendingTargetedCardId = null;
+                CardZone expectedZone =
+                    pendingCardEffect.HasPlacementResult
+                        ? CardZone.MonsterField
+                        : CardZone.Hand;
+                if (runtime.Deck.Zones.Find(
+                        pendingCardEffect.SourceCardId)?.Zone !=
+                    expectedZone)
+                {
+                    pendingCardEffect = null;
+                }
             }
             if (!string.IsNullOrWhiteSpace(pendingAttackerId) &&
                 runtime.Monsters.Find(pendingAttackerId) == null)
@@ -379,27 +390,25 @@ namespace HaveABreak.Cards
                 runtime.Turn.Phase != BattleTurnPhase.PlayerActionResolving)
             {
                 pendingAttackDeclaration = null;
-                pendingActivationCardId = null;
-                pendingActivationTargetId = null;
+                if (pendingCardEffect?.Phase ==
+                    PendingEffectActivationPhase.Declared)
+                {
+                    pendingCardEffect = null;
+                }
             }
 
-            HashSet<string> handIds = runtime.Deck.Zones
-                .GetCards(CardZone.Hand)
-                .Where(card => card != null)
-                .Select(card => card.Ids.BattleCardId)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (string sourceId in selectedBanishCardIds.Keys.ToArray())
+            if (pendingCardEffect?.TargetSpec?.Kind ==
+                    EffectTargetKind.HandCard &&
+                !string.IsNullOrWhiteSpace(
+                    pendingCardEffect.SingleTargetId) &&
+                !EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    pendingCardEffect.TargetSpec,
+                    pendingCardEffect.SingleTargetId,
+                    pendingCardEffect.SourceCardId,
+                    out _))
             {
-                string targetId = selectedBanishCardIds[sourceId];
-                if (!handIds.Contains(sourceId) ||
-                    !handIds.Contains(targetId) ||
-                    string.Equals(
-                        sourceId,
-                        targetId,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    selectedBanishCardIds.Remove(sourceId);
-                }
+                pendingCardEffect = null;
             }
         }
 
@@ -488,7 +497,8 @@ namespace HaveABreak.Cards
             BattleCardInstance card =
                 context?.Runtime?.Deck.Zones.Find(battleCardId);
             if (card?.Zone != CardZone.Hand ||
-                !RequiresEnemyTarget(card))
+                !RequiresEnemyTarget(card) ||
+                FindTargetSpec(card) == null)
             {
                 message = "대상을 선택할 카드가 아닙니다.";
                 return false;
@@ -522,7 +532,10 @@ namespace HaveABreak.Cards
             }
 
             selectedEnemyId = null;
-            pendingTargetedCardId = card.Ids.BattleCardId;
+            pendingCardEffect = new PendingEffectActivation(
+                card.Ids.BattleCardId,
+                card.SourceCard.CatalogCardId,
+                FindTargetSpec(card));
             pendingAttackerId = null;
             message = $"{card.SourceCard.DisplayName}: 효과 대상을 선택하세요.";
             return true;
@@ -550,7 +563,7 @@ namespace HaveABreak.Cards
             }
 
             selectedEnemyId = null;
-            pendingTargetedCardId = null;
+            pendingCardEffect = null;
             pendingAttackerId = option.BattleCardId;
             message = "공격할 적을 선택하세요.";
             return true;
@@ -558,8 +571,8 @@ namespace HaveABreak.Cards
 
         public void ClearPendingTargeting()
         {
-            pendingTargetedCardId = null;
             pendingAttackerId = null;
+            pendingCardEffect = null;
             selectedEnemyId = null;
         }
 
@@ -570,12 +583,60 @@ namespace HaveABreak.Cards
         {
             message = null;
             BattleRuntimeState runtime = context?.Runtime;
+            if (pendingCardEffect?.HasPlacementResult == true &&
+                pendingCardEffect.MatchesSource(battleCardId))
+            {
+                if (runtime == null ||
+                    string.IsNullOrWhiteSpace(selectedEnemyId) ||
+                    !pendingCardEffect.TrySelectSingleTarget(
+                        runtime,
+                        selectedEnemyId,
+                        out EffectTargetCandidate candidate) ||
+                    !pendingCardEffect.TryDeclare(runtime) ||
+                    !EnchantFixedTargetResolver.TryDeclare(
+                        battleCardId,
+                        candidate.TargetId,
+                        runtime.EnemyPositions,
+                        runtime.Enchants,
+                        out EnchantFixedTargetDeclaration declaration))
+                {
+                    message = "소환 효과 발동 실패: 올바른 적 대상을 선택해야 합니다.";
+                    return false;
+                }
+
+                BattleRuntimeCardPlayResult pendingPlay =
+                    pendingCardEffect.PlacementResult;
+                if (!BattleRuntimeSummonEffectService.TryResolve(
+                        runtime,
+                        pendingPlay,
+                        declaration,
+                        out _,
+                        out BattleRuntimeSummonEffectFailure failure))
+                {
+                    message = $"소환 효과 발동 실패: {failure}";
+                    return false;
+                }
+
+                string cardName =
+                    pendingPlay.Card.SourceCard.DisplayName;
+                pendingCardEffect = null;
+                selectedEnemyId = null;
+                Refresh(context);
+                message = $"{cardName} 소환 효과 해결 완료.";
+                return true;
+            }
+
             BattleCardInstance card =
                 runtime?.Deck.Zones.Find(battleCardId);
             if (card?.Zone != CardZone.Hand ||
                 !RequiresEnemyTarget(card) ||
+                pendingCardEffect?.HasPlacementResult != false ||
+                !pendingCardEffect.MatchesSource(battleCardId) ||
                 string.IsNullOrWhiteSpace(selectedEnemyId) ||
-                !runtime.LivingEnemies.Contains(selectedEnemyId))
+                !pendingCardEffect.TrySelectSingleTarget(
+                    runtime,
+                    selectedEnemyId,
+                    out EffectTargetCandidate selectedTarget))
             {
                 message = "효과 발동 실패: 올바른 적 대상을 선택해야 합니다.";
                 return false;
@@ -594,7 +655,7 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            string targetId = selectedEnemyId;
+            string targetId = selectedTarget.TargetId;
             BattleActivationContext activation = new(
                 option.BattleCardId,
                 card.SourceCard.CatalogCardId,
@@ -617,9 +678,11 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            pendingActivationCardId = option.BattleCardId;
-            pendingActivationTargetId = targetId;
-            pendingTargetedCardId = null;
+            if (!pendingCardEffect.TryDeclare(runtime))
+            {
+                message = "효과 발동 실패: 대상을 확정할 수 없습니다.";
+                return false;
+            }
             pendingAttackerId = null;
             selectedEnemyId = null;
             message = $"{card.SourceCard.DisplayName} 효과 발동 · " +
@@ -733,48 +796,42 @@ namespace HaveABreak.Cards
             }
 
             Refresh(context);
-            List<BattleCardInstance> hand = context.Runtime.Deck.Zones
-                .GetCards(CardZone.Hand)
-                .Where(card => card != null)
-                .ToList();
-            BattleCardInstance source = hand.FirstOrDefault(card =>
-                string.Equals(
-                    card.Ids.BattleCardId,
-                    sourceBattleCardId,
-                    StringComparison.OrdinalIgnoreCase));
-            if (source == null || !string.Equals(
+            BattleCardInstance source = context.Runtime.Deck.Zones.Find(
+                sourceBattleCardId);
+            if (source?.Zone != CardZone.Hand ||
+                !CardEffectRegistrationCatalog.TryFind(
                     source.SourceCard.CatalogCardId,
-                    TestContentIds.C07,
-                    StringComparison.OrdinalIgnoreCase))
+                    out CardEffectRegistration registration) ||
+                registration.Route != CardEffectRoute.BanishSkill)
             {
-                selectedBanishCardIds.Remove(sourceBattleCardId);
                 return Array.Empty<BattleBanishTargetOption>();
             }
 
-            BattleCardInstance[] candidates = hand
-                .Where(card => !string.Equals(
-                    card.Ids.BattleCardId,
-                    source.Ids.BattleCardId,
-                    StringComparison.OrdinalIgnoreCase))
+            BattleCardInstance[] candidates = EffectTargetResolver
+                .GetLegalTargets(
+                    context.Runtime,
+                    registration.ResolveTargetSpec(source.SourceCard),
+                    source.Ids.BattleCardId)
+                .Select(candidate =>
+                    context.Runtime.Deck.Zones.Find(candidate.TargetId))
+                .Where(card => card != null)
                 .ToArray();
             if (candidates.Length == 0)
             {
-                selectedBanishCardIds.Remove(source.Ids.BattleCardId);
                 return Array.Empty<BattleBanishTargetOption>();
             }
 
-            string selectedId = selectedBanishCardIds.TryGetValue(
-                    source.Ids.BattleCardId,
-                    out string current)
-                ? current
-                : null;
+            string selectedId =
+                pendingCardEffect?.TargetSpec?.Kind ==
+                    EffectTargetKind.HandCard &&
+                pendingCardEffect.MatchesSource(source.Ids.BattleCardId)
+                    ? pendingCardEffect.SingleTargetId
+                    : null;
             BattleCardInstance selected = candidates.FirstOrDefault(card =>
                 string.Equals(
                     card.Ids.BattleCardId,
                     selectedId,
                     StringComparison.OrdinalIgnoreCase)) ?? candidates[0];
-            selectedBanishCardIds[source.Ids.BattleCardId] =
-                selected.Ids.BattleCardId;
             return candidates.Select(card => new BattleBanishTargetOption(
                     source,
                     card,
@@ -807,9 +864,22 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            selectedBanishCardIds[target.SourceBattleCardId] =
-                target.BattleCardId;
-            return true;
+            if (pendingCardEffect == null ||
+                !pendingCardEffect.MatchesSource(
+                    target.SourceBattleCardId) ||
+                pendingCardEffect.TargetSpec?.Kind !=
+                    EffectTargetKind.HandCard)
+            {
+                pendingCardEffect = new PendingEffectActivation(
+                    target.SourceBattleCardId,
+                    target.Source.SourceCard.CatalogCardId,
+                    FindTargetSpec(target.Source));
+            }
+
+            return pendingCardEffect.TrySelectSingleTarget(
+                context.Runtime,
+                target.BattleCardId,
+                out _);
         }
 
         public BattleBanishTargetOption CycleBanishTarget(
@@ -829,7 +899,13 @@ namespace HaveABreak.Cards
                 option => option.IsSelected);
             int nextIndex = (selectedIndex + 1 + options.Length) % options.Length;
             BattleBanishTargetOption next = options[nextIndex];
-            selectedBanishCardIds[next.SourceBattleCardId] = next.BattleCardId;
+            if (!SelectBanishTarget(
+                    context,
+                    next.SourceBattleCardId,
+                    next.BattleCardId))
+            {
+                return null;
+            }
             return new BattleBanishTargetOption(
                 next.Source,
                 next.Target,
@@ -882,9 +958,9 @@ namespace HaveABreak.Cards
                     out BattleRuntimeCardPlayFailure playFailure,
                     out CardPlayFailure cardFailure);
                 bool targetingLocked =
-                    IsSelectingEnemyTarget &&
+                    HasPendingEffectTargetSelection &&
                     !string.Equals(
-                        pendingTargetedCardId,
+                        pendingCardEffect.SourceCardId,
                         card.Ids.BattleCardId,
                         StringComparison.OrdinalIgnoreCase);
                 if (chainLocked)
@@ -964,10 +1040,13 @@ private BattleCardPlayCommandResult TryPlayCard(
             context?.Session?.Outcome ?? BattleOutcome.Ongoing,
             $"카드 사용 실패: {option.BlockReason}");
     }
+    string actionTarget = RequiresPostSummonEnemyTarget(option.Card)
+        ? null
+        : selectedEnemyId;
     if (!BattleRuntimePlayerCardActionService.TryResolve(
             context.Runtime,
             option.BattleCardId,
-            selectedEnemyId,
+            actionTarget,
             option.SelectedBanishTargetId,
             monsterPosition,
             out BattleRuntimePlayerCardActionResult result,
@@ -985,12 +1064,23 @@ private BattleCardPlayCommandResult TryPlayCard(
             $"카드 사용 실패{positionText}: {actionFailure} / " +
             $"{playFailure} / {cardFailure}");
     }
-    selectedBanishCardIds.Remove(option.BattleCardId);
-    pendingTargetedCardId = null;
+    bool waitsForSummonTarget =
+        RequiresPostSummonEnemyTarget(result.Play.Card) &&
+        result.SummonEffect == null;
+    pendingCardEffect = waitsForSummonTarget
+        ? new PendingEffectActivation(
+            result.Play.Card.Ids.BattleCardId,
+            result.Play.Card.SourceCard.CatalogCardId,
+            FindTargetSpec(result.Play.Card),
+            result.Play)
+        : null;
     selectedEnemyId = null;
     BattleOutcome outcome = FinalizeOutcome(context);
     Refresh(context);
-    string message = monsterPosition.HasValue
+    string message = waitsForSummonTarget
+        ? $"{result.Play.Card.SourceCard.DisplayName} 소환 완료 · " +
+          "효과 대상을 선택하세요."
+        : monsterPosition.HasValue
         ? $"{result.Play.Card.SourceCard.DisplayName} 사용 완료 · " +
           $"몬스터존 {monsterPosition.Value}"
         : $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
@@ -1179,17 +1269,18 @@ private BattleCardPlayCommandResult TryPlayCard(
                     }
                     pendingAttackDeclaration = null;
                 }
-                else if (!string.IsNullOrWhiteSpace(
-                             pendingActivationCardId) &&
-                         string.Equals(
-                             link.Activation.SourceId,
-                             pendingActivationCardId,
-                             StringComparison.OrdinalIgnoreCase))
+                else if (pendingCardEffect?.Phase ==
+                             PendingEffectActivationPhase.Declared &&
+                         pendingCardEffect.MatchesSource(
+                             link.Activation.SourceId))
                 {
-                    selectedEnemyId = pendingActivationTargetId;
+                    string sourceCardId =
+                        pendingCardEffect.SourceCardId;
+                    selectedEnemyId =
+                        pendingCardEffect.SingleTargetId;
                     cardResult = TryPlayCard(
                         context,
-                        pendingActivationCardId,
+                        sourceCardId,
                         null,
                         true);
                     if (cardResult?.Succeeded != true)
@@ -1197,8 +1288,7 @@ private BattleCardPlayCommandResult TryPlayCard(
                         status = BattleChainLinkStatus.Failed;
                         succeeded = false;
                     }
-                    pendingActivationCardId = null;
-                    pendingActivationTargetId = null;
+                    pendingCardEffect = null;
                     selectedEnemyId = null;
                 }
 
@@ -1314,7 +1404,6 @@ private BattleCardPlayCommandResult TryPlayCard(
                     $"{planFailure} / {enemyTurnFailure} / action {actionIndex}");
             }
 
-            selectedBanishCardIds.Clear();
             ClearPendingTargeting();
             Refresh(context);
             string message = result.Outcome == BattleOutcome.Ongoing
@@ -1392,6 +1481,29 @@ private BattleCardPlayCommandResult TryPlayCard(
                        card.SourceCard.CatalogCardId,
                        out CardEffectRegistration registration) &&
                    registration.Route == CardEffectRoute.TargetedSkill;
+        }
+
+        private static bool RequiresPostSummonEnemyTarget(
+            BattleCardInstance card)
+        {
+            return card?.SourceCard != null &&
+                   card.SourceCard.HasEnchantCompatibilityTag(
+                       EnchantCompatibilityTag.FixedSingleEnemyTarget) &&
+                   CardEffectRegistrationCatalog.TryFind(
+                       card.SourceCard.CatalogCardId,
+                       out CardEffectRegistration registration) &&
+                   registration.Route == CardEffectRoute.Summon;
+        }
+
+        private static EffectTargetSpec FindTargetSpec(
+            BattleCardInstance card)
+        {
+            return card?.SourceCard != null &&
+                   CardEffectRegistrationCatalog.TryFind(
+                       card.SourceCard.CatalogCardId,
+                       out CardEffectRegistration registration)
+                ? registration.ResolveTargetSpec(card.SourceCard)
+                : null;
         }
 
         private static string FirstLivingEnemyId(BattleRuntimeState runtime)

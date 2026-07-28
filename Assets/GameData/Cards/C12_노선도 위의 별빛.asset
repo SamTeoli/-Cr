@@ -57,5 +57,6 @@ MonoBehaviour:
     attack: 0
     health: 0
     rulesText: "\uCDE8\uC57D \uBD80\uC5EC \uD6C4 \uD53C\uD574 1"
+  effectTargetSpec: {fileID: 11400000, guid: cd5501e6ce974adbac9c8e0a1028aa16, type: 2}
   effects: []
   duration: 0

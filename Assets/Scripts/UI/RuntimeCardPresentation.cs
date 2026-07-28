@@ -121,7 +121,9 @@ namespace HaveABreak.Cards
                          (card is MonsterCardData fallbackMonster
                              ? fallbackMonster.Health
                              : 0);
-            string rules = level?.RulesText ?? card.RulesText;
+            string rules = CardEffectTextFormatter.BuildCardRulesText(
+                card,
+                level?.RulesText ?? card.RulesText);
             bool isMonster = card.CardType == CardType.Monster;
             string accessibility =
                 $"{card.DisplayName}, {card.CardType}, {card.Rarity}, " +

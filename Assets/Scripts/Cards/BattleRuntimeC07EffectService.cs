@@ -25,8 +25,19 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    registration.ResolveTargetSpec(
+                        playResult.Card.SourceCard),
+                    selectedBanishBattleCardId,
+                    playResult.Card.Ids.BattleCardId,
+                    out EffectTargetCandidate selected))
+            {
+                return false;
+            }
+
             return handler.TryResolve(
-                runtime, playResult, selectedBanishBattleCardId, out result);
+                runtime, playResult, selected.TargetId, out result);
         }
     }
 }

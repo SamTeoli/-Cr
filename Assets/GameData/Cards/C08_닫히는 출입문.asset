@@ -58,5 +58,6 @@ MonoBehaviour:
     attack: 0
     health: 0
     rulesText: "\uC18D\uBC15 2"
+  effectTargetSpec: {fileID: 11400000, guid: cd5501e6ce974adbac9c8e0a1028aa16, type: 2}
   effects: []
   activatesAtEnemyTurnStart: 1

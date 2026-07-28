@@ -349,12 +349,20 @@ namespace HaveABreak.Cards
 
             if (registration.Route == CardEffectRoute.Summon)
             {
-                effectResolved = BattleRuntimeSummonEffectService.TryResolve(
-                    runtime,
-                    play,
-                    summonTarget,
-                    out summonEffect,
-                    out _);
+                bool waitsForTarget =
+                    card.SourceCard.HasEnchantCompatibilityTag(
+                        EnchantCompatibilityTag.FixedSingleEnemyTarget) &&
+                    !summonTarget.HasValue;
+                if (!waitsForTarget)
+                {
+                    effectResolved =
+                        BattleRuntimeSummonEffectService.TryResolve(
+                            runtime,
+                            play,
+                            summonTarget,
+                            out summonEffect,
+                            out _);
+                }
             }
             else if (registration.Route == CardEffectRoute.TargetedSkill)
             {
@@ -478,24 +486,37 @@ namespace HaveABreak.Cards
                 card.SourceCard.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.FixedSingleEnemyTarget))
             {
-                if (!EnchantFixedTargetResolver.TryDeclare(
-                        battleCardId,
-                        targetEnemyId,
-                        runtime.EnemyPositions,
-                        runtime.Enchants,
-                        out EnchantFixedTargetDeclaration declaration) ||
-                    !IsActiveEnemy(runtime, targetEnemyId))
+                if (!string.IsNullOrWhiteSpace(targetEnemyId))
                 {
-                    failure =
-                        BattleRuntimePlayerCardActionFailure.MissingTarget;
-                    return false;
-                }
+                    if (!EffectTargetResolver.TryResolveSingleTarget(
+                            runtime,
+                            registration.ResolveTargetSpec(
+                                card.SourceCard),
+                            targetEnemyId,
+                            out EffectTargetCandidate candidate) ||
+                        !EnchantFixedTargetResolver.TryDeclare(
+                            battleCardId,
+                            candidate.TargetId,
+                            runtime.EnemyPositions,
+                            runtime.Enchants,
+                            out EnchantFixedTargetDeclaration declaration))
+                    {
+                        failure =
+                            BattleRuntimePlayerCardActionFailure.MissingTarget;
+                        return false;
+                    }
 
-                summonTarget = declaration;
+                    summonTarget = declaration;
+                }
             }
             else if (registration.Route == CardEffectRoute.TargetedSkill)
             {
-                if (!IsActiveEnemy(runtime, targetEnemyId))
+                if (!EffectTargetResolver.TryResolveSingleTarget(
+                        runtime,
+                        registration.ResolveTargetSpec(
+                            card.SourceCard),
+                        targetEnemyId,
+                        out _))
                 {
                     failure =
                         BattleRuntimePlayerCardActionFailure.MissingTarget;
@@ -504,10 +525,13 @@ namespace HaveABreak.Cards
             }
             else if (registration.Route == CardEffectRoute.BanishSkill)
             {
-                BattleCardInstance selected = runtime.Deck.Zones.Find(
-                    selectedBanishBattleCardId);
-                if (selected == null || selected == card ||
-                    selected.Zone != CardZone.Hand)
+                if (!EffectTargetResolver.TryResolveSingleTarget(
+                        runtime,
+                        registration.ResolveTargetSpec(
+                            card.SourceCard),
+                        selectedBanishBattleCardId,
+                        card.Ids.BattleCardId,
+                        out _))
                 {
                     failure = BattleRuntimePlayerCardActionFailure
                         .InvalidBanishSelection;
@@ -517,17 +541,6 @@ namespace HaveABreak.Cards
 
             failure = BattleRuntimePlayerCardActionFailure.None;
             return true;
-        }
-
-        private static bool IsActiveEnemy(
-            BattleRuntimeState runtime,
-            string enemyId)
-        {
-            BattleEnemyRuntimeState enemy = runtime.FindEnemy(enemyId);
-            return enemy != null && enemy.IsAlive &&
-                   runtime.LivingEnemies.Contains(enemyId) &&
-                   runtime.EnemyPositions.FindPosition(enemyId).HasValue &&
-                   runtime.EnemyStatuses.Find(enemyId) != null;
         }
 
         private static CardEffectRegistration FindRegistration(

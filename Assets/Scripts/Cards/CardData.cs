@@ -30,6 +30,7 @@ namespace HaveABreak.Cards
         [SerializeField] private List<CardLevelData> levels = new();
 
         [Header("Effects")]
+        [SerializeField] private EffectTargetSpec effectTargetSpec;
         [SerializeField] private List<CardEffectData> effects = new();
 
         public string CatalogCardId => catalogCardId;
@@ -45,6 +46,7 @@ namespace HaveABreak.Cards
         public string SourceDocument => sourceDocument;
         public IReadOnlyList<EnchantCompatibilityTag> EnchantCompatibilityTags => enchantCompatibilityTags;
         public IReadOnlyList<CardLevelData> Levels => levels;
+        public EffectTargetSpec EffectTargetSpec => effectTargetSpec;
         public IReadOnlyList<CardEffectData> Effects => effects;
         public abstract CardType CardType { get; }
 
@@ -79,7 +81,15 @@ namespace HaveABreak.Cards
             {
                 Debug.LogError($"Missing level {level} data for card '{catalogCardId}'.", this);
                 return new ResolvedCardData(
-                    this, requestedLevel, level, manaCost, fallbackAttack, fallbackHealth, rulesText);
+                    this,
+                    requestedLevel,
+                    level,
+                    manaCost,
+                    fallbackAttack,
+                    fallbackHealth,
+                    CardEffectTextFormatter.BuildCardRulesText(
+                        this,
+                        rulesText));
             }
 
             return new ResolvedCardData(
@@ -89,7 +99,9 @@ namespace HaveABreak.Cards
                 levelData.ManaCost,
                 levelData.Attack,
                 levelData.Health,
-                levelData.RulesText);
+                CardEffectTextFormatter.BuildCardRulesText(
+                    this,
+                    levelData.RulesText));
         }
 
 #if UNITY_EDITOR

@@ -1113,7 +1113,8 @@ namespace HaveABreak.Editor
             bool valid = monsters.TryAdd(ally, out BattleMonsterState allyState);
             allyState.ApplyDamage(2);
             valid &= C11LateNightWaitingRoomResolver.TryResolve(
-                source, 1, deck, monsters, new BattleEventLog(),
+                source, 1, deck, monsters, allyState,
+                new BattleEventLog(),
                 new BattleEffectResolutionTracker(),
                 out int drawn, out string defended);
             return valid && drawn == 2 && defended == ally.Ids.BattleCardId &&

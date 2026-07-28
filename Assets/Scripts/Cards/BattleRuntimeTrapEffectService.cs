@@ -44,13 +44,26 @@ namespace HaveABreak.Cards
             out int replacementSteps)
         {
             replacementSteps = requestedSteps;
-            if (!TryGetHandler(runtime, installation, out IEnemyMoveTrapCardEffectHandler handler))
+            if (!TryGetHandler(
+                    runtime,
+                    installation,
+                    out IEnemyMoveTrapCardEffectHandler handler,
+                    out EffectTargetSpec targetSpec))
+            {
+                return false;
+            }
+
+            if (!EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    targetSpec,
+                    movingEnemyId,
+                    out EffectTargetCandidate movingEnemy))
             {
                 return false;
             }
 
             return handler.TryResolve(runtime, installation, moveAttemptEvent,
-                requestedSteps, movingEnemyId, out replacementSteps);
+                requestedSteps, movingEnemy.TargetId, out replacementSteps);
         }
 
         public static bool TryResolveIncomingAttack(
@@ -61,13 +74,26 @@ namespace HaveABreak.Cards
             out int defenseGained)
         {
             defenseGained = 0;
-            if (!TryGetHandler(runtime, installation, out IIncomingAttackTrapCardEffectHandler handler))
+            if (!TryGetHandler(
+                    runtime,
+                    installation,
+                    out IIncomingAttackTrapCardEffectHandler handler,
+                    out EffectTargetSpec targetSpec))
+            {
+                return false;
+            }
+
+            if (!EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    targetSpec,
+                    targetBattleCardId,
+                    out EffectTargetCandidate targetMonster))
             {
                 return false;
             }
 
             return handler.TryResolve(runtime, installation, declaredAttack,
-                targetBattleCardId, out defenseGained);
+                targetMonster.TargetId, out defenseGained);
         }
 
         public static bool TryCancelEnemyAbility(
@@ -80,7 +106,20 @@ namespace HaveABreak.Cards
         {
             cancelled = false;
             returnedToHand = false;
-            if (!TryGetHandler(runtime, installation, out IEnemyAbilityTrapCardEffectHandler handler))
+            if (!TryGetHandler(
+                    runtime,
+                    installation,
+                    out IEnemyAbilityTrapCardEffectHandler handler,
+                    out EffectTargetSpec targetSpec))
+            {
+                return false;
+            }
+
+            if (!EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    targetSpec,
+                    ability.SourceEnemyId,
+                    out _))
             {
                 return false;
             }
@@ -92,22 +131,34 @@ namespace HaveABreak.Cards
         private static bool TryGetHandler<THandler>(
             BattleRuntimeState runtime,
             BattleRuntimeTrapInstallation installation,
-            out THandler handler) where THandler : class, ICardEffectHandler
+            out THandler handler,
+            out EffectTargetSpec targetSpec)
+            where THandler : class, ICardEffectHandler
         {
             handler = null;
-            return runtime != null &&
-                   installation != null &&
-                   installation.SourceTrap != null &&
-                   runtime.TrapInstallations.Find(
-                       installation.SourceTrap.Ids.BattleCardId) == installation &&
-                   runtime.Turn.Phase == BattleTurnPhase.EnemyTurn &&
-                   runtime.Turn.PlayerTurnNumber >= installation.EligibleEnemyTurn &&
-                   installation.SourceTrap.Zone == CardZone.SkillField &&
-                   CardEffectRegistrationCatalog.TryFind(
-                       installation.SourceTrap.SourceCard.CatalogCardId,
-                       out CardEffectRegistration registration) &&
-                   (handler = registration.Handler as THandler) != null &&
-                   runtime.EventLog.Find(installation.PlayedEventId) != null;
+            targetSpec = null;
+            if (runtime == null ||
+                installation == null ||
+                installation.SourceTrap == null ||
+                runtime.TrapInstallations.Find(
+                    installation.SourceTrap.Ids.BattleCardId) !=
+                    installation ||
+                runtime.Turn.Phase != BattleTurnPhase.EnemyTurn ||
+                runtime.Turn.PlayerTurnNumber <
+                    installation.EligibleEnemyTurn ||
+                installation.SourceTrap.Zone != CardZone.SkillField ||
+                !CardEffectRegistrationCatalog.TryFind(
+                    installation.SourceTrap.SourceCard.CatalogCardId,
+                    out CardEffectRegistration registration) ||
+                (handler = registration.Handler as THandler) == null ||
+                runtime.EventLog.Find(installation.PlayedEventId) == null)
+            {
+                return false;
+            }
+
+            targetSpec = registration.ResolveTargetSpec(
+                installation.SourceTrap.SourceCard);
+            return targetSpec != null;
         }
     }
 }

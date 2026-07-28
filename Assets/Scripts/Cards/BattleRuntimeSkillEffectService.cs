@@ -26,13 +26,6 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(fixedTargetEnemyId) ||
-                runtime.FindEnemy(fixedTargetEnemyId) == null)
-            {
-                failure = BattleRuntimeSkillEffectFailure.MissingTarget;
-                return false;
-            }
-
             if (!CardEffectRegistrationCatalog.TryFind(
                     playResult.Card.SourceCard.CatalogCardId,
                     out CardEffectRegistration registration) ||
@@ -42,8 +35,19 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    registration.ResolveTargetSpec(
+                        playResult.Card.SourceCard),
+                    fixedTargetEnemyId,
+                    out EffectTargetCandidate target))
+            {
+                failure = BattleRuntimeSkillEffectFailure.MissingTarget;
+                return false;
+            }
+
             return handler.TryResolve(
-                runtime, playResult, fixedTargetEnemyId, out result, out failure);
+                runtime, playResult, target.TargetId, out result, out failure);
         }
     }
 }

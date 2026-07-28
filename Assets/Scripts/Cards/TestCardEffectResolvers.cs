@@ -801,6 +801,7 @@ namespace HaveABreak.Cards
             int playerTurn,
             BattleDeckState deck,
             BattleMonsterRegistry monsters,
+            BattleMonsterState defenseTarget,
             BattleEventLog eventLog,
             BattleEffectResolutionTracker resolutions,
             out int drawnCount,
@@ -841,23 +842,13 @@ namespace HaveABreak.Cards
 
             if (sourceBarrier.CurrentLevel >= 4 && drawnCount > 0)
             {
-                BattleMonsterState lowest = null;
-                foreach (BattleMonsterState monster in monsters.Monsters)
+                if (defenseTarget != null &&
+                    defenseTarget.Card.Zone == CardZone.MonsterField &&
+                    monsters.Find(defenseTarget.BattleCardId) ==
+                        defenseTarget)
                 {
-                    if (monster == null || monster.Card.Zone != CardZone.MonsterField) continue;
-                    if (lowest == null || monster.CurrentHealth < lowest.CurrentHealth ||
-                        monster.CurrentHealth == lowest.CurrentHealth &&
-                        string.Compare(monster.BattleCardId, lowest.BattleCardId,
-                            StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        lowest = monster;
-                    }
-                }
-
-                if (lowest != null)
-                {
-                    lowest.ApplyDefense(1);
-                    defendedMonsterId = lowest.BattleCardId;
+                    defenseTarget.ApplyDefense(1);
+                    defendedMonsterId = defenseTarget.BattleCardId;
                 }
             }
 

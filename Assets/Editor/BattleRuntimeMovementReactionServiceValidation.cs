@@ -83,6 +83,20 @@ namespace HaveABreak.Editor
                     item.EventType == BattleEventType.EnemyMoved &&
                     item.ParentEventId == pushPlay.PlayedEvent.EventId &&
                     item.TargetId == "ENEMY-A");
+            BattleEventRecord invalidMovedEvent = runtime.EventLog.Record(
+                BattleEventType.EnemyMoved,
+                "InvalidEnemyMoved",
+                "MISSING-ENEMY",
+                "MISSING-ENEMY",
+                "MISSING-ENEMY");
+            if (BattleRuntimeMovementReactionService.TryResolve(
+                    runtime,
+                    invalidMovedEvent,
+                    out _))
+            {
+                return false;
+            }
+
             if (!BattleRuntimeMovementReactionService.TryResolve(
                     runtime,
                     movedEvent,

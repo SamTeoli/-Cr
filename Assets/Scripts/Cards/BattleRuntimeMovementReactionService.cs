@@ -13,7 +13,13 @@ namespace HaveABreak.Cards
             if (runtime == null || movedEvent == null ||
                 runtime.Turn.PlayerTurnNumber < 1 ||
                 movedEvent.EventType != BattleEventType.EnemyMoved ||
-                runtime.EventLog.Find(movedEvent.EventId) != movedEvent)
+                runtime.EventLog.Find(movedEvent.EventId) != movedEvent ||
+                !EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    BuiltInEffectTargetSpecs
+                        .EnemyMonsterSingleOnResolution,
+                    movedEvent.TargetId,
+                    out _))
             {
                 return false;
             }

@@ -57,4 +57,5 @@ MonoBehaviour:
     health: 0
     rulesText: "\uBE44\uC6A9 2 \uC774\uC0C1 \uCE74\uB4DC \uC18C\uBA78 \uC2DC \uC544\uAD70
       \uBAAC\uC2A4\uD130 \uBC29\uC5B4 2"
+  effectTargetSpec: {fileID: 11400000, guid: e182dc844e8e403999c5fa46de24c8b3, type: 2}
   effects: []

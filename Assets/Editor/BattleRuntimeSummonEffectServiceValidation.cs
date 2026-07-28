@@ -53,6 +53,21 @@ namespace HaveABreak.Editor
                 out BattleRuntimeCardPlayResult c01Play,
                 out _,
                 out _);
+            EnchantFixedTargetDeclaration invalidTarget = new(
+                c01.Ids.BattleCardId,
+                "MISSING-ENEMY",
+                false,
+                EnemyFieldPosition.Right);
+            valid &= !BattleRuntimeSummonEffectService.TryResolve(
+                         runtime,
+                         c01Play,
+                         invalidTarget,
+                         out _,
+                         out BattleRuntimeSummonEffectFailure
+                             invalidTargetFailure) &&
+                     invalidTargetFailure ==
+                         BattleRuntimeSummonEffectFailure
+                             .MissingTargetDeclaration;
             valid &= BattleRuntimeSummonEffectService.TryResolve(
                 runtime,
                 c01Play,

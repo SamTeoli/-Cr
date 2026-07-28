@@ -165,9 +165,29 @@ namespace HaveABreak.Editor
                     PlayerMonsterFieldPosition.Center)) ||
                     runtime.Deck.Zones.Count(CardZone.Hand) !=
                         handCountBeforeInvalid - 1 ||
+                    play.Result.SummonEffect != null ||
+                    !viewModel.IsSelectingEnemyTarget ||
+                    viewModel.PendingTargetedCardId !=
+                        c01.Ids.BattleCardId ||
                     viewModel.TryPlayCard(
                         context,
                         c01.Ids.BattleCardId).Succeeded)
+                {
+                    return false;
+                }
+
+                if (!viewModel.SelectEnemy(
+                        context,
+                        selectedEnemy.EnemyId) ||
+                    !viewModel.TryDeclareTargetedCardActivation(
+                        context,
+                        c01.Ids.BattleCardId,
+                        out string summonEffectMessage) ||
+                    string.IsNullOrWhiteSpace(summonEffectMessage) ||
+                    viewModel.IsSelectingEnemyTarget ||
+                    runtime.EnemyPositions.FindPosition(
+                        selectedEnemy.EnemyId) !=
+                    EnemyFieldPosition.Left)
                 {
                     return false;
                 }

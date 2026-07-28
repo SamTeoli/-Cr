@@ -55,4 +55,5 @@ MonoBehaviour:
     attack: 0
     health: 0
     rulesText: "\uB2E4\uB978 \uC801 1\uAC1C\uC5D0\uAC8C \uC57D\uD654 1 \uCD94\uAC00"
+  effectTargetSpec: {fileID: 11400000, guid: cc19139a4470413eb055541261b083ac, type: 2}
   effects: []
