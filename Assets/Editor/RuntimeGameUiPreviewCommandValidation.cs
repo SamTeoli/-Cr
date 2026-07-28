@@ -36,6 +36,13 @@ namespace HaveABreak.Editor
                              root.NewRunButton.interactable;
 
                 root?.NewRunButton?.onClick.Invoke();
+                bool confirmationShown =
+                    root?.CurrentScreen == RuntimeGameScreen.Confirmation;
+                if (confirmationShown)
+                {
+                    root.ConfirmActionButton?.onClick.Invoke();
+                }
+
                 bool preparation =
                     root?.CurrentScreen == RuntimeGameScreen.RunPreparation &&
                     root.RunPreparationCardList != null &&
@@ -52,15 +59,16 @@ namespace HaveABreak.Editor
                 {
                     Debug.Log(
                         "Final UI preview new-run command validation passed: " +
-                        "the start button opens deck preparation through the " +
-                        "runtime controller and cancellation returns to start.");
+                        "the start button handles optional overwrite confirmation, " +
+                        "opens deck preparation through the runtime controller, " +
+                        "and cancellation returns to start.");
                 }
                 else
                 {
                     Debug.LogError(
                         "Final UI preview new-run command validation failed. " +
-                        $"start={start}, preparation={preparation}, " +
-                        $"returned={returned}");
+                        $"start={start}, confirmationShown={confirmationShown}, " +
+                        $"preparation={preparation}, returned={returned}");
                 }
 
                 return valid;
