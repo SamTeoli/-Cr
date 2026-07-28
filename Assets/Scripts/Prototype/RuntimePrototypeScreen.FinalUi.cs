@@ -705,6 +705,13 @@ namespace HaveABreak.Cards
                 "end-turn",
                 "턴 종료",
                 snapshot.CanEndTurn));
+            if (snapshot.Chain.CanPlayerPass)
+            {
+                options.Add(new RuntimeGameCommandOption(
+                    "chain-pass",
+                    "체인 해결",
+                    true));
+            }
             options.Add(new RuntimeGameCommandOption(
                 "settle",
                 snapshot.FinishedText ?? "전투 정산",
@@ -735,6 +742,10 @@ namespace HaveABreak.Cards
                         snapshot.RecentEvents
                             .TakeLast(3)
                             .Select(option => option.DisplayText)));
+            }
+            if (snapshot.Chain.IsActive)
+            {
+                summaryParts.Add(snapshot.Chain.DisplayText);
             }
 
             FinalUiRoot.BindBattle(
@@ -822,6 +833,16 @@ namespace HaveABreak.Cards
                     SaveRun(null);
                 }
             }
+            else if (commandId == "chain-pass")
+            {
+                BattleChainCommandResult command =
+                    battleScreen.TryPassAndResolveChain(progress);
+                message = command.Message;
+                if (command.Succeeded)
+                {
+                    SaveRun(null);
+                }
+            }
             else if (commandId == "settle")
             {
                 SettleBattle();
@@ -857,10 +878,6 @@ namespace HaveABreak.Cards
                                 progress,
                                 pendingAttackerId);
                         message = command.Message;
-                        if (command.Succeeded)
-                        {
-                            SaveRun(null);
-                        }
                     }
                 }
             }

@@ -133,7 +133,11 @@ namespace HaveABreak.Cards
                 recentEvents,
                 actions.IsSelectingEnemyTarget,
                 actions.PendingTargetedCardId ??
-                actions.PendingAttackerId);
+                actions.PendingAttackerId,
+                new BattleChainDisplayOption(
+                    runtime.Chain.Phase,
+                    runtime.Chain.NextParticipant,
+                    runtime.Chain.Links.ToArray()));
         }
 
         public bool SelectEnemy(
@@ -232,6 +236,13 @@ namespace HaveABreak.Cards
             return actions.TryAttack(
                 progress?.ActiveEncounter,
                 battleCardId);
+        }
+
+        public BattleChainCommandResult TryPassAndResolveChain(
+            RunEncounterProgressState progress)
+        {
+            return actions.TryPassAndResolveChain(
+                progress?.ActiveEncounter);
         }
 
         public BattleEndTurnCommandResult TryEndPlayerTurn(

@@ -254,6 +254,29 @@ namespace HaveABreak.Cards
         public string Message { get; }
     }
 
+    public sealed class BattleChainCommandResult
+    {
+        internal BattleChainCommandResult(
+            bool succeeded,
+            BattleRuntimePlayerAttackResult attackResult,
+            BattleRuntimePlayerAttackFailure attackFailure,
+            BattleOutcome outcome,
+            string message)
+        {
+            Succeeded = succeeded;
+            AttackResult = attackResult;
+            AttackFailure = attackFailure;
+            Outcome = outcome;
+            Message = message;
+        }
+
+        public bool Succeeded { get; }
+        public BattleRuntimePlayerAttackResult AttackResult { get; }
+        public BattleRuntimePlayerAttackFailure AttackFailure { get; }
+        public BattleOutcome Outcome { get; }
+        public string Message { get; }
+    }
+
     public sealed class BattleEndTurnCommandResult
     {
         internal BattleEndTurnCommandResult(
@@ -302,6 +325,7 @@ namespace HaveABreak.Cards
         private string selectedEnemyId;
         private string pendingTargetedCardId;
         private string pendingAttackerId;
+        private BattleRuntimePlayerAttackDeclaration pendingAttackDeclaration;
 
         public string SelectedEnemyId => selectedEnemyId;
         public string PendingTargetedCardId => pendingTargetedCardId;
@@ -315,6 +339,7 @@ namespace HaveABreak.Cards
             selectedEnemyId = null;
             pendingTargetedCardId = null;
             pendingAttackerId = null;
+            pendingAttackDeclaration = null;
             selectedBanishCardIds.Clear();
         }
 
@@ -342,6 +367,11 @@ namespace HaveABreak.Cards
                 runtime.Monsters.Find(pendingAttackerId) == null)
             {
                 pendingAttackerId = null;
+            }
+            if (runtime.Chain.Phase == BattleChainPhase.Idle &&
+                runtime.Turn.Phase != BattleTurnPhase.PlayerActionResolving)
+            {
+                pendingAttackDeclaration = null;
             }
 
             HashSet<string> handIds = runtime.Deck.Zones
@@ -948,11 +978,11 @@ public BattleCardPlayCommandResult TryPlayCard(
                     $"공격 실패: {reason}");
             }
 
-            if (!BattleRuntimePlayerAttackService.TryResolve(
+            if (!BattleRuntimePlayerAttackService.TryDeclare(
                     context.Runtime,
                     option.BattleCardId,
                     selectedEnemyId,
-                    out BattleRuntimePlayerAttackResult result,
+                    out BattleRuntimePlayerAttackDeclaration declaration,
                     out BattleRuntimePlayerAttackFailure failure))
             {
                 return new BattleMonsterAttackCommandResult(
@@ -964,21 +994,115 @@ public BattleCardPlayCommandResult TryPlayCard(
                     $"공격 실패: {failure}");
             }
 
-            BattleOutcome outcome = FinalizeOutcome(context);
+            BattleActivationContext activation = new(
+                option.BattleCardId,
+                "SYSTEM-PLAYER-MONSTER-ATTACK",
+                BattleChainParticipant.Player,
+                "AttackDeclared",
+                0,
+                new[]
+                {
+                    new BattleEffectTarget(
+                        selectedEnemyId,
+                        "EnemyMonster")
+                });
+            if (!context.Runtime.Chain.TryBegin(
+                    activation,
+                    out BattleChainLink firstLink) ||
+                firstLink == null ||
+                !context.Runtime.Chain.TryPass(
+                    BattleChainParticipant.Enemy))
+            {
+                context.Runtime.Turn.TryCompletePlayerAction(out _);
+                return new BattleMonsterAttackCommandResult(
+                    false,
+                    option,
+                    null,
+                    BattleRuntimePlayerAttackFailure.InvalidDeclaration,
+                    context.Session.Outcome,
+                    "공격 선언 실패: 체인을 시작할 수 없습니다.");
+            }
+
+            pendingAttackDeclaration = declaration;
             pendingAttackerId = null;
             selectedEnemyId = null;
             Refresh(context);
-            string message = $"공격 완료 · 피해 {result.DamageApplied}";
+
+            return new BattleMonsterAttackCommandResult(
+                true,
+                option,
+                null,
+                failure,
+                context.Session.Outcome,
+                "공격 선언 · 체인 1. 체인 해결을 누르세요.");
+        }
+
+        public BattleChainCommandResult TryPassAndResolveChain(
+            BattleRuntimeEncounterContext context)
+        {
+            BattleRuntimeState runtime = context?.Runtime;
+            if (runtime == null ||
+                runtime.Chain.Phase != BattleChainPhase.Building ||
+                runtime.Chain.NextParticipant !=
+                BattleChainParticipant.Player ||
+                !runtime.Chain.TryPass(BattleChainParticipant.Player))
+            {
+                return new BattleChainCommandResult(
+                    false,
+                    null,
+                    BattleRuntimePlayerAttackFailure.InvalidDeclaration,
+                    context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+                    "체인 해결 실패: 현재 플레이어가 패스할 차례가 아닙니다.");
+            }
+
+            BattleRuntimePlayerAttackResult attackResult = null;
+            BattleRuntimePlayerAttackFailure attackFailure =
+                BattleRuntimePlayerAttackFailure.None;
+            bool succeeded = true;
+            while (runtime.Chain.TryGetNextResolvingLink(
+                       out BattleChainLink link))
+            {
+                BattleChainLinkStatus status =
+                    BattleChainLinkStatus.Resolved;
+                if (pendingAttackDeclaration != null &&
+                    string.Equals(
+                        link.Activation.SourceId,
+                        pendingAttackDeclaration.Attacker.BattleCardId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!BattleRuntimePlayerAttackService.TryResolveDeclared(
+                            runtime,
+                            pendingAttackDeclaration,
+                            out attackResult,
+                            out attackFailure))
+                    {
+                        status = BattleChainLinkStatus.Failed;
+                        succeeded = false;
+                    }
+                    pendingAttackDeclaration = null;
+                }
+
+                runtime.Chain.TryCompleteResolvingLink(link, status);
+            }
+
+            BattleOutcome outcome = FinalizeOutcome(context);
+            runtime.Chain.ClearCompleted();
+            Refresh(context);
+            string message = succeeded
+                ? attackResult == null
+                    ? "체인 해결 완료."
+                    : $"체인 해결 완료 · 공격 피해 " +
+                      $"{attackResult.DamageApplied}"
+                : $"체인 해결 실패: {attackFailure}";
             if (outcome != BattleOutcome.Ongoing)
             {
                 message += $" 전투 종료 · {outcome}";
             }
 
-            return new BattleMonsterAttackCommandResult(
-                true,
-                option,
-                result,
-                failure,
+            return new BattleChainCommandResult(
+                succeeded,
+                attackResult,
+                attackFailure,
                 outcome,
                 message);
         }

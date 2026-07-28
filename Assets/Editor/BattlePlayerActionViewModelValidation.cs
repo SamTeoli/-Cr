@@ -182,11 +182,15 @@ namespace HaveABreak.Editor
                     viewModel.TryAttack(
                         context,
                         c01.Ids.BattleCardId);
+                BattleChainCommandResult attackChain =
+                    viewModel.TryPassAndResolveChain(context);
                 if (monster == null || !monster.CanAttack ||
                     invalidAttack.Succeeded ||
                     string.IsNullOrWhiteSpace(invalidAttack.Message) ||
-                    !attack.Succeeded || attack.Result == null ||
-                    attack.Result.DamageApplied <= 0 ||
+                    !attack.Succeeded || attack.Result != null ||
+                    attackChain?.Succeeded != true ||
+                    attackChain.AttackResult == null ||
+                    attackChain.AttackResult.DamageApplied <= 0 ||
                     string.IsNullOrWhiteSpace(attack.Message))
                 {
                     return false;

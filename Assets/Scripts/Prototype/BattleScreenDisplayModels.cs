@@ -89,6 +89,48 @@ namespace HaveABreak.Cards
               $"{Record.ActorId} → {Record.TargetId}";
     }
 
+    public sealed class BattleChainDisplayOption
+    {
+        internal BattleChainDisplayOption(
+            BattleChainPhase phase,
+            BattleChainParticipant nextParticipant,
+            BattleChainLink[] links)
+        {
+            Phase = phase;
+            NextParticipant = nextParticipant;
+            Links = links ?? Array.Empty<BattleChainLink>();
+        }
+
+        public BattleChainPhase Phase { get; }
+        public BattleChainParticipant NextParticipant { get; }
+        public BattleChainLink[] Links { get; }
+        public bool IsActive => Phase != BattleChainPhase.Idle;
+        public bool CanPlayerPass =>
+            Phase == BattleChainPhase.Building &&
+            NextParticipant == BattleChainParticipant.Player;
+        public string DisplayText
+        {
+            get
+            {
+                if (!IsActive)
+                {
+                    return null;
+                }
+
+                string links = string.Join(
+                    " → ",
+                    Array.ConvertAll(
+                        Links,
+                        link => $"체인 {link.LinkIndex} " +
+                                $"{link.Activation.EffectId}"));
+                string turn = Phase == BattleChainPhase.Building
+                    ? $"다음 응답: {NextParticipant}"
+                    : "역순 해결 중";
+                return $"{links}\n{turn}";
+            }
+        }
+    }
+
     public sealed class BattleScreenSnapshot
     {
         internal BattleScreenSnapshot(
@@ -108,7 +150,8 @@ namespace HaveABreak.Cards
             BattleHandCardActionOption[] hand,
             BattleEventDisplayOption[] recentEvents,
             bool selectingEnemyTarget = false,
-            string pendingTargetSourceId = null)
+            string pendingTargetSourceId = null,
+            BattleChainDisplayOption chain = null)
         {
             Available = available;
             ErrorText = errorText;
@@ -130,6 +173,10 @@ namespace HaveABreak.Cards
                            Array.Empty<BattleEventDisplayOption>();
             SelectingEnemyTarget = selectingEnemyTarget;
             PendingTargetSourceId = pendingTargetSourceId;
+            Chain = chain ?? new BattleChainDisplayOption(
+                BattleChainPhase.Idle,
+                BattleChainParticipant.Player,
+                null);
         }
 
         public bool Available { get; }
@@ -142,7 +189,8 @@ namespace HaveABreak.Cards
         public BattleOutcome Outcome { get; }
         public bool SessionFinished { get; }
         public bool CanEndTurn =>
-            Available && !SessionFinished && !SelectingEnemyTarget;
+            Available && !SessionFinished &&
+            !SelectingEnemyTarget && !Chain.IsActive;
         public bool CanSettle => Available && SessionFinished;
         public string FinishedText => CanSettle
             ? $"전투 종료: {Outcome}. 정산을 진행하세요."
@@ -155,5 +203,6 @@ namespace HaveABreak.Cards
         public BattleEventDisplayOption[] RecentEvents { get; }
         public bool SelectingEnemyTarget { get; }
         public string PendingTargetSourceId { get; }
+        public BattleChainDisplayOption Chain { get; }
     }
 }
