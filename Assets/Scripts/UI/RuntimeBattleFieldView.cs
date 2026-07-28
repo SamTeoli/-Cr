@@ -96,13 +96,13 @@ namespace HaveABreak.Cards
             row.childControlHeight = true;
             row.childForceExpandWidth = true;
             row.childForceExpandHeight = true;
-            rowObject.GetComponent<LayoutElement>().preferredHeight = 70f;
+            rowObject.GetComponent<LayoutElement>().preferredHeight = 60f;
 
             Text rowLabel = CreateText(
                 "ZoneLabel",
                 rowObject.transform,
                 label,
-                18,
+                17,
                 FontStyle.Bold,
                 TextAnchor.MiddleCenter);
             LayoutElement labelLayout = rowLabel.gameObject.AddComponent<LayoutElement>();
@@ -128,20 +128,20 @@ namespace HaveABreak.Cards
                 LayoutElement slotLayout = slotObject.GetComponent<LayoutElement>();
                 slotLayout.preferredWidth = 250f;
                 slotLayout.flexibleWidth = 1f;
-                slotLayout.preferredHeight = 66f;
+                slotLayout.preferredHeight = 56f;
 
                 Text text = CreateText(
                     "Label",
                     slotObject.transform,
                     string.Empty,
-                    15,
+                    14,
                     FontStyle.Normal,
                     TextAnchor.MiddleCenter);
                 RectTransform textRect = text.rectTransform;
                 textRect.anchorMin = Vector2.zero;
                 textRect.anchorMax = Vector2.one;
-                textRect.offsetMin = new Vector2(8f, 4f);
-                textRect.offsetMax = new Vector2(-8f, -4f);
+                textRect.offsetMin = new Vector2(8f, 3f);
+                textRect.offsetMax = new Vector2(-8f, -3f);
 
                 RuntimeBattleFieldSlotView slot =
                     slotObject.GetComponent<RuntimeBattleFieldSlotView>();
