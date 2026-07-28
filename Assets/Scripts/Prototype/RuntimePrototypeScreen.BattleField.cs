@@ -88,8 +88,8 @@ namespace HaveABreak.Cards
 
             LayoutElement fieldLayout =
                 finalBattleFieldObject.GetComponent<LayoutElement>();
-            fieldLayout.preferredHeight = 238f;
-            fieldLayout.minHeight = 218f;
+            fieldLayout.preferredHeight = 210f;
+            fieldLayout.minHeight = 198f;
 
             finalBattleFieldView =
                 finalBattleFieldObject.GetComponent<RuntimeBattleFieldView>();
@@ -110,7 +110,7 @@ namespace HaveABreak.Cards
                     handScroll.GetComponent<LayoutElement>();
                 if (handLayout != null)
                 {
-                    handLayout.preferredHeight = 250f;
+                    handLayout.preferredHeight = 210f;
                 }
             }
 
@@ -120,7 +120,7 @@ namespace HaveABreak.Cards
                 commandScroll?.GetComponent<LayoutElement>();
             if (commandLayout != null)
             {
-                commandLayout.preferredHeight = 110f;
+                commandLayout.preferredHeight = 90f;
             }
         }
 
