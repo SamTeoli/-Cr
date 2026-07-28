@@ -63,6 +63,8 @@ namespace HaveABreak.Editor
             bool finalUiRoot = RuntimeGameUiRootValidation.Validate();
             bool finalUiPrototype =
                 RuntimePrototypeFinalUiValidation.Validate();
+            bool finalUiPreviewBootstrap =
+                RuntimeGameUiPreviewBootstrapValidation.Validate();
             bool cardDrag = RuntimeCardDragHandlerValidation.Validate();
             bool battleField = RuntimeBattleFieldViewValidation.Validate();
             bool battleFieldBridge =
@@ -80,7 +82,8 @@ namespace HaveABreak.Editor
                          settlementBoundary && settlement &&
                          startBoundary && start &&
                          lifecycleBoundary && lifecycle && finalUiRouter &&
-                         finalUiRoot && finalUiPrototype && cardDrag &&
+                         finalUiRoot && finalUiPrototype &&
+                         finalUiPreviewBootstrap && cardDrag &&
                          battleField && battleFieldBridge && manualE2ETool &&
                          autoplayBoundary && autoplay && fullRun &&
                          playerActionFullRun;
@@ -91,11 +94,12 @@ namespace HaveABreak.Editor
                     "existing runtime, source boundaries, value-type comparison " +
                     "guard, display snapshot flow, settlement command flow, " +
                     "battle start checkpoint flow, run lifecycle flow, final " +
-                    "UI screen routing, card drag input and layout restore, " +
-                    "battle field 3x3 slots and final UI bridge, manual run E2E " +
-                    "validation tool, battle player-action autoplay boundary " +
-                    "and command flow, full run end-to-end progression, and " +
-                    "player-action full run progression.");
+                    "UI screen routing and preview bootstrap, card drag input " +
+                    "and layout restore, battle field 3x3 slots and final UI " +
+                    "bridge, manual run E2E validation tool, battle " +
+                    "player-action autoplay boundary and command flow, full " +
+                    "run end-to-end progression, and player-action full run " +
+                    "progression.");
             }
             else
             {
@@ -108,6 +112,7 @@ namespace HaveABreak.Editor
                     $"lifecycle={lifecycle}, finalUiRouter={finalUiRouter}, " +
                     $"finalUiRoot={finalUiRoot}, " +
                     $"finalUiPrototype={finalUiPrototype}, " +
+                    $"finalUiPreviewBootstrap={finalUiPreviewBootstrap}, " +
                     $"cardDrag={cardDrag}, battleField={battleField}, " +
                     $"battleFieldBridge={battleFieldBridge}, " +
                     $"manualE2ETool={manualE2ETool}, " +
