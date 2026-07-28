@@ -1,0 +1,116 @@
+name: 카드 UI 검증 기준 갱신
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  update-validation:
+    if: github.event.pull_request.head.ref == 'codex/card-visual-foundation'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/card-visual-foundation
+          fetch-depth: 0
+
+      - name: 현재 카드 UI 구조에 맞게 검증 수정
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('Assets/Editor/RuntimeGameUiRootValidation.cs')
+          text = path.read_text(encoding='utf-8')
+
+          old_preparation = '''                    preparationCard.ArtPlaceholderText.text == "아트 자리" &&
+                    preparationCard.MetadataText.text.Contains("스킬") &&
+                    preparationCard.MetadataText.text.Contains("일반") &&
+                    preparationCard.SelectionText.gameObject.activeSelf &&
+                    preparationCard.SelectionText.text == "[선택 1번]" &&
+                    preparationCard.AccessibilityText.text.Contains("마력") &&
+                    preparationCard.FrameImage.color !=
+                        preparationCard.Presentation.TypeColor &&'''
+          new_preparation = '''                    preparationCard.ArtPlaceholderText.text == "일러스트" &&
+                    preparationCard.MetadataText.text == "스킬" &&
+                    preparationCard.Presentation.Rarity == CardRarity.Common &&
+                    preparationCard.SelectionText.gameObject.activeSelf &&
+                    preparationCard.SelectionText.text == "선택 1" &&
+                    preparationCard.AccessibilityText.text.Contains("마력") &&
+                    preparationCard.FrameOverlayImage != null &&
+                    (preparationCard.FrameOverlayImage.sprite != null ||
+                     preparationCard.FrameImage.color != Color.clear) &&'''
+
+          old_battle = '''                    activeCard.ArtPlaceholderText.text == "아트 자리" &&
+                    activeCard.MetadataText.text.Contains("전설") &&
+                    activeCard.FrameImage.color ==
+                        battleCards[0].TypeColor &&
+                    activeCard.RarityAccentImage.color ==
+                        battleCards[0].RarityColor &&
+                    blockedCard.StatsText.text == "공격 4  생명 5" &&
+                    blockedCard.MetadataText.text.Contains("희귀") &&
+                    !blockedCard.ClickButton.interactable &&
+                    blockedCard.BlockReasonText.gameObject.activeSelf &&
+                    blockedCard.BlockReasonText.text.Contains(
+                        "마력이 부족합니다.") &&
+                    blockedCard.FrameImage.color !=
+                        battleCards[1].TypeColor &&
+                    battleCards[0].TypeColor != battleCards[1].TypeColor &&
+                    battleCards[0].RarityColor !=
+                        battleCards[1].RarityColor &&
+                    battleCommandId == "play:ACTIVE";'''
+          new_battle = '''                    activeCard.ArtPlaceholderText.text == "일러스트" &&
+                    activeCard.MetadataText.text == "스킬" &&
+                    activeCard.Presentation.Rarity == CardRarity.Legendary &&
+                    activeCard.FrameOverlayImage != null &&
+                    (activeCard.FrameOverlayImage.sprite != null ||
+                     activeCard.FrameImage.color != Color.clear) &&
+                    !activeCard.RarityAccentImage.gameObject.activeSelf &&
+                    blockedCard.StatsText.text == "공격 4, 생명력 5" &&
+                    blockedCard.MetadataText.text == "몬스터" &&
+                    blockedCard.Presentation.Rarity == CardRarity.Rare &&
+                    !blockedCard.ClickButton.interactable &&
+                    blockedCard.BlockReasonText.gameObject.activeSelf &&
+                    blockedCard.BlockReasonText.text.Contains(
+                        "마력이 부족합니다.") &&
+                    blockedCard.FrameOverlayImage != null &&
+                    (blockedCard.FrameOverlayImage.sprite != null ||
+                     blockedCard.FrameImage.color != Color.clear) &&
+                    battleCommandId == "play:ACTIVE";'''
+
+          old_message = '''                    root.BattleMessageText.text == "전투 명령 메시지" &&'''
+          new_message = '''                    root.BattleMessageText.text.StartsWith(
+                        "전투 명령 메시지",
+                        StringComparison.Ordinal) &&
+                    root.BattleMessageText.text.Contains("드래그") &&'''
+
+          old_success = '''                        "battle state and commands, reusable card structure, " +
+                        "type and rarity colors, selection and disabled states, " +'''
+          new_success = '''                        "battle state and commands, reusable card structure, " +
+                        "type labels and rarity frames, selection and disabled " +
+                        "states, " +'''
+
+          replacements = [
+              (old_preparation, new_preparation, 'preparation block'),
+              (old_battle, new_battle, 'battle card block'),
+              (old_message, new_message, 'battle message'),
+              (old_success, new_success, 'success message'),
+          ]
+          for old, new, label in replacements:
+              if old not in text:
+                  raise SystemExit(f'missing expected {label}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8', newline='\n')
+          PY
+
+          rm -f .github/workflows/fix-card-ui-validation.yml
+          git add Assets/Editor/RuntimeGameUiRootValidation.cs .github/workflows/fix-card-ui-validation.yml
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "현재 카드 구조에 맞게 UGUI 검증 갱신"
+          git push origin HEAD:codex/card-visual-foundation
