@@ -89,7 +89,7 @@ namespace HaveABreak.Editor
                     root.BattleConsumableTooltipText != null &&
                     root.BattleConsumableIconList.childCount == 3 &&
                     root.BattleConsumableBar.GetSiblingIndex() ==
-                    root.BattleRelicBar.GetSiblingIndex() + 1 &&
+                    root.BattleTopHudBar.GetSiblingIndex() + 1 &&
                     !root.GetComponentsInChildren<Text>(true).Any(text =>
                         text.text == "카드를 이곳에 놓아 사용") &&
                     root.BattleCommandList.childCount == 0 &&

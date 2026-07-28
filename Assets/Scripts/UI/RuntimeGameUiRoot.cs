@@ -76,12 +76,10 @@ namespace HaveABreak.Cards
         public Button BattleDetailActionButton { get; private set; }
         public Button BattleEndTurnButton { get; private set; }
         public RectTransform BattleTopHudBar { get; private set; }
-        public RectTransform BattleRelicBar { get; private set; }
         public Text BattleHealthText { get; private set; }
         public Text BattleGoldText { get; private set; }
         public Text BattleFloorText { get; private set; }
         public Text BattleManaText { get; private set; }
-        public Text BattleRelicText { get; private set; }
         public GameObject BattleUtilityPanel { get; private set; }
         public Text BattleUtilityTitleText { get; private set; }
         public Text BattleUtilityBodyText { get; private set; }
@@ -353,7 +351,6 @@ namespace HaveABreak.Cards
                 $"마나 {Mathf.Max(0, currentMana)}/{Mathf.Max(0, maximumMana)}";
             battleMapDetails = mapDetails ?? "이동 경로가 없습니다.";
             battleDeckDetails = deckDetails ?? "덱 정보가 없습니다.";
-            BattleRelicText.text = "보유 유물 없음";
         }
 
         public void BindBattleConsumables(
@@ -757,7 +754,7 @@ namespace HaveABreak.Cards
             BuildBattleTopHud(panel);
             BuildBattleConsumableBar(panel);
             BattleConsumableBar.SetSiblingIndex(
-                BattleRelicBar.GetSiblingIndex() + 1);
+                BattleTopHudBar.GetSiblingIndex() + 1);
 
             BattleHandCardList = BuildBattleHand(
                 panel,
@@ -814,30 +811,6 @@ namespace HaveABreak.Cards
                 () => ShowBattleUtility(
                     "옵션",
                     "전투 일시정지\n\n계속하려면 닫기를 누르세요."));
-
-            Image relic = CreateImage(
-                "BattleRelicBar",
-                panel,
-                new Color(0.035f, 0.07f, 0.105f, 0.96f));
-            BattleRelicBar = relic.rectTransform;
-            LayoutElement relicElement =
-                relic.gameObject.AddComponent<LayoutElement>();
-            relicElement.preferredHeight = 46f;
-            HorizontalLayoutGroup relicLayout =
-                relic.gameObject.AddComponent<HorizontalLayoutGroup>();
-            relicLayout.padding = new RectOffset(16, 16, 5, 5);
-            relicLayout.spacing = 10f;
-            relicLayout.childAlignment = TextAnchor.MiddleLeft;
-            relicLayout.childControlWidth = true;
-            relicLayout.childControlHeight = true;
-            relicLayout.childForceExpandWidth = false;
-            relicLayout.childForceExpandHeight = false;
-            Text relicLabel = CreateHudLabel("RelicLabel", relic.transform, 72f);
-            relicLabel.text = "유물";
-            BattleRelicText =
-                CreateHudLabel("Relics", relic.transform, 420f);
-            BattleRelicText.fontStyle = FontStyle.Italic;
-            BattleRelicText.color = new Color(0.7f, 0.74f, 0.8f, 1f);
         }
 
         private static Text CreateHudLabel(

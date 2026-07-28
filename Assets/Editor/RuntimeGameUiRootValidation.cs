@@ -207,7 +207,6 @@ namespace HaveABreak.Editor
                     root.BattleGoldText.text == "● 77" &&
                     root.BattleManaText.text == "마나 3/5" &&
                     root.BattleFloorText.text == "층 4" &&
-                    root.BattleRelicText.text == "보유 유물 없음" &&
                     root.BattleUtilityPanel.activeSelf &&
                     root.BattleUtilityTitleText.text == "지도" &&
                     root.BattleUtilityBodyText.text.Contains("2. 전투");
