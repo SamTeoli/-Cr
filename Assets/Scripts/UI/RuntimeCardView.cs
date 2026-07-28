@@ -202,7 +202,18 @@ namespace HaveABreak.Cards
             ClickButton.interactable = presentation.Interactable;
             ClickButton.onClick.RemoveAllListeners();
             string commandId = presentation.CommandId;
-            ClickButton.onClick.AddListener(() => clicked?.Invoke(commandId));
+            ClickButton.onClick.AddListener(() =>
+            {
+                RuntimeCardDragHandler dragHandler =
+                    GetComponent<RuntimeCardDragHandler>();
+                if (dragHandler != null &&
+                    dragHandler.ConsumeClickSuppression())
+                {
+                    return;
+                }
+
+                clicked?.Invoke(commandId);
+            });
         }
 
         private void ApplyRarityFrame(RuntimeCardPresentation presentation)
