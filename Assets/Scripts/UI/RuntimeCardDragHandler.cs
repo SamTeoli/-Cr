@@ -8,6 +8,7 @@ namespace HaveABreak.Cards
 {
     [DisallowMultipleComponent]
     public sealed class RuntimeCardDragHandler : MonoBehaviour,
+        IPointerDownHandler,
         IBeginDragHandler,
         IDragHandler,
         IEndDragHandler
@@ -22,6 +23,7 @@ namespace HaveABreak.Cards
         private Vector3 originalScale;
         private Action<string, string> dropped;
         private bool dragging;
+        private bool suppressNextClick;
 
         public void Configure(
             RuntimeCardView view,
@@ -39,6 +41,11 @@ namespace HaveABreak.Cards
             }
         }
 
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            suppressNextClick = false;
+        }
+
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (cardView?.Presentation?.Interactable != true ||
@@ -48,6 +55,7 @@ namespace HaveABreak.Cards
             }
 
             dragging = true;
+            suppressNextClick = true;
             originalParent = transform.parent;
             originalSiblingIndex = transform.GetSiblingIndex();
             originalScale = transform.localScale;
@@ -98,17 +106,30 @@ namespace HaveABreak.Cards
             }
 
             dragging = false;
-            canvasGroup.blocksRaycasts = true;
-            canvasGroup.alpha = 1f;
             RuntimeCardDropZone zone = FindDropZone(eventData);
-            if (zone != null && zone.AcceptsCards)
-            {
-                string cardCommand = cardView.Presentation.CommandId;
-                dropped?.Invoke(cardCommand, zone.TargetCommandId);
-                return;
-            }
+            string cardCommand = cardView?.Presentation?.CommandId;
+            string targetCommand = zone?.TargetCommandId;
 
             ReturnToHand();
+
+            if (zone != null &&
+                zone.AcceptsCards &&
+                !string.IsNullOrWhiteSpace(cardCommand) &&
+                !string.IsNullOrWhiteSpace(targetCommand))
+            {
+                dropped?.Invoke(cardCommand, targetCommand);
+            }
+        }
+
+        public bool ConsumeClickSuppression()
+        {
+            if (!suppressNextClick)
+            {
+                return false;
+            }
+
+            suppressNextClick = false;
+            return true;
         }
 
         private RuntimeCardDropZone FindDropZone(PointerEventData eventData)
@@ -130,16 +151,28 @@ namespace HaveABreak.Cards
 
         private void ReturnToHand()
         {
+            if (canvasGroup != null)
+            {
+                canvasGroup.blocksRaycasts = true;
+                canvasGroup.alpha = 1f;
+            }
+
             if (originalParent == null)
             {
                 return;
             }
 
-            transform.SetParent(originalParent, false);
-            transform.SetSiblingIndex(Mathf.Min(
-                originalSiblingIndex,
-                originalParent.childCount - 1));
-            transform.localScale = originalScale;
+            Transform parent = originalParent;
+            int siblingIndex = originalSiblingIndex;
+            Vector3 scale = originalScale;
+            originalParent = null;
+
+            transform.SetParent(parent, false);
+            transform.SetSiblingIndex(Mathf.Clamp(
+                siblingIndex,
+                0,
+                Mathf.Max(0, parent.childCount - 1)));
+            transform.localScale = scale;
         }
     }
 
@@ -162,7 +195,7 @@ namespace HaveABreak.Cards
             Color hover)
         {
             TargetCommandId = targetCommandId ?? string.Empty;
-            AcceptsCards = true;
+            AcceptsCards = !string.IsNullOrWhiteSpace(TargetCommandId);
             highlightGraphic = graphic;
             idleColor = idle;
             hoverColor = hover;
