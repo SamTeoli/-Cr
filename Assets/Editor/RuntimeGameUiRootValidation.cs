@@ -128,14 +128,15 @@ namespace HaveABreak.Editor
                     root.RunPreparationCardList.childCount == 1 &&
                     preparationCard != null &&
                     preparationCard.NameText != null &&
-                    preparationCard.ArtPlaceholderText.text == "아트 자리" &&
-                    preparationCard.MetadataText.text.Contains("스킬") &&
-                    preparationCard.MetadataText.text.Contains("일반") &&
+                    preparationCard.ArtPlaceholderText.text == "일러스트" &&
+                    preparationCard.MetadataText.text == "스킬" &&
+                    preparationCard.Presentation.Rarity == CardRarity.Common &&
                     preparationCard.SelectionText.gameObject.activeSelf &&
-                    preparationCard.SelectionText.text == "[선택 1번]" &&
+                    preparationCard.SelectionText.text == "선택 1" &&
                     preparationCard.AccessibilityText.text.Contains("마력") &&
-                    preparationCard.FrameImage.color !=
-                        preparationCard.Presentation.TypeColor &&
+                    preparationCard.FrameOverlayImage != null &&
+                    (preparationCard.FrameOverlayImage.sprite != null ||
+                     preparationCard.FrameImage.color != Color.clear) &&
                     root.ConfirmRunPreparationButton.interactable &&
                     toggledCardId == options[0].OwnedCardId &&
                     preparationCancelled &&
@@ -235,29 +236,32 @@ namespace HaveABreak.Editor
                 activeCard.ClickButton.onClick.Invoke();
                 bool cardFoundation =
                     root.BattleHandCardList.childCount == 2 &&
-                    activeCard.ArtPlaceholderText.text == "아트 자리" &&
-                    activeCard.MetadataText.text.Contains("전설") &&
-                    activeCard.FrameImage.color ==
-                        battleCards[0].TypeColor &&
-                    activeCard.RarityAccentImage.color ==
-                        battleCards[0].RarityColor &&
-                    blockedCard.StatsText.text == "공격 4  생명 5" &&
-                    blockedCard.MetadataText.text.Contains("희귀") &&
+                    activeCard.ArtPlaceholderText.text == "일러스트" &&
+                    activeCard.MetadataText.text == "스킬" &&
+                    activeCard.Presentation.Rarity == CardRarity.Legendary &&
+                    activeCard.FrameOverlayImage != null &&
+                    (activeCard.FrameOverlayImage.sprite != null ||
+                     activeCard.FrameImage.color != Color.clear) &&
+                    !activeCard.RarityAccentImage.gameObject.activeSelf &&
+                    blockedCard.StatsText.text == "공격 4, 생명력 5" &&
+                    blockedCard.MetadataText.text == "몬스터" &&
+                    blockedCard.Presentation.Rarity == CardRarity.Rare &&
                     !blockedCard.ClickButton.interactable &&
                     blockedCard.BlockReasonText.gameObject.activeSelf &&
                     blockedCard.BlockReasonText.text.Contains(
                         "마력이 부족합니다.") &&
-                    blockedCard.FrameImage.color !=
-                        battleCards[1].TypeColor &&
-                    battleCards[0].TypeColor != battleCards[1].TypeColor &&
-                    battleCards[0].RarityColor !=
-                        battleCards[1].RarityColor &&
+                    blockedCard.FrameOverlayImage != null &&
+                    (blockedCard.FrameOverlayImage.sprite != null ||
+                     blockedCard.FrameImage.color != Color.clear) &&
                     battleCommandId == "play:ACTIVE";
                 bool battle =
                     root.CurrentScreen == RuntimeGameScreen.Battle &&
                     root.BattleTitleText.text == "검증 전투" &&
                     root.BattleSummaryText.text == "전투 상태 요약" &&
-                    root.BattleMessageText.text == "전투 명령 메시지" &&
+                    root.BattleMessageText.text.StartsWith(
+                        "전투 명령 메시지",
+                        StringComparison.Ordinal) &&
+                    root.BattleMessageText.text.Contains("드래그") &&
                     genericBattleCommand &&
                     cardFoundation;
 
@@ -325,7 +329,7 @@ namespace HaveABreak.Editor
                         "confirmation commands, " +
                         "node selection and resolution commands, " +
                         "battle state and commands, reusable card structure, " +
-                        "type and rarity colors, selection and disabled states, " +
+                        "type labels and rarity frames, selection and disabled states, " +
                         "reward state and commands, " +
                         "completed and defeated run results, " +
                         "and screen visibility.");
