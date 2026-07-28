@@ -64,6 +64,7 @@ namespace HaveABreak.Editor
             bool finalUiPrototype =
                 RuntimePrototypeFinalUiValidation.Validate();
             bool cardDrag = RuntimeCardDragHandlerValidation.Validate();
+            bool battleField = RuntimeBattleFieldViewValidation.Validate();
             bool manualE2ETool =
                 RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
@@ -78,8 +79,8 @@ namespace HaveABreak.Editor
                          startBoundary && start &&
                          lifecycleBoundary && lifecycle && finalUiRouter &&
                          finalUiRoot && finalUiPrototype && cardDrag &&
-                         manualE2ETool && autoplayBoundary && autoplay &&
-                         fullRun && playerActionFullRun;
+                         battleField && manualE2ETool && autoplayBoundary &&
+                         autoplay && fullRun && playerActionFullRun;
             if (valid)
             {
                 Debug.Log(
@@ -88,9 +89,10 @@ namespace HaveABreak.Editor
                     "guard, display snapshot flow, settlement command flow, " +
                     "battle start checkpoint flow, run lifecycle flow, final " +
                     "UI screen routing, card drag input and layout restore, " +
-                    "manual run E2E validation tool, battle player-action " +
-                    "autoplay boundary and command flow, full run end-to-end " +
-                    "progression, and player-action full run progression.");
+                    "battle field 3x3 slots, manual run E2E validation tool, " +
+                    "battle player-action autoplay boundary and command flow, " +
+                    "full run end-to-end progression, and player-action full " +
+                    "run progression.");
             }
             else
             {
@@ -103,7 +105,8 @@ namespace HaveABreak.Editor
                     $"lifecycle={lifecycle}, finalUiRouter={finalUiRouter}, " +
                     $"finalUiRoot={finalUiRoot}, " +
                     $"finalUiPrototype={finalUiPrototype}, " +
-                    $"cardDrag={cardDrag}, manualE2ETool={manualE2ETool}, " +
+                    $"cardDrag={cardDrag}, battleField={battleField}, " +
+                    $"manualE2ETool={manualE2ETool}, " +
                     $"autoplayBoundary={autoplayBoundary}, " +
                     $"autoplay={autoplay}, fullRun={fullRun}, " +
                     $"playerActionFullRun={playerActionFullRun}");
