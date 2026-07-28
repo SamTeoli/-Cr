@@ -104,7 +104,7 @@ namespace HaveABreak.Cards
             return null;
         }
 
-        protected void OnValidate()
+        private void OnValidate()
         {
             catalogCardId = catalogCardId?.Trim();
         }
