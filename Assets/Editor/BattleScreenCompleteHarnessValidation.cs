@@ -65,6 +65,8 @@ namespace HaveABreak.Editor
                 RuntimePrototypeFinalUiValidation.Validate();
             bool cardDrag = RuntimeCardDragHandlerValidation.Validate();
             bool battleField = RuntimeBattleFieldViewValidation.Validate();
+            bool battleFieldBridge =
+                RuntimeBattleFieldBridgeValidation.Validate();
             bool manualE2ETool =
                 RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
@@ -79,8 +81,9 @@ namespace HaveABreak.Editor
                          startBoundary && start &&
                          lifecycleBoundary && lifecycle && finalUiRouter &&
                          finalUiRoot && finalUiPrototype && cardDrag &&
-                         battleField && manualE2ETool && autoplayBoundary &&
-                         autoplay && fullRun && playerActionFullRun;
+                         battleField && battleFieldBridge && manualE2ETool &&
+                         autoplayBoundary && autoplay && fullRun &&
+                         playerActionFullRun;
             if (valid)
             {
                 Debug.Log(
@@ -89,10 +92,10 @@ namespace HaveABreak.Editor
                     "guard, display snapshot flow, settlement command flow, " +
                     "battle start checkpoint flow, run lifecycle flow, final " +
                     "UI screen routing, card drag input and layout restore, " +
-                    "battle field 3x3 slots, manual run E2E validation tool, " +
-                    "battle player-action autoplay boundary and command flow, " +
-                    "full run end-to-end progression, and player-action full " +
-                    "run progression.");
+                    "battle field 3x3 slots and final UI bridge, manual run E2E " +
+                    "validation tool, battle player-action autoplay boundary " +
+                    "and command flow, full run end-to-end progression, and " +
+                    "player-action full run progression.");
             }
             else
             {
@@ -106,6 +109,7 @@ namespace HaveABreak.Editor
                     $"finalUiRoot={finalUiRoot}, " +
                     $"finalUiPrototype={finalUiPrototype}, " +
                     $"cardDrag={cardDrag}, battleField={battleField}, " +
+                    $"battleFieldBridge={battleFieldBridge}, " +
                     $"manualE2ETool={manualE2ETool}, " +
                     $"autoplayBoundary={autoplayBoundary}, " +
                     $"autoplay={autoplay}, fullRun={fullRun}, " +
