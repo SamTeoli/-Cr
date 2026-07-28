@@ -314,12 +314,14 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
-                CreateCardView(
+                RuntimeCardView view = CreateCardView(
                     $"HandCard_{index}",
                     BattleHandCardList,
                     card,
                     _ => ShowBattleCardDetail(card),
                     true);
+                view.GetComponent<RuntimeBattleHandCardHover>()
+                    ?.Configure(index);
             }
         }
 

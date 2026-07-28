@@ -59,11 +59,20 @@ namespace HaveABreak.Cards
             for (int index = 0; index < count; index++)
             {
                 RectTransform card = rectChildren[index];
+                RuntimeBattleHandCardHover hover =
+                    card.GetComponent<RuntimeBattleHandCardHover>();
+                int layoutIndex = hover == null
+                    ? index
+                    : Mathf.Clamp(hover.LayoutIndex, 0, count - 1);
                 float normalized = count <= 1
                     ? 0f
-                    : index / (float)(count - 1) * 2f - 1f;
+                    : layoutIndex / (float)(count - 1) * 2f - 1f;
                 float y = Mathf.Abs(normalized) * arcHeight;
-                SetChildAlongAxis(card, 0, firstX + spacing * index, cardWidth);
+                SetChildAlongAxis(
+                    card,
+                    0,
+                    firstX + spacing * layoutIndex,
+                    cardWidth);
                 SetChildAlongAxis(card, 1, y, cardHeight);
                 card.localRotation = Quaternion.Euler(
                     0f,
@@ -79,10 +88,17 @@ namespace HaveABreak.Cards
         IPointerExitHandler
     {
         private RectTransform rectTransform;
-        private Canvas hoverCanvas;
         private Vector2 restingPosition;
         private Quaternion restingRotation;
+        private int restingSiblingIndex;
         private bool hovered;
+
+        public int LayoutIndex { get; private set; }
+
+        public void Configure(int layoutIndex)
+        {
+            LayoutIndex = Mathf.Max(0, layoutIndex);
+        }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
@@ -95,14 +111,11 @@ namespace HaveABreak.Cards
             rectTransform ??= transform as RectTransform;
             restingPosition = rectTransform.anchoredPosition;
             restingRotation = rectTransform.localRotation;
+            restingSiblingIndex = transform.GetSiblingIndex();
+            transform.SetAsLastSibling();
             rectTransform.anchoredPosition = restingPosition + Vector2.up * 92f;
             rectTransform.localRotation = Quaternion.identity;
             rectTransform.localScale = Vector3.one * 1.18f;
-
-            hoverCanvas = gameObject.GetComponent<Canvas>() ??
-                          gameObject.AddComponent<Canvas>();
-            hoverCanvas.overrideSorting = true;
-            hoverCanvas.sortingOrder = 60;
         }
 
         public void OnPointerExit(PointerEventData eventData)
@@ -122,9 +135,12 @@ namespace HaveABreak.Cards
             rectTransform.anchoredPosition = restingPosition;
             rectTransform.localRotation = restingRotation;
             rectTransform.localScale = Vector3.one;
-            if (hoverCanvas != null)
+            if (transform.parent != null)
             {
-                hoverCanvas.overrideSorting = false;
+                transform.SetSiblingIndex(Mathf.Clamp(
+                    restingSiblingIndex,
+                    0,
+                    Mathf.Max(0, transform.parent.childCount - 1)));
             }
         }
     }

@@ -232,6 +232,13 @@ namespace HaveABreak.Editor
                 RuntimeCardView blockedCard =
                     root.BattleHandCardList.GetChild(1)
                         .GetComponent<RuntimeCardView>();
+                RuntimeBattleHandCardHover handHover =
+                    activeCard.GetComponent<RuntimeBattleHandCardHover>();
+                handHover.OnPointerEnter(null);
+                bool hoverRaised =
+                    activeCard.transform.localScale.x > 1f &&
+                    activeCard.GetComponent<Canvas>() == null;
+                handHover.OnPointerExit(null);
                 activeCard.ClickButton.onClick.Invoke();
                 bool detailOpened =
                     root.BattleDetailPanel.activeSelf &&
@@ -243,6 +250,10 @@ namespace HaveABreak.Editor
                     activeCard.ArtPlaceholderText.text == "일러스트" &&
                     activeCard.MetadataText.text == "스킬" &&
                     activeCard.Presentation.Rarity == CardRarity.Legendary &&
+                    activeCard.GetComponent<RuntimeBattleHandCardHover>() !=
+                    null &&
+                    activeCard.GetComponent<Canvas>() == null &&
+                    hoverRaised &&
                     activeCard.FrameOverlayImage != null &&
                     (activeCard.FrameOverlayImage.sprite != null ||
                      activeCard.FrameImage.color != Color.clear) &&
