@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06474ac922058b843928c2b7690f5799, type: 3}
+  m_Name: C03
+  m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.CardEffectTextAsset
+  catalogCardId: C03
+  localizations:
+  - locale: 0
+    rulesText: "\uD50C\uB808\uC774\uC5B4 \uD134 \uC885\uB8CC \uC2DC \uC774\uBC88
+      \uD134 \uACF5\uACA9\uD558\uC9C0 \uC54A\uC558\uB2E4\uBA74 \uBC29\uC5B4 3\uC744
+      \uC5BB\uB294\uB2E4."
+    detailedRulesText: "\uACF5\uACA9 \uC120\uC5B8\uC774 \uC544\uB2C8\uB77C \uBAA8\uB4E0
+      \uD0C0\uACA9\uACFC \uC0AC\uD6C4 \uAC80\uC0AC\uAC00 \uB05D\uB09C \uACF5\uACA9
+      \uC644\uB8CC \uAE30\uB85D\uC744 \uD655\uC778\uD569\uB2C8\uB2E4. \uACF5\uACA9\uC774
+      \uBB34\uD6A8\uD654\uB418\uAC70\uB098 \uB300\uC0C1 \uC0C1\uC2E4\uB85C \uC644\uB8CC\uB418\uC9C0
+      \uC54A\uC558\uB2E4\uBA74 \uACF5\uACA9\uD558\uC9C0 \uC54A\uC740 \uAC83\uC73C\uB85C
+      \uCC98\uB9AC\uD569\uB2C8\uB2E4."
+    levels:
+    - level: 1
+      rulesText: "\uD50C\uB808\uC774\uC5B4 \uD134 \uC885\uB8CC \uC2DC \uACF5\uACA9\uD558\uC9C0
+        \uC54A\uC558\uB2E4\uBA74 \uBC29\uC5B4 3\uC744 \uC5BB\uC2B5\uB2C8\uB2E4."
+    - level: 2
+      rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
+    - level: 3
+      rulesText: "\uD68D\uB4DD \uBC29\uC5B4 4"
+    - level: 4
+      rulesText: "\uD6A8\uACFC \uB3D9\uC77C"
+    - level: 5
+      rulesText: "\uC774 \uD6A8\uACFC\uB85C \uBC29\uC5B4\uB97C \uC5BB\uC744 \uB54C
+        \uBC18\uACA9 1\uB3C4 \uD68D\uB4DD"

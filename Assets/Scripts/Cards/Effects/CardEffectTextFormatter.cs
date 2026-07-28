@@ -8,11 +8,20 @@ namespace HaveABreak.Cards
     {
         public static string BuildCardRulesText(
             CardData card,
-            string fallbackRulesText = null)
+            string fallbackRulesText = null,
+            int level = 0)
         {
             if (card == null)
             {
                 return fallbackRulesText ?? string.Empty;
+            }
+
+            string authoredText = card.EffectTextAsset?.ResolveRulesText(
+                CardTextLocaleProvider.Current,
+                level);
+            if (!string.IsNullOrWhiteSpace(authoredText))
+            {
+                return authoredText;
             }
 
             List<string> lines = card.Effects
@@ -24,7 +33,7 @@ namespace HaveABreak.Cards
                 .ToList();
             return lines.Count > 0
                 ? string.Join("\n", lines)
-                : fallbackRulesText ?? card.RulesText ?? string.Empty;
+                : fallbackRulesText ?? card.ResolveRulesText(level);
         }
 
         public static string Format(

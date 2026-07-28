@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: "\uB04A\uC5B4\uC9C4 \uD638\uCD9C\uC120"
   rarity: 1
   manaCost: 2
+  effectTextAsset: {fileID: 11400000, guid: e6c6fe8049dd27b4c8dcf40a7ce09562, type: 2}
   rulesText: "\uC544\uAD70\uC5D0\uAC8C \uC601\uD5A5\uC744 \uC8FC\uB294 \uB2E4\uC74C
     \uC801 \uB2A5\uB825 1\uAC1C\uB97C \uBB34\uD6A8\uD654\uD55C\uB2E4. \uC77C\uBC18
     \uACF5\uACA9\uC740 \uC81C\uC678\uD55C\uB2E4."

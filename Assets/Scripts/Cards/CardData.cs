@@ -15,6 +15,7 @@ namespace HaveABreak.Cards
         [SerializeField, Min(0)] private int manaCost;
 
         [Header("Presentation")]
+        [SerializeField] private CardEffectTextAsset effectTextAsset;
         [SerializeField, TextArea(2, 6)] private string rulesText;
         [SerializeField, TextArea(3, 10)] private string detailedRulesText;
         [SerializeField] private Sprite artwork;
@@ -39,6 +40,7 @@ namespace HaveABreak.Cards
         public int ManaCost => manaCost;
         public string RulesText => rulesText;
         public string DetailedRulesText => detailedRulesText;
+        public CardEffectTextAsset EffectTextAsset => effectTextAsset;
         public Sprite Artwork => artwork;
         public int BaseEnchantSlots => baseEnchantSlots;
         public string Role => role;
@@ -70,6 +72,42 @@ namespace HaveABreak.Cards
             return null;
         }
 
+        public string ResolveRulesText(
+            int requestedLevel = 0,
+            CardTextLocale? locale = null)
+        {
+            int level = requestedLevel <= 0
+                ? 0
+                : Mathf.Clamp(requestedLevel, MinimumLevel, MaximumLevel);
+            string authored = effectTextAsset?.ResolveRulesText(
+                locale ?? CardTextLocaleProvider.Current,
+                level);
+            if (!string.IsNullOrWhiteSpace(authored))
+            {
+                return authored;
+            }
+
+            if (level > 0)
+            {
+                string levelFallback = GetLevelData(level)?.RulesText;
+                if (!string.IsNullOrWhiteSpace(levelFallback))
+                {
+                    return levelFallback;
+                }
+            }
+
+            return rulesText ?? string.Empty;
+        }
+
+        public string ResolveDetailedRulesText(CardTextLocale? locale = null)
+        {
+            string authored = effectTextAsset?.ResolveDetailedRulesText(
+                locale ?? CardTextLocaleProvider.Current);
+            return !string.IsNullOrWhiteSpace(authored)
+                ? authored
+                : detailedRulesText ?? string.Empty;
+        }
+
         public ResolvedCardData ResolveLevel(int requestedLevel)
         {
             int level = Mathf.Clamp(requestedLevel, MinimumLevel, MaximumLevel);
@@ -89,7 +127,8 @@ namespace HaveABreak.Cards
                     fallbackHealth,
                     CardEffectTextFormatter.BuildCardRulesText(
                         this,
-                        rulesText));
+                        ResolveRulesText(level),
+                        level));
             }
 
             return new ResolvedCardData(
@@ -101,7 +140,8 @@ namespace HaveABreak.Cards
                 levelData.Health,
                 CardEffectTextFormatter.BuildCardRulesText(
                     this,
-                    levelData.RulesText));
+                    ResolveRulesText(level),
+                    level));
         }
 
 #if UNITY_EDITOR

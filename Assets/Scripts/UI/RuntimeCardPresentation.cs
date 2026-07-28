@@ -123,7 +123,8 @@ namespace HaveABreak.Cards
                              : 0);
             string rules = CardEffectTextFormatter.BuildCardRulesText(
                 card,
-                level?.RulesText ?? card.RulesText);
+                card.ResolveRulesText(option.CurrentLevel),
+                option.CurrentLevel);
             bool isMonster = card.CardType == CardType.Monster;
             string accessibility =
                 $"{card.DisplayName}, {card.CardType}, {card.Rarity}, " +
