@@ -42,7 +42,8 @@ namespace HaveABreak.Editor
 
         internal static bool Run()
         {
-            System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Stopwatch stopwatch =
+                System.Diagnostics.Stopwatch.StartNew();
             bool existing =
                 BattleRuntimeFullRegressionValidation.RunCompleteTestHarness();
             bool screenBoundary =
@@ -62,6 +63,7 @@ namespace HaveABreak.Editor
             bool finalUiRoot = RuntimeGameUiRootValidation.Validate();
             bool finalUiPrototype =
                 RuntimePrototypeFinalUiValidation.Validate();
+            bool cardDrag = RuntimeCardDragHandlerValidation.Validate();
             bool manualE2ETool =
                 RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
@@ -70,14 +72,14 @@ namespace HaveABreak.Editor
             bool fullRun = FullRunEndToEndValidation.Validate();
             bool playerActionFullRun =
                 FullRunPlayerActionEndToEndValidation.Validate();
+
             bool valid = existing && screenBoundary && screen &&
                          settlementBoundary && settlement &&
                          startBoundary && start &&
-                          lifecycleBoundary && lifecycle && finalUiRouter &&
-                          finalUiRoot && finalUiPrototype &&
-                         manualE2ETool &&
-                         autoplayBoundary && autoplay && fullRun &&
-                         playerActionFullRun;
+                         lifecycleBoundary && lifecycle && finalUiRouter &&
+                         finalUiRoot && finalUiPrototype && cardDrag &&
+                         manualE2ETool && autoplayBoundary && autoplay &&
+                         fullRun && playerActionFullRun;
             if (valid)
             {
                 Debug.Log(
@@ -85,11 +87,10 @@ namespace HaveABreak.Editor
                     "existing runtime, source boundaries, value-type comparison " +
                     "guard, display snapshot flow, settlement command flow, " +
                     "battle start checkpoint flow, run lifecycle flow, final " +
-                    "UI screen routing and UGUI start screen, manual " +
-                    "run E2E validation tool, battle player-action autoplay " +
-                    "boundary and command flow, full run " +
-                    "end-to-end progression, and player-action full run " +
-                    "progression.");
+                    "UI screen routing, card drag input and layout restore, " +
+                    "manual run E2E validation tool, battle player-action " +
+                    "autoplay boundary and command flow, full run end-to-end " +
+                    "progression, and player-action full run progression.");
             }
             else
             {
@@ -102,10 +103,10 @@ namespace HaveABreak.Editor
                     $"lifecycle={lifecycle}, finalUiRouter={finalUiRouter}, " +
                     $"finalUiRoot={finalUiRoot}, " +
                     $"finalUiPrototype={finalUiPrototype}, " +
-                    $"manualE2ETool={manualE2ETool}, " +
-                    $"autoplayBoundary=" +
-                    $"{autoplayBoundary}, autoplay={autoplay}, fullRun=" +
-                    $"{fullRun}, playerActionFullRun={playerActionFullRun}");
+                    $"cardDrag={cardDrag}, manualE2ETool={manualE2ETool}, " +
+                    $"autoplayBoundary={autoplayBoundary}, " +
+                    $"autoplay={autoplay}, fullRun={fullRun}, " +
+                    $"playerActionFullRun={playerActionFullRun}");
             }
 
             stopwatch.Stop();
