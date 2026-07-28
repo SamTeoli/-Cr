@@ -1,0 +1,29 @@
+name: Inspect monster placement API
+
+on:
+  pull_request:
+    types: [reopened]
+    branches:
+      - codex/card-visual-foundation
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Locate placement APIs
+        shell: bash
+        run: |
+          echo '=== PlayerMonsterPositions references ==='
+          grep -R -n --include='*.cs' 'PlayerMonsterPositions' Assets/Scripts Assets/Editor || true
+          echo '=== PlayerMonsterFieldPosition references ==='
+          grep -R -n --include='*.cs' 'PlayerMonsterFieldPosition' Assets/Scripts Assets/Editor || true
+          echo '=== Card action service files ==='
+          grep -R -n --include='*.cs' 'class BattleRuntimePlayerCardActionService\|class BattleRuntimeCardPlayService\|TryResolve(' Assets/Scripts | head -n 300 || true
+          echo '=== Position mutation candidates ==='
+          grep -R -n --include='*.cs' 'TryPlace\|TryAssign\|TrySet\|TryMove\|SetOccupant\|RemoveOccupant\|TryRegister' Assets/Scripts | head -n 500 || true
