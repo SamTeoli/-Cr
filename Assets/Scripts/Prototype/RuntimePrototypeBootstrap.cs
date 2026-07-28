@@ -23,19 +23,15 @@ namespace HaveABreak.Cards
                 return;
             }
 
-            RuntimePrototypeConfig config =
-                Resources.Load<RuntimePrototypeConfig>(ConfigResourcePath);
-            if (config == null || !config.IsReady)
+            RuntimePrototypeConfig config = LoadReadyConfig();
+            if (config == null)
             {
-                Debug.LogError(
-                    "[Have a Break] RuntimePrototypeConfig 또는 게임 데이터베이스를 " +
-                    "불러올 수 없습니다.");
                 return;
             }
 
-            GameObject host = new("Have a Break Runtime Prototype");
-            Object.DontDestroyOnLoad(host);
-            host.AddComponent<RuntimePrototypeScreen>().Initialize(config);
+            CreatePrototypeHost(
+                "Have a Break Runtime Prototype",
+                config);
         }
 
         private static bool TryCreateFinalUiPreview()
@@ -48,10 +44,40 @@ namespace HaveABreak.Cards
             PlayerPrefs.DeleteKey(FinalUiPreviewPreferenceKey);
             PlayerPrefs.Save();
 
-            GameObject host = new("Have a Break Final UI Preview");
-            Object.DontDestroyOnLoad(host);
-            host.AddComponent<RuntimeGameUiRoot>().Initialize();
+            RuntimePrototypeConfig config = LoadReadyConfig();
+            if (config == null)
+            {
+                return true;
+            }
+
+            CreatePrototypeHost(
+                "Have a Break Final UI Preview",
+                config);
             return true;
+        }
+
+        private static RuntimePrototypeConfig LoadReadyConfig()
+        {
+            RuntimePrototypeConfig config =
+                Resources.Load<RuntimePrototypeConfig>(ConfigResourcePath);
+            if (config == null || !config.IsReady)
+            {
+                Debug.LogError(
+                    "[Have a Break] RuntimePrototypeConfig 또는 게임 데이터베이스를 " +
+                    "불러올 수 없습니다.");
+                return null;
+            }
+
+            return config;
+        }
+
+        private static void CreatePrototypeHost(
+            string hostName,
+            RuntimePrototypeConfig config)
+        {
+            GameObject host = new(hostName);
+            Object.DontDestroyOnLoad(host);
+            host.AddComponent<RuntimePrototypeScreen>().Initialize(config);
         }
     }
 }
