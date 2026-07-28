@@ -20,7 +20,8 @@ namespace HaveABreak.Cards
             bool interactable,
             string blockReason,
             string accessibilityText,
-            Sprite artwork = null)
+            Sprite artwork = null,
+            bool requiresEnemyTarget = false)
         {
             CommandId = commandId;
             DisplayName = string.IsNullOrWhiteSpace(displayName)
@@ -39,6 +40,7 @@ namespace HaveABreak.Cards
             BlockReason = blockReason ?? string.Empty;
             AccessibilityText = accessibilityText ?? string.Empty;
             Artwork = artwork;
+            RequiresEnemyTarget = requiresEnemyTarget;
         }
 
         public string CommandId { get; }
@@ -56,6 +58,7 @@ namespace HaveABreak.Cards
         public string BlockReason { get; }
         public string AccessibilityText { get; }
         public Sprite Artwork { get; }
+        public bool RequiresEnemyTarget { get; }
         public bool HasMonsterStats => Attack.HasValue && Health.HasValue;
 
         public string TypeLabel => CardType switch
@@ -162,6 +165,11 @@ namespace HaveABreak.Cards
             {
                 accessibility += $" 사용 불가: {blockReason}";
             }
+            bool requiresEnemyTarget =
+                CardEffectRegistrationCatalog.TryFind(
+                    card.SourceCard.CatalogCardId,
+                    out CardEffectRegistration registration) &&
+                registration.Route == CardEffectRoute.TargetedSkill;
 
             return new RuntimeCardPresentation(
                 $"play:{option.BattleCardId}",
@@ -178,7 +186,8 @@ namespace HaveABreak.Cards
                 option.CanPlay,
                 blockReason,
                 accessibility,
-                card.SourceCard.Artwork);
+                card.SourceCard.Artwork,
+                requiresEnemyTarget);
         }
     }
 }

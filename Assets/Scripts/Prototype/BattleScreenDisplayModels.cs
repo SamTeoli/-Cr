@@ -106,7 +106,9 @@ namespace HaveABreak.Cards
             BattleMonsterDisplayOption[] monsters,
             BattleInstalledCardDisplayOption[] installedCards,
             BattleHandCardActionOption[] hand,
-            BattleEventDisplayOption[] recentEvents)
+            BattleEventDisplayOption[] recentEvents,
+            bool selectingEnemyTarget = false,
+            string pendingTargetSourceId = null)
         {
             Available = available;
             ErrorText = errorText;
@@ -126,6 +128,8 @@ namespace HaveABreak.Cards
             Hand = hand ?? Array.Empty<BattleHandCardActionOption>();
             RecentEvents = recentEvents ??
                            Array.Empty<BattleEventDisplayOption>();
+            SelectingEnemyTarget = selectingEnemyTarget;
+            PendingTargetSourceId = pendingTargetSourceId;
         }
 
         public bool Available { get; }
@@ -137,7 +141,8 @@ namespace HaveABreak.Cards
         public string CheckpointNoticeText { get; }
         public BattleOutcome Outcome { get; }
         public bool SessionFinished { get; }
-        public bool CanEndTurn => Available && !SessionFinished;
+        public bool CanEndTurn =>
+            Available && !SessionFinished && !SelectingEnemyTarget;
         public bool CanSettle => Available && SessionFinished;
         public string FinishedText => CanSettle
             ? $"전투 종료: {Outcome}. 정산을 진행하세요."
@@ -148,5 +153,7 @@ namespace HaveABreak.Cards
         public BattleInstalledCardDisplayOption[] InstalledCards { get; }
         public BattleHandCardActionOption[] Hand { get; }
         public BattleEventDisplayOption[] RecentEvents { get; }
+        public bool SelectingEnemyTarget { get; }
+        public string PendingTargetSourceId { get; }
     }
 }

@@ -130,7 +130,10 @@ namespace HaveABreak.Cards
                 monsters,
                 installed,
                 actions.CreateHandOptions(context),
-                recentEvents);
+                recentEvents,
+                actions.IsSelectingEnemyTarget,
+                actions.PendingTargetedCardId ??
+                actions.PendingAttackerId);
         }
 
         public bool SelectEnemy(
@@ -140,6 +143,39 @@ namespace HaveABreak.Cards
             return actions.SelectEnemy(
                 progress?.ActiveEncounter,
                 enemyId);
+        }
+
+        public bool TryBeginCardTargeting(
+            RunEncounterProgressState progress,
+            string battleCardId,
+            out string message)
+        {
+            return actions.TryBeginCardTargeting(
+                progress?.ActiveEncounter,
+                battleCardId,
+                out message);
+        }
+
+        public bool TryBeginAttackTargeting(
+            RunEncounterProgressState progress,
+            string battleCardId,
+            out string message)
+        {
+            return actions.TryBeginAttackTargeting(
+                progress?.ActiveEncounter,
+                battleCardId,
+                out message);
+        }
+
+        public string PendingTargetedCardId =>
+            actions.PendingTargetedCardId;
+
+        public string PendingAttackerId => actions.PendingAttackerId;
+        public string SelectedEnemyId => actions.SelectedEnemyId;
+
+        public void ClearPendingTargeting()
+        {
+            actions.ClearPendingTargeting();
         }
 
         public BattleBanishTargetOption CycleBanishTarget(

@@ -831,7 +831,38 @@ namespace HaveABreak.Cards
                          "enemy:",
                          out string enemyId))
             {
-                battleScreen.SelectEnemy(progress, enemyId);
+                string pendingCardId =
+                    battleScreen.PendingTargetedCardId;
+                string pendingAttackerId =
+                    battleScreen.PendingAttackerId;
+                if (battleScreen.SelectEnemy(progress, enemyId))
+                {
+                    if (!string.IsNullOrWhiteSpace(pendingCardId))
+                    {
+                        BattleCardPlayCommandResult command =
+                            battleScreen.TryPlayCard(
+                                progress,
+                                pendingCardId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            SaveRun(null);
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(
+                                 pendingAttackerId))
+                    {
+                        BattleMonsterAttackCommandResult command =
+                            battleScreen.TryAttack(
+                                progress,
+                                pendingAttackerId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            SaveRun(null);
+                        }
+                    }
+                }
             }
             else if (TryReadCommandValue(
                          commandId,
@@ -845,12 +876,31 @@ namespace HaveABreak.Cards
                          "play:",
                          out string cardId))
             {
-                BattleCardPlayCommandResult command =
-                    battleScreen.TryPlayCard(progress, cardId);
-                message = command.Message;
-                if (command.Succeeded)
+                BattleCardInstance card = progress.ActiveEncounter?
+                    .Session?.Runtime?.Deck.Zones.Find(cardId);
+                bool requiresTarget = card != null &&
+                    CardEffectRegistrationCatalog.TryFind(
+                        card.SourceCard.CatalogCardId,
+                        out CardEffectRegistration registration) &&
+                    registration.Route == CardEffectRoute.TargetedSkill;
+                if (requiresTarget &&
+                    string.IsNullOrWhiteSpace(
+                        battleScreen.SelectedEnemyId))
                 {
-                    SaveRun(null);
+                    battleScreen.TryBeginCardTargeting(
+                        progress,
+                        cardId,
+                        out message);
+                }
+                else
+                {
+                    BattleCardPlayCommandResult command =
+                        battleScreen.TryPlayCard(progress, cardId);
+                    message = command.Message;
+                    if (command.Succeeded)
+                    {
+                        SaveRun(null);
+                    }
                 }
             }
             else if (TryReadCommandValue(
@@ -858,13 +908,10 @@ namespace HaveABreak.Cards
                          "attack:",
                          out string monsterId))
             {
-                BattleMonsterAttackCommandResult command =
-                    battleScreen.TryAttack(progress, monsterId);
-                message = command.Message;
-                if (command.Succeeded)
-                {
-                    SaveRun(null);
-                }
+                battleScreen.TryBeginAttackTargeting(
+                    progress,
+                    monsterId,
+                    out message);
             }
             else if (TryReadCommandValue(
                          commandId,

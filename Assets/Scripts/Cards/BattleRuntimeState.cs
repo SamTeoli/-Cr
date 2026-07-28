@@ -26,6 +26,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleCardTurnTriggerState cardTurnTriggers;
         [SerializeField] private BattleDefenseRetentionState defenseRetention;
         [SerializeField] private BattleRuntimeTrapRegistry trapInstallations;
+        [SerializeField] private BattleRuntimeChainState chain;
 
         private BattleRuntimeState()
         {
@@ -61,6 +62,7 @@ namespace HaveABreak.Cards
             cardTurnTriggers = new BattleCardTurnTriggerState();
             defenseRetention = new BattleDefenseRetentionState();
             trapInstallations = new BattleRuntimeTrapRegistry();
+            chain = new BattleRuntimeChainState();
         }
 
         public BattleDeckState Deck => deck;
@@ -86,6 +88,8 @@ namespace HaveABreak.Cards
         public BattleCardTurnTriggerState CardTurnTriggers => cardTurnTriggers;
         public BattleDefenseRetentionState DefenseRetention => defenseRetention;
         public BattleRuntimeTrapRegistry TrapInstallations => trapInstallations;
+        public BattleRuntimeChainState Chain =>
+            chain ??= new BattleRuntimeChainState();
 
         public bool TryAddEnemy(
             string enemyId,

@@ -202,20 +202,25 @@ namespace HaveABreak.Cards
             return result;
         }
 
-        internal static bool AcceptsCardType(
+        internal static bool AcceptsCard(
             RuntimeBattleFieldZone zone,
-            CardType cardType)
+            RuntimeCardPresentation card)
         {
+            if (card == null)
+            {
+                return false;
+            }
+
             return zone switch
             {
                 RuntimeBattleFieldZone.Enemy =>
-                    cardType != CardType.Monster,
+                    card.RequiresEnemyTarget,
                 RuntimeBattleFieldZone.PlayerMonster =>
-                    cardType == CardType.Monster,
+                    card.CardType == CardType.Monster,
                 RuntimeBattleFieldZone.PlayerSkill =>
-                    cardType == CardType.Skill ||
-                    cardType == CardType.Trap ||
-                    cardType == CardType.Barrier,
+                    card.CardType == CardType.Skill ||
+                    card.CardType == CardType.Trap ||
+                    card.CardType == CardType.Barrier,
                 _ => false
             };
         }
@@ -279,28 +284,32 @@ namespace HaveABreak.Cards
             }
             if (selectionOutline != null)
             {
-                selectionOutline.effectColor = new Color(0.95f, 0.76f, 0.2f, 1f);
+                bool targetableEnemy =
+                    value?.Zone == RuntimeBattleFieldZone.Enemy &&
+                    !string.IsNullOrWhiteSpace(value.ClickCommandId);
+                selectionOutline.effectColor = value?.Selected == true
+                    ? new Color(0.95f, 0.76f, 0.2f, 1f)
+                    : new Color(0.25f, 0.75f, 1f, 1f);
                 selectionOutline.effectDistance = new Vector2(3f, -3f);
-                selectionOutline.enabled = value?.Selected == true;
+                selectionOutline.enabled =
+                    value?.Selected == true || targetableEnemy;
             }
             if (button != null)
             {
                 button.onClick.RemoveAllListeners();
-                button.interactable = value?.Interactable == true &&
-                                      !string.IsNullOrWhiteSpace(
-                                          value.ClickCommandId);
+                button.interactable = value?.Interactable == true;
                 string clickCommand = value?.ClickCommandId;
                 if (button.interactable)
                 {
                     button.onClick.AddListener(() =>
                     {
-                        if (inspect != null)
+                        if (!string.IsNullOrWhiteSpace(clickCommand))
                         {
-                            inspect(value);
+                            command?.Invoke(clickCommand);
                         }
                         else
                         {
-                            command?.Invoke(clickCommand);
+                            inspect?.Invoke(value);
                         }
                     });
                 }
@@ -313,9 +322,9 @@ namespace HaveABreak.Cards
                 background,
                 idleColor,
                 hoverColor,
-                card => RuntimeBattleFieldView.AcceptsCardType(
+                card => RuntimeBattleFieldView.AcceptsCard(
                     zone,
-                    card.CardType));
+                    card));
         }
     }
 }

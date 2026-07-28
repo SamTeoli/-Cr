@@ -96,8 +96,11 @@ namespace HaveABreak.Cards
                         ? snapshot.Enemies[index]
                         : null;
                 bool enemyOccupied = enemy?.IsOccupied == true;
-                string enemyCommand = enemy?.CanSelect == true
+                string enemyDropCommand = enemy?.CanSelect == true
                     ? $"enemy:{enemy.EnemyId}"
+                    : string.Empty;
+                string enemyClickCommand = snapshot.SelectingEnemyTarget
+                    ? enemyDropCommand
                     : string.Empty;
                 enemies[index] = new RuntimeBattleFieldSlotPresentation(
                     RuntimeBattleFieldZone.Enemy,
@@ -108,9 +111,9 @@ namespace HaveABreak.Cards
                         : string.Empty,
                     enemyOccupied,
                     enemy?.IsSelected == true,
-                    enemy?.CanSelect == true,
-                    enemyCommand,
-                    enemyCommand);
+                    enemyOccupied,
+                    enemyClickCommand,
+                    enemyDropCommand);
 
                 BattleMonsterDisplayOption monster =
                     index < snapshot.Monsters.Length
@@ -130,7 +133,7 @@ namespace HaveABreak.Cards
                             : "이 몬스터존은 사용할 수 없음",
                     monsterOccupied,
                     false,
-                    monster?.CanAttack == true,
+                    monsterOccupied,
                     monster?.CanAttack == true
                         ? $"attack:{monster.BattleCardId}"
                         : string.Empty,
@@ -157,7 +160,7 @@ namespace HaveABreak.Cards
                             : "스킬존이 가득 참",
                     installedOccupied,
                     false,
-                    false,
+                    installedOccupied,
                     string.Empty,
                     acceptsSkill
                         ? $"field:skill:{index}"
