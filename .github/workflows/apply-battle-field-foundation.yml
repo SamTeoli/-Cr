@@ -1,15 +1,15 @@
 name: 전투 필드 UGUI 연결 적용
 
 on:
-  pull_request:
-    types: [reopened]
+  push:
+    branches:
+      - codex/battle-field-foundation
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.event.pull_request.head.ref == 'codex/battle-field-foundation'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,11 +30,12 @@ jobs:
               'public sealed partial class RuntimeGameUiRoot : MonoBehaviour',
               1)
 
-          old_field_anchor = '''            BattleCardPlayZone.SetSiblingIndex(
+          if 'BuildBattleField(panel);' not in root:
+              anchor = '''            BattleCardPlayZone.SetSiblingIndex(
                 summaryText.transform.GetSiblingIndex() + 1);
 
             BattleHandCardList = BuildCardScroll('''
-          new_field_anchor = '''            BattleCardPlayZone.SetSiblingIndex(
+              replacement = '''            BattleCardPlayZone.SetSiblingIndex(
                 summaryText.transform.GetSiblingIndex() + 1);
 
             BuildBattleField(panel);
@@ -42,33 +43,33 @@ jobs:
                 BattleCardPlayZone.GetSiblingIndex() + 1);
 
             BattleHandCardList = BuildCardScroll('''
-          if old_field_anchor not in root:
-              raise SystemExit('battle field insertion anchor missing')
-          root = root.replace(old_field_anchor, new_field_anchor, 1)
+              if anchor not in root:
+                  raise SystemExit('battle field insertion anchor missing')
+              root = root.replace(anchor, replacement, 1)
 
-          old_hand_order = '''            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
-                BattleCardPlayZone.GetSiblingIndex() + 1);'''
-          new_hand_order = '''            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
-                BattleFieldRoot.GetSiblingIndex() + 1);'''
-          if old_hand_order not in root:
-              raise SystemExit('battle hand ordering anchor missing')
-          root = root.replace(old_hand_order, new_hand_order, 1)
+          root = root.replace(
+              '''            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
+                BattleCardPlayZone.GetSiblingIndex() + 1);''',
+              '''            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
+                BattleFieldRoot.GetSiblingIndex() + 1);''',
+              1)
           root_path.write_text(root, encoding='utf-8', newline='\n')
 
           controller_path = Path('Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs')
           controller = controller_path.read_text(encoding='utf-8')
 
-          unavailable = '''                FinalUiRoot.BindBattleHand(
+          if 'RuntimeBattleFieldPresentation.Empty' not in controller:
+              anchor = '''                FinalUiRoot.BindBattleHand(
                     System.Array.Empty<RuntimeCardPresentation>());
                 finalCampaignScreen = RuntimeGameScreen.Battle;'''
-          unavailable_new = '''                FinalUiRoot.BindBattleHand(
+              replacement = '''                FinalUiRoot.BindBattleHand(
                     System.Array.Empty<RuntimeCardPresentation>());
                 FinalUiRoot.BindBattleField(
                     RuntimeBattleFieldPresentation.Empty);
                 finalCampaignScreen = RuntimeGameScreen.Battle;'''
-          if unavailable not in controller:
-              raise SystemExit('unavailable battle binding anchor missing')
-          controller = controller.replace(unavailable, unavailable_new, 1)
+              if anchor not in controller:
+                  raise SystemExit('unavailable battle binding anchor missing')
+              controller = controller.replace(anchor, replacement, 1)
 
           enemy_block = '''            foreach (BattleEnemyDisplayOption enemy in snapshot.Enemies)
             {
@@ -86,8 +87,6 @@ jobs:
             }
 
 '''
-          if enemy_block not in controller:
-              raise SystemExit('enemy command block missing')
           controller = controller.replace(enemy_block, '', 1)
 
           monster_block = '''            foreach (BattleMonsterDisplayOption monster in snapshot.Monsters)
@@ -106,27 +105,29 @@ jobs:
             }
 
 '''
-          if monster_block not in controller:
-              raise SystemExit('monster command block missing')
           controller = controller.replace(monster_block, '', 1)
 
-          hand_bind = '''            FinalUiRoot.BindBattleHand(handCards);
+          if 'RuntimeBattleFieldPresentation.FromSnapshot(snapshot)' not in controller:
+              anchor = '''            FinalUiRoot.BindBattleHand(handCards);
             finalCampaignScreen = RuntimeGameScreen.Battle;'''
-          hand_bind_new = '''            FinalUiRoot.BindBattleHand(handCards);
+              replacement = '''            FinalUiRoot.BindBattleHand(handCards);
             FinalUiRoot.BindBattleField(
                 RuntimeBattleFieldPresentation.FromSnapshot(snapshot));
             finalCampaignScreen = RuntimeGameScreen.Battle;'''
-          if hand_bind not in controller:
-              raise SystemExit('battle field bind anchor missing')
-          controller = controller.replace(hand_bind, hand_bind_new, 1)
+              if anchor not in controller:
+                  raise SystemExit('battle field bind anchor missing')
+              controller = controller.replace(anchor, replacement, 1)
+
           controller_path.write_text(controller, encoding='utf-8', newline='\n')
           PY
 
-          rm -f .github/workflows/apply-battle-field-foundation.yml
           git add Assets/Scripts/UI/RuntimeGameUiRoot.cs \
-                  Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs \
-                  .github/workflows/apply-battle-field-foundation.yml
+                  Assets/Scripts/Prototype/RuntimePrototypeScreen.FinalUi.cs
           git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "no source changes"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "전투 화면에 3구역 필드 UGUI 연결"
