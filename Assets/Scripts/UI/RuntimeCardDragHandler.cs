@@ -56,6 +56,7 @@ namespace HaveABreak.Cards
 
             dragging = true;
             suppressNextClick = true;
+            RuntimeCardDropZone.SetActivePresentation(cardView.Presentation);
             originalParent = transform.parent;
             originalSiblingIndex = transform.GetSiblingIndex();
             originalScale = transform.localScale;
@@ -111,6 +112,7 @@ namespace HaveABreak.Cards
             string cardCommand = presentation?.CommandId;
             string targetCommand = zone?.TargetCommandId;
 
+            RuntimeCardDropZone.SetActivePresentation(null);
             ReturnToHand();
 
             if (zone != null &&
@@ -131,6 +133,18 @@ namespace HaveABreak.Cards
 
             suppressNextClick = false;
             return true;
+        }
+
+        private void OnDisable()
+        {
+            if (!dragging)
+            {
+                return;
+            }
+
+            dragging = false;
+            RuntimeCardDropZone.SetActivePresentation(null);
+            ReturnToHand();
         }
 
         private RuntimeCardDropZone FindDropZone(PointerEventData eventData)
@@ -182,6 +196,7 @@ namespace HaveABreak.Cards
         IPointerEnterHandler,
         IPointerExitHandler
     {
+        private static RuntimeCardPresentation activePresentation;
         private Graphic highlightGraphic;
         private Color idleColor;
         private Color hoverColor;
@@ -189,6 +204,12 @@ namespace HaveABreak.Cards
 
         public bool AcceptsCards { get; private set; }
         public string TargetCommandId { get; private set; }
+
+        internal static void SetActivePresentation(
+            RuntimeCardPresentation presentation)
+        {
+            activePresentation = presentation;
+        }
 
         public void Configure(
             string targetCommandId,
@@ -219,7 +240,7 @@ namespace HaveABreak.Cards
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (AcceptsCards && highlightGraphic != null)
+            if (Accepts(activePresentation) && highlightGraphic != null)
             {
                 highlightGraphic.color = hoverColor;
             }
