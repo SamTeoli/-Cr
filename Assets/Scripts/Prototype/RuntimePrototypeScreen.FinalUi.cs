@@ -860,15 +860,10 @@ namespace HaveABreak.Cards
                 {
                     if (!string.IsNullOrWhiteSpace(pendingCardId))
                     {
-                        BattleCardPlayCommandResult command =
-                            battleScreen.TryPlayCard(
-                                progress,
-                                pendingCardId);
-                        message = command.Message;
-                        if (command.Succeeded)
-                        {
-                            SaveRun(null);
-                        }
+                        battleScreen.TryDeclareTargetedCardActivation(
+                            progress,
+                            pendingCardId,
+                            out message);
                     }
                     else if (!string.IsNullOrWhiteSpace(
                                  pendingAttackerId))
@@ -911,12 +906,22 @@ namespace HaveABreak.Cards
                 }
                 else
                 {
-                    BattleCardPlayCommandResult command =
-                        battleScreen.TryPlayCard(progress, cardId);
-                    message = command.Message;
-                    if (command.Succeeded)
+                    if (requiresTarget)
                     {
-                        SaveRun(null);
+                        battleScreen.TryDeclareTargetedCardActivation(
+                            progress,
+                            cardId,
+                            out message);
+                    }
+                    else
+                    {
+                        BattleCardPlayCommandResult command =
+                            battleScreen.TryPlayCard(progress, cardId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            SaveRun(null);
+                        }
                     }
                 }
             }

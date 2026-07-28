@@ -171,6 +171,17 @@ namespace HaveABreak.Cards
                 out message);
         }
 
+        public bool TryDeclareTargetedCardActivation(
+            RunEncounterProgressState progress,
+            string battleCardId,
+            out string message)
+        {
+            return actions.TryDeclareTargetedCardActivation(
+                progress?.ActiveEncounter,
+                battleCardId,
+                out message);
+        }
+
         public string PendingTargetedCardId =>
             actions.PendingTargetedCardId;
 
