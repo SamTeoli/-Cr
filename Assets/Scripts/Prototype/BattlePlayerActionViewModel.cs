@@ -666,82 +666,74 @@ namespace HaveABreak.Cards
         }
 
         public BattleCardPlayCommandResult TryPlayCard(
-            BattleRuntimeEncounterContext context,
-            string battleCardId)
-        {
-            BattleHandCardActionOption option = CreateHandOptions(context)
-                .FirstOrDefault(value => string.Equals(
-                    value.BattleCardId,
-                    battleCardId,
-                    StringComparison.OrdinalIgnoreCase));
-            if (option == null)
-            {
-                return new BattleCardPlayCommandResult(
-                    false,
-                    null,
-                    null,
-                    default,
-                    default,
-                    default,
-                    context?.Session?.Outcome ?? BattleOutcome.Ongoing,
-                    "카드 사용 실패: 선택한 카드를 현재 패에서 찾을 수 없습니다.");
-            }
+    BattleRuntimeEncounterContext context,
+    string battleCardId)
+{
+    return TryPlayCard(context, battleCardId, null);
+}
 
-            if (!option.CanPlay)
-            {
-                return new BattleCardPlayCommandResult(
-                    false,
-                    option,
-                    null,
-                    option.ActionFailure,
-                    option.PlayFailure,
-                    option.CardFailure,
-                    context?.Session?.Outcome ?? BattleOutcome.Ongoing,
-                    $"카드 사용 실패: {option.BlockReason}");
-            }
-
-            if (!BattleRuntimePlayerCardActionService.TryResolve(
-                    context.Runtime,
-                    option.BattleCardId,
-                    selectedEnemyId,
-                    option.SelectedBanishTargetId,
-                    out BattleRuntimePlayerCardActionResult result,
-                    out BattleRuntimePlayerCardActionFailure actionFailure,
-                    out BattleRuntimeCardPlayFailure playFailure,
-                    out CardPlayFailure cardFailure))
-            {
-                return new BattleCardPlayCommandResult(
-                    false,
-                    option,
-                    null,
-                    actionFailure,
-                    playFailure,
-                    cardFailure,
-                    context.Session.Outcome,
-                    $"카드 사용 실패: {actionFailure} / {playFailure} / " +
-                    $"{cardFailure}");
-            }
-
-            selectedBanishCardIds.Remove(option.BattleCardId);
-            BattleOutcome outcome = FinalizeOutcome(context);
-            Refresh(context);
-            string message =
-                $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
-            if (outcome != BattleOutcome.Ongoing)
-            {
-                message += $" 전투 종료 · {outcome}";
-            }
-
-            return new BattleCardPlayCommandResult(
-                true,
-                option,
-                result,
-                actionFailure,
-                playFailure,
-                cardFailure,
-                outcome,
-                message);
-        }
+public BattleCardPlayCommandResult TryPlayCard(
+    BattleRuntimeEncounterContext context,
+    string battleCardId,
+    PlayerMonsterFieldPosition? monsterPosition)
+{
+    BattleHandCardActionOption option = CreateHandOptions(context)
+        .FirstOrDefault(value => string.Equals(
+            value.BattleCardId,
+            battleCardId,
+            StringComparison.OrdinalIgnoreCase));
+    if (option == null)
+    {
+        return new BattleCardPlayCommandResult(
+            false, null, null, default, default, default,
+            context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+            "카드 사용 실패: 선택한 카드를 현재 패에서 찾을 수 없습니다.");
+    }
+    if (!option.CanPlay)
+    {
+        return new BattleCardPlayCommandResult(
+            false, option, null,
+            option.ActionFailure, option.PlayFailure, option.CardFailure,
+            context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+            $"카드 사용 실패: {option.BlockReason}");
+    }
+    if (!BattleRuntimePlayerCardActionService.TryResolve(
+            context.Runtime,
+            option.BattleCardId,
+            selectedEnemyId,
+            option.SelectedBanishTargetId,
+            monsterPosition,
+            out BattleRuntimePlayerCardActionResult result,
+            out BattleRuntimePlayerCardActionFailure actionFailure,
+            out BattleRuntimeCardPlayFailure playFailure,
+            out CardPlayFailure cardFailure))
+    {
+        string positionText = monsterPosition.HasValue
+            ? $" / 몬스터존 {monsterPosition.Value}"
+            : string.Empty;
+        return new BattleCardPlayCommandResult(
+            false, option, null,
+            actionFailure, playFailure, cardFailure,
+            context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+            $"카드 사용 실패{positionText}: {actionFailure} / " +
+            $"{playFailure} / {cardFailure}");
+    }
+    selectedBanishCardIds.Remove(option.BattleCardId);
+    BattleOutcome outcome = FinalizeOutcome(context);
+    Refresh(context);
+    string message = monsterPosition.HasValue
+        ? $"{result.Play.Card.SourceCard.DisplayName} 사용 완료 · " +
+          $"몬스터존 {monsterPosition.Value}"
+        : $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
+    if (outcome != BattleOutcome.Ongoing)
+    {
+        message += $" 전투 종료 · {outcome}";
+    }
+    return new BattleCardPlayCommandResult(
+        true, option, result,
+        actionFailure, playFailure, cardFailure,
+        outcome, message);
+}
 
         public BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(
             BattleRuntimeEncounterContext context)

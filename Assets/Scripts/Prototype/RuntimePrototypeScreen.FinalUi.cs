@@ -748,6 +748,13 @@ namespace HaveABreak.Cards
             string cardCommandId,
             string targetCommandId)
         {
+    if (TryExecuteFinalFieldCardDrop(
+            cardCommandId,
+            targetCommandId))
+    {
+        return;
+    }
+
             if (!string.IsNullOrWhiteSpace(targetCommandId) &&
                 TryReadCommandValue(
                     targetCommandId,

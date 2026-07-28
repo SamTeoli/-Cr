@@ -96,7 +96,7 @@ namespace HaveABreak.Editor
                     slot.DropZone.TargetCommandId.StartsWith(
                         "field:skill:",
                         StringComparison.Ordinal)) ?? 0;
-                bool fieldDrops = monsterDropCount == 1 &&
+                bool fieldDrops = monsterDropCount == 3 &&
                                   skillDropCount == 1;
                 bool legacyHidden = root?.BattleCommandList != null &&
                                     !Enumerable.Range(
@@ -124,7 +124,7 @@ namespace HaveABreak.Editor
                     Debug.Log(
                         "Runtime battle field bridge validation passed: final " +
                         "UGUI exposes three enemy, monster, and skill slots with " +
-                        "selection and first-empty card-drop routing.");
+                        "selection and all-empty monster-zone card-drop routing.");
                 }
                 else
                 {

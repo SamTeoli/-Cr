@@ -150,6 +150,17 @@ namespace HaveABreak.Cards
                 battleCardId);
         }
 
+        public BattleCardPlayCommandResult TryPlayCard(
+    RunEncounterProgressState progress,
+    string battleCardId,
+    PlayerMonsterFieldPosition position)
+{
+    return actions.TryPlayCard(
+        progress?.ActiveEncounter,
+        battleCardId,
+        position);
+}
+
         public BattleMonsterAttackCommandResult TryAttack(
             RunEncounterProgressState progress,
             string battleCardId)

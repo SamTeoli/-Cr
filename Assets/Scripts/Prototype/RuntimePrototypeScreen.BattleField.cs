@@ -150,6 +150,81 @@ namespace HaveABreak.Cards
             }
         }
 
+        private bool TryExecuteFinalFieldCardDrop(
+    string cardCommandId,
+    string targetCommandId)
+{
+    if (!TryReadCommandValue(
+            targetCommandId,
+            "field:monster:",
+            out string slotText))
+    {
+        return false;
+    }
+    if (!TryResolveMonsterPosition(
+            slotText,
+            out PlayerMonsterFieldPosition position))
+    {
+        message = $"몬스터 소환 실패: 잘못된 몬스터존 {slotText}";
+        return true;
+    }
+    if (!TryReadCommandValue(
+            cardCommandId,
+            "play:",
+            out string battleCardId))
+    {
+        message = "몬스터 소환 실패: 드래그한 카드를 찾을 수 없습니다.";
+        return true;
+    }
+    BattleCardPlayCommandResult command = battleScreen.TryPlayCard(
+        progress,
+        battleCardId,
+        position);
+    message = command.Message;
+    if (command.Succeeded)
+    {
+        SaveRun(null);
+    }
+    finalCampaignScreen = null;
+    finalBattleFieldSignature = null;
+    if (campaign?.Phase == RunCampaignPhase.Battle)
+    {
+        RefreshFinalBattle();
+        SetFinalUiActive(true);
+        FinalUiRoot.ShowScreen(RuntimeGameScreen.Battle);
+    }
+    else
+    {
+        RefreshFinalUiVisibility();
+    }
+    return true;
+}
+
+private static bool TryResolveMonsterPosition(
+    string slotText,
+    out PlayerMonsterFieldPosition position)
+{
+    position = default;
+    if (!int.TryParse(slotText, out int index))
+    {
+        return false;
+    }
+    switch (index)
+    {
+        case 0:
+            position = PlayerMonsterFieldPosition.Left;
+            return true;
+        case 1:
+            position = PlayerMonsterFieldPosition.Center;
+            return true;
+        case 2:
+            position = PlayerMonsterFieldPosition.Right;
+            return true;
+        default:
+            return false;
+    }
+}
+
         private static string CreateBattleFieldSignature(
             RuntimeBattleFieldPresentation presentation)
         {
