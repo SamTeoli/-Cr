@@ -58,6 +58,7 @@ namespace HaveABreak.Cards
             dragging = true;
             suppressNextClick = true;
             GetComponent<RuntimeBattleHandCardHover>()?.ResetPresentation();
+            GetComponent<RuntimeBattleHandDrawAnimation>()?.CompleteImmediately();
             RuntimeCardDropZone.SetActivePresentation(cardView.Presentation);
             originalParent = transform.parent;
             originalSiblingIndex = transform.GetSiblingIndex();
@@ -67,7 +68,7 @@ namespace HaveABreak.Cards
             transform.SetAsLastSibling();
             transform.localRotation = Quaternion.identity;
             canvasGroup.blocksRaycasts = false;
-            canvasGroup.alpha = 0.94f;
+            canvasGroup.alpha = 1f;
 
             RectTransform canvasRect = rootCanvas.transform as RectTransform;
             if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
