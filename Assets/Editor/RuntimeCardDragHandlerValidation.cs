@@ -59,7 +59,8 @@ namespace HaveABreak.Editor
                     typeof(Button),
                     typeof(LayoutElement),
                     typeof(RuntimeCardView),
-                    typeof(RuntimeCardDragHandler));
+                    typeof(RuntimeCardDragHandler),
+                    typeof(RuntimeBattleHandDrawAnimation));
                 cardObject.transform.SetParent(handObject.transform, false);
                 RectTransform cardRect =
                     cardObject.GetComponent<RectTransform>();
@@ -94,6 +95,9 @@ namespace HaveABreak.Editor
                     view,
                     canvas,
                     (_, _) => droppedCount++);
+                RuntimeBattleHandDrawAnimation drawAnimation =
+                    cardObject.GetComponent<RuntimeBattleHandDrawAnimation>();
+                drawAnimation.Begin();
 
                 Transform originalParent = cardObject.transform.parent;
                 int originalSiblingIndex =
@@ -108,6 +112,8 @@ namespace HaveABreak.Editor
                 drag.OnPointerDown(pointer);
                 drag.OnBeginDrag(pointer);
                 Vector2 beginPosition = cardRect.anchoredPosition;
+                CanvasGroup dragCanvasGroup =
+                    cardObject.GetComponent<CanvasGroup>();
 
                 pointer.position = new Vector2(640f, 510f);
                 drag.OnDrag(pointer);
@@ -116,6 +122,10 @@ namespace HaveABreak.Editor
                 bool beganCorrectly =
                     cardObject.transform.parent == canvasObject.transform &&
                     cardObject.transform.localScale.x > originalScale.x;
+                bool opaqueWhileDragging =
+                    dragCanvasGroup != null &&
+                    Mathf.Approximately(dragCanvasGroup.alpha, 1f) &&
+                    Mathf.Approximately(drawAnimation.Progress, 1f);
                 Vector2 movement = movedPosition - beginPosition;
                 bool followedPointer =
                     Mathf.Abs(movement.x - 140f) < 0.1f &&
@@ -141,13 +151,16 @@ namespace HaveABreak.Editor
                 view.ClickButton.onClick.Invoke();
                 bool nextClickAccepted = clickedCount == 1;
 
-                bool valid = beganCorrectly && followedPointer && restored &&
+                bool valid = beganCorrectly && opaqueWhileDragging &&
+                             followedPointer && restored &&
                              dragClickSuppressed && nextClickAccepted;
                 if (!valid)
                 {
                     Debug.LogError(
                         "Runtime card drag handler validation failed: " +
-                        $"began={beganCorrectly}, followed={followedPointer}, " +
+                        $"began={beganCorrectly}, " +
+                        $"opaque={opaqueWhileDragging}, " +
+                        $"followed={followedPointer}, " +
                         $"restored={restored}, " +
                         $"suppressed={dragClickSuppressed}, " +
                         $"nextClick={nextClickAccepted}");
@@ -156,7 +169,8 @@ namespace HaveABreak.Editor
                 {
                     Debug.Log(
                         "Runtime card drag handler validation passed: " +
-                        "pointer offset, layout restore, and click suppression.");
+                        "opaque drag, pointer offset, layout restore, " +
+                        "and click suppression.");
                 }
 
                 return valid;
