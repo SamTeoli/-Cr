@@ -98,6 +98,11 @@ namespace HaveABreak.Editor
                 RuntimeBattleHandDrawAnimation drawAnimation =
                     cardObject.GetComponent<RuntimeBattleHandDrawAnimation>();
                 drawAnimation.Begin();
+                CanvasGroup animationCanvasGroup =
+                    cardObject.GetComponent<CanvasGroup>();
+                bool drawAnimationStayedOpaque =
+                    animationCanvasGroup != null &&
+                    Mathf.Approximately(animationCanvasGroup.alpha, 1f);
 
                 Transform originalParent = cardObject.transform.parent;
                 int originalSiblingIndex =
@@ -151,13 +156,15 @@ namespace HaveABreak.Editor
                 view.ClickButton.onClick.Invoke();
                 bool nextClickAccepted = clickedCount == 1;
 
-                bool valid = beganCorrectly && opaqueWhileDragging &&
+                bool valid = drawAnimationStayedOpaque &&
+                             beganCorrectly && opaqueWhileDragging &&
                              followedPointer && restored &&
                              dragClickSuppressed && nextClickAccepted;
                 if (!valid)
                 {
                     Debug.LogError(
                         "Runtime card drag handler validation failed: " +
+                        $"drawOpaque={drawAnimationStayedOpaque}, " +
                         $"began={beganCorrectly}, " +
                         $"opaque={opaqueWhileDragging}, " +
                         $"followed={followedPointer}, " +
@@ -169,8 +176,8 @@ namespace HaveABreak.Editor
                 {
                     Debug.Log(
                         "Runtime card drag handler validation passed: " +
-                        "opaque drag, pointer offset, layout restore, " +
-                        "and click suppression.");
+                        "no transparency animation, opaque drag, pointer offset, " +
+                        "layout restore, and click suppression.");
                 }
 
                 return valid;
