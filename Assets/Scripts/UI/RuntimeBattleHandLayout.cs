@@ -167,6 +167,22 @@ namespace HaveABreak.Cards
             LayoutRebuilder.MarkLayoutForRebuild(parentRect);
         }
 
+        public void CompleteImmediately()
+        {
+            playing = false;
+            Progress = 1f;
+            parentRect ??= transform.parent as RectTransform;
+            canvasGroup ??= GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 1f;
+            }
+            if (parentRect != null)
+            {
+                LayoutRebuilder.MarkLayoutForRebuild(parentRect);
+            }
+        }
+
         private void LateUpdate()
         {
             if (!playing)
