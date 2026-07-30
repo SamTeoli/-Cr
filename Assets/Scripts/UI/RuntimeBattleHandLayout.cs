@@ -147,7 +147,6 @@ namespace HaveABreak.Cards
         [SerializeField] private float duration = 0.42f;
 
         private RectTransform parentRect;
-        private CanvasGroup canvasGroup;
         private float elapsed;
         private float startDelay;
         private bool playing;
@@ -157,13 +156,10 @@ namespace HaveABreak.Cards
         public void Begin(float delay = 0f)
         {
             parentRect = transform.parent as RectTransform;
-            canvasGroup = GetComponent<CanvasGroup>() ??
-                          gameObject.AddComponent<CanvasGroup>();
             elapsed = 0f;
             startDelay = Mathf.Max(0f, delay);
             Progress = 0f;
             playing = true;
-            canvasGroup.alpha = 0.35f;
             LayoutRebuilder.MarkLayoutForRebuild(parentRect);
         }
 
@@ -172,11 +168,6 @@ namespace HaveABreak.Cards
             playing = false;
             Progress = 1f;
             parentRect ??= transform.parent as RectTransform;
-            canvasGroup ??= GetComponent<CanvasGroup>();
-            if (canvasGroup != null)
-            {
-                canvasGroup.alpha = 1f;
-            }
             if (parentRect != null)
             {
                 LayoutRebuilder.MarkLayoutForRebuild(parentRect);
@@ -201,13 +192,6 @@ namespace HaveABreak.Cards
                 (elapsed - startDelay) /
                 Mathf.Max(0.01f, duration));
             Progress = 1f - Mathf.Pow(1f - linear, 3f);
-            if (canvasGroup != null)
-            {
-                canvasGroup.alpha = Mathf.Lerp(
-                    0.35f,
-                    1f,
-                    Progress);
-            }
             LayoutRebuilder.MarkLayoutForRebuild(parentRect);
             if (linear < 1f)
             {
@@ -216,10 +200,6 @@ namespace HaveABreak.Cards
 
             Progress = 1f;
             playing = false;
-            if (canvasGroup != null)
-            {
-                canvasGroup.alpha = 1f;
-            }
             LayoutRebuilder.MarkLayoutForRebuild(parentRect);
         }
     }
