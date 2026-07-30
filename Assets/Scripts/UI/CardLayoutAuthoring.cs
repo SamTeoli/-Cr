@@ -21,6 +21,120 @@ namespace HaveABreak.Cards
         }
 
 #if UNITY_EDITOR
+        private void OnEnable()
+        {
+            UnityEditor.EditorApplication.delayCall +=
+                ResetPreviewToSavedLayout;
+        }
+
+        public void ResetPreviewToSavedLayout()
+        {
+            if (this == null || settings == null || cardView == null)
+            {
+                return;
+            }
+
+            RectTransform cardRect = cardView.transform as RectTransform;
+            if (cardRect == null)
+            {
+                return;
+            }
+
+            UnityEditor.Undo.RecordObject(
+                cardRect,
+                "Reset Card Layout Preview");
+            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.pivot = new Vector2(0.5f, 0.5f);
+            cardRect.sizeDelta = new Vector2(
+                RuntimeCardView.ReferenceWidth,
+                RuntimeCardView.ReferenceHeight);
+            cardRect.anchoredPosition = Vector2.zero;
+            cardRect.localScale = Vector3.one;
+            cardRect.localRotation = Quaternion.identity;
+            RectTransform visualRoot = EnsureVisualRoot(cardRect);
+            if (visualRoot != null)
+            {
+                UnityEditor.Undo.RecordObject(
+                    visualRoot,
+                    "Reset Card Layout Preview");
+                visualRoot.anchorMin = new Vector2(0.5f, 0.5f);
+                visualRoot.anchorMax = new Vector2(0.5f, 0.5f);
+                visualRoot.pivot = new Vector2(0.5f, 0.5f);
+                visualRoot.sizeDelta = new Vector2(
+                    RuntimeCardView.ReferenceWidth,
+                    RuntimeCardView.ReferenceHeight);
+                visualRoot.anchoredPosition = Vector2.zero;
+                visualRoot.localScale = Vector3.one;
+                visualRoot.localRotation = Quaternion.identity;
+            }
+
+            ApplyRect("ManaCost", settings.Mana);
+            ApplyRect("CardName", settings.CardName);
+            ApplyRect("Artwork", settings.Artwork);
+            ApplyRect("Effect", settings.Effect);
+            ApplyRect("Attack", settings.Attack);
+            ApplyRect("Health", settings.Health);
+            ApplyRect("CardType", settings.CardType);
+            ApplyRect("Selection", settings.Selection);
+            ApplyRect("BlockReason", settings.BlockReason);
+
+            ApplyFontSize("ManaCost", settings.ManaSize);
+            ApplyFontSize("CardName", settings.NameSize);
+            ApplyFontSize("Effect", settings.EffectSize);
+            ApplyFontSize("Attack", settings.StatSize);
+            ApplyFontSize("Health", settings.StatSize);
+            ApplyFontSize("CardType", settings.TypeSize);
+            RemoveLegacyBackgroundObjects();
+        }
+
+        private RectTransform EnsureVisualRoot(RectTransform cardRect)
+        {
+            RectTransform existing = FindRect("CardVisualRoot");
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            GameObject visualObject = new(
+                "CardVisualRoot",
+                typeof(RectTransform));
+            UnityEditor.Undo.RegisterCreatedObjectUndo(
+                visualObject,
+                "Create Fixed Card Visual Root");
+            RectTransform visual =
+                visualObject.GetComponent<RectTransform>();
+            visual.SetParent(cardRect, false);
+
+            Transform[] children = new Transform[cardRect.childCount];
+            for (int index = 0; index < cardRect.childCount; index++)
+            {
+                children[index] = cardRect.GetChild(index);
+            }
+            foreach (Transform child in children)
+            {
+                if (child == visual ||
+                    child.GetComponent<CardLayoutAuthoring>() != null)
+                {
+                    continue;
+                }
+                UnityEditor.Undo.SetTransformParent(
+                    child,
+                    visual,
+                    "Move Card Visual Into Fixed Root");
+            }
+
+            RectTransform overlay = FindRect("FrameOverlay");
+            if (overlay != null)
+            {
+                overlay.anchorMin = Vector2.zero;
+                overlay.anchorMax = Vector2.one;
+                overlay.offsetMin = Vector2.zero;
+                overlay.offsetMax = Vector2.zero;
+            }
+            return visual;
+        }
+
         public bool CaptureLayout()
         {
             if (settings == null || cardView == null)
@@ -30,8 +144,8 @@ namespace HaveABreak.Cards
 
             EnsureVisualLayering();
 
-            RectTransform artwork = FindRect("ArtworkBackground");
-            RectTransform rules = FindRect("RulesBackground");
+            RemoveLegacyBackgroundObjects();
+            RectTransform artwork = FindRect("Artwork");
             RectTransform mana = FindRect("ManaCost");
             RectTransform cardName = FindRect("CardName");
             RectTransform effect = FindRect("Effect");
@@ -40,7 +154,7 @@ namespace HaveABreak.Cards
             RectTransform cardType = FindRect("CardType");
             RectTransform selection = FindRect("Selection");
             RectTransform block = FindRect("BlockReason");
-            if (artwork == null || rules == null ||
+            if (artwork == null ||
                 mana == null || cardName == null || effect == null ||
                 attack == null || health == null || cardType == null ||
                 selection == null || block == null)
@@ -63,14 +177,11 @@ namespace HaveABreak.Cards
             UnityEditor.Undo.RecordObject(
                 settings,
                 "Save Card Layout");
-            Rect centeredNameRect = GetRect(cardName);
-            centeredNameRect.x =
-                0.5f - centeredNameRect.width * 0.5f;
             settings.EditorCapture(
                 GetRect(mana),
-                centeredNameRect,
+                GetRect(cardName),
                 GetRect(artwork),
-                GetRect(rules),
+                settings.RulesPanel,
                 GetRect(effect),
                 GetRect(attack),
                 GetRect(health),
@@ -85,6 +196,81 @@ namespace HaveABreak.Cards
             UnityEditor.EditorUtility.SetDirty(settings);
             UnityEditor.AssetDatabase.SaveAssets();
             return true;
+        }
+
+        private void RemoveLegacyBackgroundObjects()
+        {
+            if (this == null || cardView == null || settings == null)
+            {
+                return;
+            }
+
+            RectTransform artwork = FindRect("Artwork");
+            RectTransform artworkBackground =
+                FindRect("ArtworkBackground");
+            if (artwork != null && artworkBackground != null &&
+                artwork.parent == artworkBackground)
+            {
+                artwork.SetParent(cardView.transform, false);
+                artwork.anchorMin = new Vector2(
+                    settings.Artwork.xMin,
+                    settings.Artwork.yMin);
+                artwork.anchorMax = new Vector2(
+                    settings.Artwork.xMax,
+                    settings.Artwork.yMax);
+                artwork.offsetMin = Vector2.zero;
+                artwork.offsetMax = Vector2.zero;
+            }
+
+            DestroyLegacyObject("ArtPlaceholder");
+            DestroyLegacyObject("ArtworkBackground");
+            DestroyLegacyObject("RulesBackground");
+        }
+
+        private void DestroyLegacyObject(string objectName)
+        {
+            RectTransform target = FindRect(objectName);
+            if (target == null)
+            {
+                return;
+            }
+
+            UnityEditor.Undo.DestroyObjectImmediate(target.gameObject);
+        }
+
+        private void ApplyRect(string objectName, Rect value)
+        {
+            RectTransform target = FindRect(objectName);
+            if (target == null)
+            {
+                return;
+            }
+
+            UnityEditor.Undo.RecordObject(
+                target,
+                "Reset Card Layout Preview");
+            target.anchorMin = new Vector2(value.xMin, value.yMin);
+            target.anchorMax = new Vector2(value.xMax, value.yMax);
+            target.offsetMin = Vector2.zero;
+            target.offsetMax = Vector2.zero;
+            target.localScale = Vector3.one;
+            target.localRotation = Quaternion.identity;
+        }
+
+        private void ApplyFontSize(string objectName, int size)
+        {
+            RectTransform target = FindRect(objectName);
+            Text text = target == null ? null : target.GetComponent<Text>();
+            if (text == null)
+            {
+                return;
+            }
+
+            UnityEditor.Undo.RecordObject(
+                text,
+                "Reset Card Layout Preview");
+            text.fontSize = size;
+            text.resizeTextForBestFit = false;
         }
 
         private void EnsureVisualLayering()
@@ -135,11 +321,16 @@ namespace HaveABreak.Cards
 
             overlay.raycastTarget = false;
 
+            RectTransform visualRoot = FindRect("CardVisualRoot");
+            RectTransform contentRoot = visualRoot != null
+                ? visualRoot
+                : cardRect;
             int backgroundIndex = 0;
-            Transform[] directChildren = new Transform[cardRect.childCount];
-            for (int i = 0; i < cardRect.childCount; i++)
+            Transform[] directChildren =
+                new Transform[contentRoot.childCount];
+            for (int i = 0; i < contentRoot.childCount; i++)
             {
-                directChildren[i] = cardRect.GetChild(i);
+                directChildren[i] = contentRoot.GetChild(i);
             }
 
             foreach (Transform child in directChildren)

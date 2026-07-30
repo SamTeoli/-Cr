@@ -7,24 +7,24 @@ namespace HaveABreak.Cards
     public sealed class CardLayoutSettings : ScriptableObject
     {
         [Header("Normalized Rects (X, Y, Width, Height)")]
-        [SerializeField] private Rect mana = new(0.055f, 0.82f, 0.19f, 0.14f);
-        [SerializeField] private Rect cardName = new(0.24f, 0.82f, 0.52f, 0.10f);
-        [SerializeField] private Rect artwork = new(0.12f, 0.39f, 0.76f, 0.42f);
-        [SerializeField] private Rect rulesPanel = new(0.12f, 0.13f, 0.76f, 0.25f);
-        [SerializeField] private Rect effect = new(0.16f, 0.16f, 0.69f, 0.20f);
-        [SerializeField] private Rect attack = new(0.075f, 0.085f, 0.21f, 0.12f);
-        [SerializeField] private Rect health = new(0.715f, 0.085f, 0.21f, 0.12f);
-        [SerializeField] private Rect cardType = new(0.31f, 0.065f, 0.38f, 0.06f);
+        [SerializeField] private Rect mana = new(0.025f, 0.865f, 0.17f, 0.11f);
+        [SerializeField] private Rect cardName = new(0.21f, 0.875f, 0.56f, 0.09f);
+        [SerializeField] private Rect artwork = new(0.04f, 0.35f, 0.92f, 0.50f);
+        [SerializeField] private Rect rulesPanel = new(0.04f, 0.095f, 0.92f, 0.235f);
+        [SerializeField] private Rect effect = new(0.075f, 0.12f, 0.85f, 0.185f);
+        [SerializeField] private Rect attack = new(0.055f, 0.035f, 0.40f, 0.045f);
+        [SerializeField] private Rect health = new(0.545f, 0.035f, 0.40f, 0.045f);
+        [SerializeField] private Rect cardType = new(0.79f, 0.885f, 0.16f, 0.07f);
         [SerializeField] private Rect selection = new(0.60f, 0.765f, 0.26f, 0.05f);
         [SerializeField] private Rect blockReason = new(0.10f, 0.39f, 0.80f, 0.08f);
 
         [Header("Font")]
         [SerializeField] private string koreanOsFontName = "Malgun Gothic";
-        [SerializeField, Range(8, 40)] private int manaSize = 27;
+        [SerializeField, Range(8, 40)] private int manaSize = 22;
         [SerializeField, Range(8, 40)] private int nameSize = 16;
-        [SerializeField, Range(8, 40)] private int effectSize = 13;
-        [SerializeField, Range(8, 40)] private int statSize = 27;
-        [SerializeField, Range(8, 40)] private int typeSize = 12;
+        [SerializeField, Range(8, 40)] private int effectSize = 12;
+        [SerializeField, Range(8, 40)] private int statSize = 10;
+        [SerializeField, Range(8, 40)] private int typeSize = 9;
 
         public Rect Mana => mana;
         public Rect CardName => cardName;

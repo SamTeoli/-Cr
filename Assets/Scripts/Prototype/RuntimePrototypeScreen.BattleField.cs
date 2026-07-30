@@ -10,6 +10,9 @@ namespace HaveABreak.Cards
         private GameObject finalBattleFieldObject;
         private RuntimeBattleFieldView finalBattleFieldView;
         private string finalBattleFieldSignature;
+        private string pendingTargetedSkillPlacementCardId;
+        private PlayerMonsterFieldPosition?
+            pendingTargetedSkillPlacementPosition;
 
         private void LateUpdate()
         {
@@ -44,11 +47,14 @@ namespace HaveABreak.Cards
 
             finalBattleFieldObject.SetActive(true);
             HideLegacyFieldCommandButtons();
+            TryFinalizePendingTargetedSkillPlacement();
 
             BattleScreenSnapshot snapshot =
                 battleScreen.CreateSnapshot(progress, campaign);
             RuntimeBattleFieldPresentation presentation =
                 RuntimeBattleFieldPresentation.FromSnapshot(snapshot);
+            presentation = ApplyPendingTargetedSkillPresentation(
+                presentation);
             string signature = CreateBattleFieldSignature(presentation);
             if (string.Equals(
                     signature,
@@ -88,8 +94,9 @@ namespace HaveABreak.Cards
 
             LayoutElement fieldLayout =
                 finalBattleFieldObject.GetComponent<LayoutElement>();
-            fieldLayout.preferredHeight = 390f;
-            fieldLayout.minHeight = 340f;
+            fieldLayout.preferredHeight = 720f;
+            fieldLayout.minHeight = 560f;
+            fieldLayout.flexibleHeight = 1f;
 
             finalBattleFieldView =
                 finalBattleFieldObject.GetComponent<RuntimeBattleFieldView>();
@@ -98,23 +105,7 @@ namespace HaveABreak.Cards
                 FinalUiRoot.ShowBattleFieldDetail);
             finalBattleFieldView.Bind(RuntimeBattleFieldPresentation.Empty);
 
-            int fieldIndex = FinalUiRoot.BattleConsumableBar == null
-                ? 0
-                : FinalUiRoot.BattleConsumableBar.GetSiblingIndex() + 1;
-            finalBattleFieldObject.transform.SetSiblingIndex(fieldIndex);
-
-            Transform handScroll =
-                FinalUiRoot.BattleHandCardList?.transform.parent?.parent;
-            if (handScroll != null)
-            {
-                handScroll.SetSiblingIndex(fieldIndex + 1);
-                LayoutElement handLayout =
-                    handScroll.GetComponent<LayoutElement>();
-                if (handLayout != null)
-                {
-                    handLayout.preferredHeight = 240f;
-                }
-            }
+            finalBattleFieldObject.transform.SetAsFirstSibling();
 
             Transform commandScroll =
                 FinalUiRoot.BattleCommandList?.transform.parent?.parent;
@@ -183,6 +174,14 @@ namespace HaveABreak.Cards
         message = "몬스터 소환 실패: 드래그한 카드를 찾을 수 없습니다.";
         return true;
     }
+    if (BeginBanishTargetSelectionIfRequired(battleCardId))
+    {
+        message = "효과 대상을 손패에서 선택하세요.";
+        finalCampaignScreen = null;
+        finalBattleFieldSignature = null;
+        RefreshFinalBattle();
+        return true;
+    }
     BattleCardPlayCommandResult command = battleScreen.TryPlayCard(
         progress,
         battleCardId,
@@ -205,6 +204,84 @@ namespace HaveABreak.Cards
         RefreshFinalUiVisibility();
     }
     return true;
+}
+
+private RuntimeBattleFieldPresentation
+    ApplyPendingTargetedSkillPresentation(
+        RuntimeBattleFieldPresentation presentation)
+{
+    if (presentation == null ||
+        string.IsNullOrWhiteSpace(
+            pendingTargetedSkillPlacementCardId) ||
+        !pendingTargetedSkillPlacementPosition.HasValue)
+    {
+        return presentation;
+    }
+
+    int index = (int)pendingTargetedSkillPlacementPosition.Value;
+    if (index < 0 || index >= presentation.Skills.Length)
+    {
+        return presentation;
+    }
+
+    BattleCardInstance card = progress?.ActiveEncounter?.Session?.Runtime?
+        .Deck.Zones.Find(pendingTargetedSkillPlacementCardId);
+    if (card == null)
+    {
+        return presentation;
+    }
+
+    RuntimeBattleFieldSlotPresentation[] skills =
+        (RuntimeBattleFieldSlotPresentation[])presentation.Skills.Clone();
+    skills[index] = new RuntimeBattleFieldSlotPresentation(
+        RuntimeBattleFieldZone.PlayerSkill,
+        index,
+        $"{card.SourceCard.DisplayName} · 활성화 중",
+        "필드에서 효과 대상을 클릭하세요.",
+        true,
+        true,
+        false,
+        string.Empty,
+        string.Empty);
+    return new RuntimeBattleFieldPresentation(
+        presentation.Enemies,
+        presentation.Monsters,
+        skills);
+}
+
+private void TryFinalizePendingTargetedSkillPlacement()
+{
+    if (string.IsNullOrWhiteSpace(
+            pendingTargetedSkillPlacementCardId) ||
+        !pendingTargetedSkillPlacementPosition.HasValue)
+    {
+        return;
+    }
+
+    BattleRuntimeState runtime =
+        progress?.ActiveEncounter?.Session?.Runtime;
+    BattleCardInstance card = runtime?.Deck.Zones.Find(
+        pendingTargetedSkillPlacementCardId);
+    if (card?.Zone == CardZone.SkillField)
+    {
+        runtime.PlayerSkillPositions.TryPlace(
+            pendingTargetedSkillPlacementCardId,
+            pendingTargetedSkillPlacementPosition.Value);
+        pendingTargetedSkillPlacementCardId = null;
+        pendingTargetedSkillPlacementPosition = null;
+        SaveRun(null);
+        finalBattleFieldSignature = null;
+        return;
+    }
+
+    if (card == null ||
+        (card.Zone != CardZone.Hand &&
+         card.Zone != CardZone.SkillField))
+    {
+        pendingTargetedSkillPlacementCardId = null;
+        pendingTargetedSkillPlacementPosition = null;
+        finalBattleFieldSignature = null;
+    }
 }
 
 private bool TryExecuteFinalSkillFieldCardDrop(
@@ -237,6 +314,39 @@ private bool TryExecuteFinalSkillFieldCardDrop(
             runtime.PlayerSkillPositions.GetOccupant(position)))
     {
         message = $"카드 설치 실패: 선택한 스킬존 {slotText}은 사용할 수 없습니다.";
+        return true;
+    }
+    if (BeginBanishTargetSelectionIfRequired(battleCardId))
+    {
+        message = "효과 대상을 손패에서 선택하세요.";
+        finalCampaignScreen = null;
+        finalBattleFieldSignature = null;
+        RefreshFinalBattle();
+        return true;
+    }
+    BattleCardInstance draggedCard =
+        runtime.Deck.Zones.Find(battleCardId);
+    bool requiresEnemyTarget = draggedCard != null &&
+        CardEffectRegistrationCatalog.TryFind(
+            draggedCard.SourceCard.CatalogCardId,
+            out CardEffectRegistration registration) &&
+        registration.Route == CardEffectRoute.TargetedSkill;
+    if (requiresEnemyTarget)
+    {
+        if (battleScreen.TryBeginCardTargeting(
+                progress,
+                battleCardId,
+                out message))
+        {
+            pendingTargetedSkillPlacementCardId = battleCardId;
+            pendingTargetedSkillPlacementPosition = position;
+            message =
+                $"{draggedCard.SourceCard.DisplayName}을(를) 스킬존에 " +
+                "활성화했습니다. 필드에서 효과 대상을 클릭하세요.";
+        }
+        finalCampaignScreen = null;
+        finalBattleFieldSignature = null;
+        RefreshFinalBattle();
         return true;
     }
 

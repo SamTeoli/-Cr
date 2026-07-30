@@ -43,6 +43,10 @@ namespace HaveABreak.Cards
         private GameObject battleScreen;
         private GameObject rewardScreen;
         private GameObject runResultScreen;
+        private readonly HashSet<string> boundBattleHandCardIds =
+            new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<string> battleHandCardOrder = new();
+        private bool battleHandHasInitialSnapshot;
         public Canvas RootCanvas { get; private set; }
         public Button NewRunButton { get; private set; }
         public Button ContinueButton { get; private set; }
@@ -83,6 +87,7 @@ namespace HaveABreak.Cards
         public GameObject BattleUtilityPanel { get; private set; }
         public Text BattleUtilityTitleText { get; private set; }
         public Text BattleUtilityBodyText { get; private set; }
+        public Button BattleUtilityLogButton { get; private set; }
         public Text RewardSummaryText { get; private set; }
         public Text RewardMessageText { get; private set; }
         public RectTransform RewardCommandList { get; private set; }
@@ -130,6 +135,13 @@ namespace HaveABreak.Cards
 
         public void ShowScreen(RuntimeGameScreen screen)
         {
+            if (screen != RuntimeGameScreen.Battle &&
+                CurrentScreen == RuntimeGameScreen.Battle)
+            {
+                boundBattleHandCardIds.Clear();
+                battleHandCardOrder.Clear();
+                battleHandHasInitialSnapshot = false;
+            }
             CurrentScreen = screen;
             if (startScreen != null)
             {
@@ -301,6 +313,12 @@ namespace HaveABreak.Cards
             BattleTitleText.text = title ?? "전투";
             BattleSummaryText.text = summary ?? string.Empty;
             BattleMessageText.text = message ?? string.Empty;
+            bool showPrompt =
+                !string.IsNullOrWhiteSpace(message) &&
+                (message.Contains("선택하세요") ||
+                 message.Contains("선택했습니다") ||
+                 message.Contains("활성화"));
+            BattleMessageText.gameObject.SetActive(showPrompt);
         }
 
         public void BindBattleHand(
@@ -312,8 +330,11 @@ namespace HaveABreak.Cards
                     "RuntimeGameUiRoot.Initialize must be called before binding.");
             }
 
-            ClearChildren(BattleHandCardList);
             int cardCount = cards?.Count ?? 0;
+            Dictionary<string, RuntimeCardPresentation> cardsById =
+                new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> nextCardIds =
+                new(StringComparer.OrdinalIgnoreCase);
             for (int index = 0; index < cardCount; index++)
             {
                 RuntimeCardPresentation card = cards[index];
@@ -322,15 +343,73 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
+                string cardId = card.CommandId ?? $"hand-card:{index}";
+                cardsById[cardId] = card;
+                nextCardIds.Add(cardId);
+            }
+
+            battleHandCardOrder.RemoveAll(
+                cardId => !nextCardIds.Contains(cardId));
+            for (int index = 0; index < cardCount; index++)
+            {
+                RuntimeCardPresentation card = cards[index];
+                if (card == null)
+                {
+                    continue;
+                }
+
+                string cardId = card.CommandId ?? $"hand-card:{index}";
+                if (!battleHandCardOrder.Contains(cardId))
+                {
+                    battleHandCardOrder.Add(cardId);
+                }
+            }
+
+            bool initialHand = !battleHandHasInitialSnapshot;
+            int newDrawOrder = 0;
+            ClearChildren(BattleHandCardList);
+            for (int index = 0; index < battleHandCardOrder.Count; index++)
+            {
+                string cardId = battleHandCardOrder[index];
+                RuntimeCardPresentation card = cardsById[cardId];
+                bool selectingEffectTarget =
+                    card.CommandId == "cancel-effect-target" ||
+                    card.CommandId == "effect-blocked" ||
+                    card.CommandId.StartsWith(
+                        "effect-target:",
+                        StringComparison.OrdinalIgnoreCase);
+                Action<string> clicked = selectingEffectTarget
+                    ? commandId =>
+                        BattleCommandRequested?.Invoke(commandId)
+                    : _ => ShowBattleCardDetail(card);
                 RuntimeCardView view = CreateCardView(
                     $"HandCard_{index}",
                     BattleHandCardList,
                     card,
-                    _ => ShowBattleCardDetail(card),
-                    true);
+                    clicked,
+                    !selectingEffectTarget);
                 view.GetComponent<RuntimeBattleHandCardHover>()
                     ?.Configure(index);
+                bool newlyAdded =
+                    !boundBattleHandCardIds.Contains(cardId);
+                if (newlyAdded)
+                {
+                    view.gameObject
+                        .AddComponent<RuntimeBattleHandDrawAnimation>()
+                        .Begin(
+                            initialHand
+                                ? index * 0.085f
+                                : newDrawOrder * 0.065f);
+                    newDrawOrder++;
+                }
             }
+
+            boundBattleHandCardIds.Clear();
+            foreach (string cardId in nextCardIds)
+            {
+                boundBattleHandCardIds.Add(cardId);
+            }
+            battleHandHasInitialSnapshot = true;
         }
 
         public void BindBattleHud(
@@ -351,6 +430,13 @@ namespace HaveABreak.Cards
                 $"마나 {Mathf.Max(0, currentMana)}/{Mathf.Max(0, maximumMana)}";
             battleMapDetails = mapDetails ?? "이동 경로가 없습니다.";
             battleDeckDetails = deckDetails ?? "덱 정보가 없습니다.";
+        }
+
+        public void BindBattleLog(string logText)
+        {
+            battleLogDetails = string.IsNullOrWhiteSpace(logText)
+                ? "아직 기록된 플레이 로그가 없습니다."
+                : logText;
         }
 
         public void BindBattleConsumables(
@@ -667,7 +753,9 @@ namespace HaveABreak.Cards
                 contentObject.GetComponent<GridLayoutGroup>();
             cardLayout.padding = new RectOffset(8, 8, 12, 12);
             cardLayout.spacing = new Vector2(12f, 12f);
-            cardLayout.cellSize = new Vector2(226f, 344f);
+            cardLayout.cellSize = new Vector2(
+                RuntimeCardView.ReferenceWidth,
+                RuntimeCardView.ReferenceHeight);
             cardLayout.constraint =
                 GridLayoutGroup.Constraint.FixedColumnCount;
             cardLayout.constraintCount = 4;
@@ -737,10 +825,15 @@ namespace HaveABreak.Cards
             BattleSummaryText = summaryText;
             BattleCommandList = commandList;
             BattleMessageText = messageText;
+            ConfigureBattleCommandBar();
 
             Transform panel = titleText.transform.parent;
             RectTransform panelRect = panel as RectTransform;
-            panelRect.sizeDelta = new Vector2(1880f, 1040f);
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.offsetMin = new Vector2(16f, 16f);
+            panelRect.offsetMax = new Vector2(-16f, -82f);
             Image panelImage = panel.GetComponent<Image>();
             if (panelImage != null)
             {
@@ -751,32 +844,98 @@ namespace HaveABreak.Cards
             panelLayout.padding = new RectOffset(28, 28, 22, 22);
             panelLayout.spacing = 8f;
 
-            BuildBattleTopHud(panel);
-            BuildBattleConsumableBar(panel);
-            BattleConsumableBar.SetSiblingIndex(
-                BattleTopHudBar.GetSiblingIndex() + 1);
+            BuildBattleTopHud(battleScreen.transform);
+            BuildBattleConsumableBar(BattleTopHudBar);
+            BattleConsumableBar.SetSiblingIndex(4);
 
             BattleHandCardList = BuildBattleHand(
-                panel,
+                battleScreen.transform,
                 "BattleHandScroll",
-                240f);
-            BattleHandCardList.transform.parent.parent.SetSiblingIndex(
-                BattleConsumableBar.GetSiblingIndex() + 1);
-            BattleCommandList.transform.parent.parent
-                .GetComponent<LayoutElement>().preferredHeight = 66f;
+                138f);
+            ConfigureBattleBottomOverlay(messageText);
 
             titleText.GetComponent<LayoutElement>().preferredHeight = 48f;
             summaryText.GetComponent<LayoutElement>().preferredHeight = 52f;
             titleText.gameObject.SetActive(false);
             summaryText.gameObject.SetActive(false);
-            messageText.GetComponent<LayoutElement>().preferredHeight = 40f;
             BuildBattleDetailPanel(battleScreen.transform);
             BuildBattleUtilityPanel(battleScreen.transform);
             BuildBattleEndTurnButton(battleScreen.transform);
+            BattleTopHudBar.SetAsLastSibling();
         }
 
         private string battleMapDetails;
         private string battleDeckDetails;
+        private string battleLogDetails;
+
+        private void ConfigureBattleCommandBar()
+        {
+            VerticalLayoutGroup vertical =
+                BattleCommandList.GetComponent<VerticalLayoutGroup>();
+            if (vertical != null)
+            {
+                DestroyImmediate(vertical);
+            }
+
+            HorizontalLayoutGroup horizontal =
+                BattleCommandList.gameObject
+                    .AddComponent<HorizontalLayoutGroup>();
+            horizontal.padding = new RectOffset(8, 8, 4, 4);
+            horizontal.spacing = 12f;
+            horizontal.childAlignment = TextAnchor.MiddleCenter;
+            horizontal.childControlWidth = true;
+            horizontal.childControlHeight = true;
+            horizontal.childForceExpandWidth = true;
+            horizontal.childForceExpandHeight = false;
+        }
+
+        private void ConfigureBattleBottomOverlay(Text messageText)
+        {
+            RectTransform handScroll =
+                BattleHandCardList.parent.parent as RectTransform;
+            LayoutElement handLayout =
+                handScroll.GetComponent<LayoutElement>();
+            if (handLayout != null)
+            {
+                DestroyImmediate(handLayout);
+            }
+            handScroll.anchorMin = new Vector2(0f, 0f);
+            handScroll.anchorMax = new Vector2(1f, 0f);
+            handScroll.pivot = new Vector2(0.5f, 0f);
+            handScroll.anchoredPosition = Vector2.zero;
+            handScroll.sizeDelta = new Vector2(0f, 138f);
+
+            RectTransform commandScroll =
+                BattleCommandList.parent.parent as RectTransform;
+            commandScroll.SetParent(battleScreen.transform, false);
+            LayoutElement commandLayout =
+                commandScroll.GetComponent<LayoutElement>();
+            if (commandLayout != null)
+            {
+                DestroyImmediate(commandLayout);
+            }
+            commandScroll.anchorMin = new Vector2(0.5f, 0f);
+            commandScroll.anchorMax = new Vector2(0.5f, 0f);
+            commandScroll.pivot = new Vector2(0.5f, 0f);
+            commandScroll.anchoredPosition = new Vector2(0f, 148f);
+            commandScroll.sizeDelta = new Vector2(720f, 64f);
+
+            RectTransform prompt = messageText.rectTransform;
+            prompt.SetParent(battleScreen.transform, false);
+            LayoutElement promptLayout =
+                prompt.GetComponent<LayoutElement>();
+            if (promptLayout != null)
+            {
+                DestroyImmediate(promptLayout);
+            }
+            prompt.anchorMin = new Vector2(0.5f, 0f);
+            prompt.anchorMax = new Vector2(0.5f, 0f);
+            prompt.pivot = new Vector2(0.5f, 0f);
+            prompt.anchoredPosition = new Vector2(0f, 216f);
+            prompt.sizeDelta = new Vector2(920f, 46f);
+            messageText.alignment = TextAnchor.MiddleCenter;
+            prompt.gameObject.SetActive(false);
+        }
 
         private void BuildBattleTopHud(Transform panel)
         {
@@ -785,12 +944,14 @@ namespace HaveABreak.Cards
                 panel,
                 new Color(0.025f, 0.055f, 0.085f, 0.98f));
             BattleTopHudBar = top.rectTransform;
-            LayoutElement topElement =
-                top.gameObject.AddComponent<LayoutElement>();
-            topElement.preferredHeight = 68f;
+            BattleTopHudBar.anchorMin = new Vector2(0f, 1f);
+            BattleTopHudBar.anchorMax = new Vector2(1f, 1f);
+            BattleTopHudBar.pivot = new Vector2(0.5f, 1f);
+            BattleTopHudBar.anchoredPosition = Vector2.zero;
+            BattleTopHudBar.sizeDelta = new Vector2(0f, 72f);
             HorizontalLayoutGroup topLayout =
                 top.gameObject.AddComponent<HorizontalLayoutGroup>();
-            topLayout.padding = new RectOffset(16, 16, 8, 8);
+            topLayout.padding = new RectOffset(28, 28, 8, 8);
             topLayout.spacing = 10f;
             topLayout.childAlignment = TextAnchor.MiddleLeft;
             topLayout.childControlWidth = true;
@@ -808,9 +969,8 @@ namespace HaveABreak.Cards
             CreateHudButton("Deck", top.transform, "덱",
                 () => ShowBattleUtility("덱", battleDeckDetails));
             CreateHudButton("Options", top.transform, "옵션",
-                () => ShowBattleUtility(
-                    "옵션",
-                    "전투 일시정지\n\n계속하려면 닫기를 누르세요."));
+                ShowBattleOptions);
+            BattleTopHudBar.SetAsLastSibling();
         }
 
         private static Text CreateHudLabel(
@@ -890,6 +1050,12 @@ namespace HaveABreak.Cards
             BattleUtilityBodyText = CreateText(
                 "Body", rect, string.Empty, 20, FontStyle.Normal, 520f);
             BattleUtilityBodyText.alignment = TextAnchor.UpperLeft;
+            BattleUtilityLogButton = CreateButton(
+                "ViewLog",
+                rect,
+                "로그 보기",
+                PrimaryColor,
+                ShowBattleLog);
             CreateButton(
                 "Close",
                 rect,
@@ -904,8 +1070,25 @@ namespace HaveABreak.Cards
             HideBattleDetail();
             BattleUtilityTitleText.text = title ?? string.Empty;
             BattleUtilityBodyText.text = body ?? string.Empty;
+            if (BattleUtilityLogButton != null)
+            {
+                BattleUtilityLogButton.gameObject.SetActive(false);
+            }
             BattleUtilityPanel.SetActive(true);
             BattleUtilityPanel.transform.SetAsLastSibling();
+        }
+
+        private void ShowBattleOptions()
+        {
+            ShowBattleUtility(
+                "옵션",
+                "전투 일시정지\n\n계속하려면 닫기를 누르세요.");
+            BattleUtilityLogButton?.gameObject.SetActive(true);
+        }
+
+        private void ShowBattleLog()
+        {
+            ShowBattleUtility("플레이 로그", battleLogDetails);
         }
 
         private void BuildBattleDetailPanel(Transform parent)
@@ -1055,7 +1238,9 @@ namespace HaveABreak.Cards
             BattleConsumableBar = bar.rectTransform;
             LayoutElement barLayout =
                 bar.gameObject.AddComponent<LayoutElement>();
-            barLayout.preferredHeight = 88f;
+            barLayout.preferredWidth = 330f;
+            barLayout.preferredHeight = 56f;
+            barLayout.flexibleWidth = 0f;
 
             HorizontalLayoutGroup layout =
                 bar.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -1071,11 +1256,11 @@ namespace HaveABreak.Cards
                 "Label",
                 BattleConsumableBar,
                 "소모품",
-                20,
+                17,
                 FontStyle.Bold,
-                68f);
+                52f);
             LayoutElement labelLayout = label.GetComponent<LayoutElement>();
-            labelLayout.preferredWidth = 76f;
+            labelLayout.preferredWidth = 64f;
             labelLayout.flexibleWidth = 0f;
 
             GameObject iconListObject = new(
@@ -1096,8 +1281,8 @@ namespace HaveABreak.Cards
             iconLayout.childForceExpandHeight = false;
             LayoutElement iconListLayout =
                 iconListObject.GetComponent<LayoutElement>();
-            iconListLayout.preferredWidth = 246f;
-            iconListLayout.preferredHeight = 68f;
+            iconListLayout.preferredWidth = 210f;
+            iconListLayout.preferredHeight = 52f;
             iconListLayout.flexibleWidth = 0f;
 
             BattleConsumableTooltipText = CreateText(
@@ -1148,8 +1333,8 @@ namespace HaveABreak.Cards
 
             LayoutElement iconLayout =
                 iconObject.GetComponent<LayoutElement>();
-            iconLayout.preferredWidth = 68f;
-            iconLayout.preferredHeight = 68f;
+            iconLayout.preferredWidth = 46f;
+            iconLayout.preferredHeight = 46f;
             iconLayout.flexibleWidth = 0f;
             iconLayout.flexibleHeight = 0f;
 
@@ -1395,7 +1580,9 @@ namespace HaveABreak.Cards
                 contentObject.GetComponent<GridLayoutGroup>();
             layout.padding = new RectOffset(8, 8, 8, 8);
             layout.spacing = new Vector2(12f, 12f);
-            layout.cellSize = new Vector2(226f, 344f);
+            layout.cellSize = new Vector2(
+                RuntimeCardView.ReferenceWidth,
+                RuntimeCardView.ReferenceHeight);
             layout.constraint =
                 GridLayoutGroup.Constraint.FixedColumnCount;
             layout.constraintCount = 4;
@@ -1443,7 +1630,7 @@ namespace HaveABreak.Cards
             content.anchorMin = Vector2.zero;
             content.anchorMax = Vector2.one;
             content.pivot = new Vector2(0.5f, 0f);
-            content.offsetMin = new Vector2(96f, -92f);
+            content.offsetMin = new Vector2(96f, 0f);
             content.offsetMax = new Vector2(-96f, 0f);
 
             ScrollRect scroll = scrollObject.GetComponent<ScrollRect>();

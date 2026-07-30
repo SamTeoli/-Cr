@@ -14,67 +14,67 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.CardLayoutSettings
   mana:
     serializedVersion: 2
-    x: 0.029689789
-    y: 0.82870275
-    width: 0.20000008
-    height: 0.14285706
+    x: 0.025
+    y: 0.865
+    width: 0.17
+    height: 0.11
   cardName:
     serializedVersion: 2
-    x: 0.23999998
-    y: 0.8772206
-    width: 0.52000004
-    height: 0.045822278
+    x: 0.21
+    y: 0.875
+    width: 0.56
+    height: 0.09
   artwork:
     serializedVersion: 2
-    x: 0.119999975
-    y: 0.38999996
-    width: 0.76000005
-    height: 0.42000002
+    x: 0.04
+    y: 0.35
+    width: 0.92
+    height: 0.5
   rulesPanel:
     serializedVersion: 2
-    x: 0.119999975
-    y: 0.13000001
-    width: 0.76000005
-    height: 0.25
+    x: 0.04
+    y: 0.095
+    width: 0.92
+    height: 0.235
   effect:
     serializedVersion: 2
-    x: 0.13083959
-    y: 0.2572132
-    width: 0.7371199
-    height: 0.108977586
+    x: 0.075
+    y: 0.12
+    width: 0.85
+    height: 0.185
   attack:
     serializedVersion: 2
-    x: 0.02526545
-    y: 0.100999966
-    width: 0.20000005
-    height: 0.14285718
+    x: 0.055
+    y: 0.035
+    width: 0.4
+    height: 0.045
   health:
     serializedVersion: 2
-    x: 0.774347
-    y: 0.100999966
-    width: 0.19999997
-    height: 0.14285718
+    x: 0.545
+    y: 0.035
+    width: 0.4
+    height: 0.045
   cardType:
     serializedVersion: 2
-    x: 0.3925872
-    y: 0.09109435
-    width: 0.22157584
-    height: 0.046690054
+    x: 0.79
+    y: 0.885
+    width: 0.16
+    height: 0.07
   selection:
     serializedVersion: 2
     x: 0.6000001
-    y: 0.765
-    width: 0.25999993
-    height: 0.049999967
+    y: 0.76500005
+    width: 0.2599999
+    height: 0.04999988
   blockReason:
     serializedVersion: 2
     x: 0.099999994
-    y: 0.39
-    width: 0.8
+    y: 0.38999996
+    width: 0.8000001
     height: 0.08000001
   koreanOsFontName: Malgun Gothic
-  manaSize: 60
-  nameSize: 30
-  effectSize: 13
-  statSize: 60
-  typeSize: 20
+  manaSize: 22
+  nameSize: 16
+  effectSize: 12
+  statSize: 10
+  typeSize: 9

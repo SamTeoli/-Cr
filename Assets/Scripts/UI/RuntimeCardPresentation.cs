@@ -61,6 +61,40 @@ namespace HaveABreak.Cards
         public bool RequiresEnemyTarget { get; }
         public bool HasMonsterStats => Attack.HasValue && Health.HasValue;
 
+        public RuntimeCardPresentation WithInteraction(
+            string commandId,
+            bool selected,
+            bool interactable,
+            string blockReason,
+            string accessibilitySuffix = null)
+        {
+            string accessibility = AccessibilityText;
+            if (!string.IsNullOrWhiteSpace(accessibilitySuffix))
+            {
+                accessibility = string.IsNullOrWhiteSpace(accessibility)
+                    ? accessibilitySuffix
+                    : $"{accessibility} {accessibilitySuffix}";
+            }
+
+            return new RuntimeCardPresentation(
+                commandId,
+                DisplayName,
+                ContentId,
+                CardType,
+                Rarity,
+                ManaCost,
+                Attack,
+                Health,
+                EffectText,
+                selected,
+                selected ? 1 : 0,
+                interactable,
+                blockReason,
+                accessibility,
+                Artwork,
+                RequiresEnemyTarget);
+        }
+
         public string TypeLabel => CardType switch
         {
             CardType.Monster => "몬스터",
@@ -89,18 +123,18 @@ namespace HaveABreak.Cards
 
         public Color TypeColor => CardType switch
         {
-            CardType.Monster => new Color(0.55f, 0.24f, 0.19f, 1f),
-            CardType.Skill => new Color(0.16f, 0.38f, 0.65f, 1f),
-            CardType.Trap => new Color(0.46f, 0.22f, 0.55f, 1f),
-            CardType.Barrier => new Color(0.16f, 0.48f, 0.43f, 1f),
+            CardType.Monster => new Color(0.34f, 0.16f, 0.08f, 1f),
+            CardType.Skill => new Color(0.05f, 0.18f, 0.34f, 1f),
+            CardType.Trap => new Color(0.34f, 0.055f, 0.07f, 1f),
+            CardType.Barrier => new Color(0.82f, 0.81f, 0.75f, 1f),
             _ => new Color(0.2f, 0.24f, 0.3f, 1f)
         };
 
         public Color RarityColor => Rarity switch
         {
-            CardRarity.Common => new Color(0.65f, 0.68f, 0.72f, 1f),
-            CardRarity.Rare => new Color(0.24f, 0.62f, 0.95f, 1f),
-            CardRarity.Legendary => new Color(0.96f, 0.68f, 0.16f, 1f),
+            CardRarity.Common => new Color(0.42f, 0.43f, 0.45f, 1f),
+            CardRarity.Rare => new Color(0.82f, 0.88f, 0.94f, 1f),
+            CardRarity.Legendary => new Color(0.96f, 0.68f, 0.18f, 1f),
             _ => Color.white
         };
 

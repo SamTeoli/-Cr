@@ -6,20 +6,24 @@ namespace HaveABreak.Cards
 {
     public sealed class RuntimeCardView : MonoBehaviour
     {
+        public const float ReferenceHeight = 344f;
+        public const float ReferenceWidth = 242.5f;
+
         private static readonly Color DisabledColor =
             new(0.42f, 0.42f, 0.42f, 1f);
         private static readonly Color SelectedColor =
             new(0.3f, 0.78f, 1f, 1f);
-        private static readonly Color EmptyArtworkColor =
-            new(0.045f, 0.055f, 0.075f, 1f);
-        private static readonly Color RulesPanelColor =
-            new(0.025f, 0.03f, 0.04f, 0.94f);
-
         public Button ClickButton { get; private set; }
         public Image FrameImage { get; private set; }
         public Image FrameOverlayImage { get; private set; }
         public Image RarityAccentImage { get; private set; }
         public Image ArtworkImage { get; private set; }
+        public Image TypeSurfaceImage { get; private set; }
+        public Image HeaderPanelImage { get; private set; }
+        public Image RulesPanelImage { get; private set; }
+        public Image StatsPanelImage { get; private set; }
+        public Image ManaBadgeImage { get; private set; }
+        public Image TypeBadgeImage { get; private set; }
         public Text NameText { get; private set; }
         public Text ManaCostText { get; private set; }
         public Text ArtPlaceholderText { get; private set; }
@@ -33,9 +37,9 @@ namespace HaveABreak.Cards
         public Text AccessibilityText { get; private set; }
         public RuntimeCardPresentation Presentation { get; private set; }
 
-        private CardFrameTheme frameTheme;
         private CardLayoutSettings layoutSettings;
         private Font cardFont;
+        private RectTransform visualRoot;
 
         public void Initialize()
         {
@@ -46,13 +50,13 @@ namespace HaveABreak.Cards
 
             LayoutElement element = gameObject.GetComponent<LayoutElement>() ??
                                     gameObject.AddComponent<LayoutElement>();
-            element.preferredWidth = 226f;
-            element.preferredHeight = 344f;
+            element.preferredWidth = ReferenceWidth;
+            element.preferredHeight = ReferenceHeight;
 
             FrameImage = gameObject.GetComponent<Image>() ??
                          gameObject.AddComponent<Image>();
+            FrameImage.color = Color.clear;
             FrameImage.preserveAspect = false;
-            frameTheme = Resources.Load<CardFrameTheme>("UI/CardFrameTheme");
             layoutSettings = Resources.Load<CardLayoutSettings>(
                 "UI/CardLayoutSettings");
             cardFont = CreateCardFont();
@@ -61,68 +65,95 @@ namespace HaveABreak.Cards
                           gameObject.AddComponent<Button>();
             ClickButton.targetGraphic = FrameImage;
 
-            Image artworkBackground = CreateImage(
-                "ArtworkBackground",
-                EmptyArtworkColor,
-                Min(Layout.Artwork),
-                Max(Layout.Artwork));
-            ArtworkImage = CreateImage(
-                "Artwork",
-                Color.white,
-                Vector2.zero,
-                Vector2.one,
-                artworkBackground.transform);
-            ArtworkImage.preserveAspect = true;
-            ArtPlaceholderText = CreateText(
-                "ArtPlaceholder",
-                14,
-                FontStyle.Italic,
-                TextAnchor.MiddleCenter,
-                Vector2.zero,
-                Vector2.one,
-                artworkBackground.transform);
-            ArtPlaceholderText.text = "일러스트";
-            ArtPlaceholderText.color = new Color(0.62f, 0.66f, 0.72f, 1f);
-
-            CreateImage(
-                "RulesBackground",
-                RulesPanelColor,
-                Min(Layout.RulesPanel),
-                Max(Layout.RulesPanel));
+            visualRoot = CreateVisualRoot();
 
             FrameOverlayImage = CreateImage(
-                "FrameOverlay",
+                "RarityFrame",
                 Color.white,
                 Vector2.zero,
                 Vector2.one);
-            FrameOverlayImage.preserveAspect = false;
             FrameOverlayImage.raycastTarget = false;
+
+            TypeSurfaceImage = CreateImage(
+                "TypeSurface",
+                Color.white,
+                new Vector2(0.018f, 0.013f),
+                new Vector2(0.982f, 0.987f));
+            TypeSurfaceImage.raycastTarget = false;
+
+            Image innerSurface = CreateImage(
+                "InnerSurface",
+                new Color(0.025f, 0.03f, 0.04f, 1f),
+                new Vector2(0.038f, 0.035f),
+                new Vector2(0.962f, 0.965f));
+            innerSurface.raycastTarget = false;
+
+            ArtworkImage = CreateImage(
+                "Artwork",
+                new Color(0.07f, 0.08f, 0.10f, 1f),
+                Min(Layout.Artwork),
+                Max(Layout.Artwork));
+            ArtworkImage.preserveAspect = false;
+            ArtworkImage.raycastTarget = false;
+            ArtPlaceholderText = null;
+
+            HeaderPanelImage = CreateImage(
+                "HeaderPanel",
+                new Color(0.015f, 0.02f, 0.028f, 0.94f),
+                new Vector2(0.04f, 0.86f),
+                new Vector2(0.96f, 0.975f));
+            HeaderPanelImage.raycastTarget = false;
+
+            RulesPanelImage = CreateImage(
+                "RulesPanel",
+                new Color(0.92f, 0.90f, 0.84f, 0.97f),
+                Min(Layout.RulesPanel),
+                Max(Layout.RulesPanel));
+            RulesPanelImage.raycastTarget = false;
+
+            StatsPanelImage = CreateImage(
+                "StatsPanel",
+                new Color(0.025f, 0.03f, 0.04f, 0.98f),
+                new Vector2(0.04f, 0.025f),
+                new Vector2(0.96f, 0.09f));
+            StatsPanelImage.raycastTarget = false;
+
+            ManaBadgeImage = CreateImage(
+                "ManaBadge",
+                new Color(0.03f, 0.04f, 0.055f, 1f),
+                Min(Layout.Mana),
+                Max(Layout.Mana));
+            ManaBadgeImage.raycastTarget = false;
+
+            TypeBadgeImage = CreateImage(
+                "TypeBadge",
+                new Color(0.03f, 0.04f, 0.055f, 1f),
+                Min(Layout.CardType),
+                Max(Layout.CardType));
+            TypeBadgeImage.raycastTarget = false;
 
             ManaCostText = CreateText(
                 "ManaCost", Layout.ManaSize, FontStyle.Bold,
                 TextAnchor.MiddleCenter, Min(Layout.Mana), Max(Layout.Mana));
-            EnableBestFit(ManaCostText, 8, Layout.ManaSize);
             NameText = CreateText(
                 "CardName", Layout.NameSize, FontStyle.Bold,
                 TextAnchor.MiddleCenter, Min(Layout.CardName),
                 Max(Layout.CardName));
-            EnableBestFit(NameText, 9, Layout.NameSize);
+            NameText.horizontalOverflow = HorizontalWrapMode.Overflow;
             EffectText = CreateText(
                 "Effect", Layout.EffectSize, FontStyle.Normal,
                 TextAnchor.MiddleCenter, Min(Layout.Effect),
                 Max(Layout.Effect));
-            EnableBestFit(EffectText, 8, Layout.EffectSize);
+            EffectText.color = new Color(0.08f, 0.07f, 0.055f, 1f);
 
             AttackText = CreateText(
                 "Attack", Layout.StatSize, FontStyle.Bold,
-                TextAnchor.MiddleCenter, Min(Layout.Attack),
+                TextAnchor.MiddleLeft, Min(Layout.Attack),
                 Max(Layout.Attack));
-            EnableBestFit(AttackText, 8, Layout.StatSize);
             HealthText = CreateText(
                 "Health", Layout.StatSize, FontStyle.Bold,
-                TextAnchor.MiddleCenter, Min(Layout.Health),
+                TextAnchor.MiddleRight, Min(Layout.Health),
                 Max(Layout.Health));
-            EnableBestFit(HealthText, 8, Layout.StatSize);
             StatsText = CreateText(
                 "StatsAccessibility", 1, FontStyle.Normal,
                 TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
@@ -132,7 +163,6 @@ namespace HaveABreak.Cards
                 "CardType", Layout.TypeSize, FontStyle.Bold,
                 TextAnchor.MiddleCenter, Min(Layout.CardType),
                 Max(Layout.CardType));
-            EnableBestFit(MetadataText, 8, Layout.TypeSize);
             SelectionText = CreateText(
                 "Selection", 10, FontStyle.Bold, TextAnchor.MiddleRight,
                 Min(Layout.Selection), Max(Layout.Selection));
@@ -149,10 +179,30 @@ namespace HaveABreak.Cards
 
             RarityAccentImage = CreateImage(
                 "RarityAccent",
-                Color.clear,
-                Vector2.zero,
-                Vector2.zero);
-            RarityAccentImage.gameObject.SetActive(false);
+                Color.white,
+                new Vector2(0.035f, 0.965f),
+                new Vector2(0.965f, 0.982f));
+            RarityAccentImage.raycastTarget = false;
+        }
+
+        private RectTransform CreateVisualRoot()
+        {
+            GameObject visualObject = new(
+                "CardVisualRoot",
+                typeof(RectTransform));
+            RectTransform rect =
+                visualObject.GetComponent<RectTransform>();
+            rect.SetParent(transform, false);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(
+                ReferenceWidth,
+                ReferenceHeight);
+            rect.anchoredPosition = Vector2.zero;
+            rect.localScale = Vector3.one;
+            rect.localRotation = Quaternion.identity;
+            return rect;
         }
 
         public void Bind(
@@ -175,14 +225,16 @@ namespace HaveABreak.Cards
 
             ArtworkImage.sprite = presentation.Artwork;
             ArtworkImage.gameObject.SetActive(presentation.Artwork != null);
-            ArtPlaceholderText.gameObject.SetActive(
-                presentation.Artwork == null);
 
             bool hasStats = presentation.HasMonsterStats;
-            AttackText.text = hasStats ? presentation.Attack.ToString() : "";
-            HealthText.text = hasStats ? presentation.Health.ToString() : "";
-            AttackText.gameObject.SetActive(hasStats);
-            HealthText.gameObject.SetActive(hasStats);
+            AttackText.text = hasStats
+                ? $"공격력 {presentation.Attack}"
+                : string.Empty;
+            HealthText.text = hasStats
+                ? $"생명력 {presentation.Health}"
+                : string.Empty;
+            AttackText.gameObject.SetActive(true);
+            HealthText.gameObject.SetActive(true);
             StatsText.text = hasStats
                 ? $"공격 {presentation.Attack}, 생명력 {presentation.Health}"
                 : string.Empty;
@@ -202,47 +254,48 @@ namespace HaveABreak.Cards
             ClickButton.interactable = presentation.Interactable;
             ClickButton.onClick.RemoveAllListeners();
             string commandId = presentation.CommandId;
-            ClickButton.onClick.AddListener(() =>
-            {
-                RuntimeCardDragHandler dragHandler =
-                    GetComponent<RuntimeCardDragHandler>();
-                if (dragHandler != null &&
-                    dragHandler.ConsumeClickSuppression())
-                {
-                    return;
-                }
-
-                clicked?.Invoke(commandId);
-            });
+            ClickButton.onClick.AddListener(() => clicked?.Invoke(commandId));
         }
 
         private void ApplyRarityFrame(RuntimeCardPresentation presentation)
         {
-            CardFrameTheme.RarityFrame rarityFrame =
-                frameTheme?.GetFrame(
-                    presentation.Rarity,
-                    presentation.CardType);
-            Sprite frameSprite = rarityFrame?.FrameSprite;
-            Color baseColor = frameSprite == null
-                ? rarityFrame?.FallbackColor ?? presentation.RarityColor
-                : Color.white;
+            Color baseColor = presentation.RarityColor;
             Color displayColor = !presentation.Interactable
                 ? Color.Lerp(baseColor, DisabledColor, 0.55f)
                 : presentation.Selected
                     ? Color.Lerp(baseColor, SelectedColor, 0.18f)
                     : baseColor;
 
-            FrameImage.sprite = null;
-            FrameImage.type = Image.Type.Simple;
-            FrameImage.color = frameSprite == null
-                ? displayColor
-                : Color.clear;
-
-            FrameOverlayImage.sprite = frameSprite;
+            FrameImage.color = Color.clear;
+            FrameOverlayImage.sprite = null;
             FrameOverlayImage.type = Image.Type.Simple;
-            FrameOverlayImage.color = frameSprite == null
-                ? Color.clear
-                : displayColor;
+            FrameOverlayImage.color = displayColor;
+            RarityAccentImage.color = presentation.Rarity == CardRarity.Common
+                ? Color.Lerp(displayColor, Color.black, 0.25f)
+                : Color.Lerp(displayColor, Color.white, 0.28f);
+            TypeSurfaceImage.color = presentation.TypeColor;
+            Color panelTint = Color.Lerp(
+                presentation.TypeColor,
+                Color.black,
+                0.72f);
+            HeaderPanelImage.color = new Color(
+                panelTint.r,
+                panelTint.g,
+                panelTint.b,
+                0.96f);
+            StatsPanelImage.color = new Color(
+                panelTint.r,
+                panelTint.g,
+                panelTint.b,
+                0.98f);
+            ManaBadgeImage.color = Color.Lerp(
+                presentation.RarityColor,
+                Color.black,
+                0.62f);
+            TypeBadgeImage.color = Color.Lerp(
+                presentation.TypeColor,
+                Color.black,
+                0.48f);
         }
 
         private Image CreateImage(
@@ -256,7 +309,9 @@ namespace HaveABreak.Cards
                 objectName,
                 typeof(RectTransform),
                 typeof(Image));
-            child.transform.SetParent(parent ?? transform, false);
+            child.transform.SetParent(
+                parent ?? visualRoot ?? transform,
+                false);
             Image image = child.GetComponent<Image>();
             image.color = color;
             SetRect(image.rectTransform, anchorMin, anchorMax);
@@ -276,7 +331,9 @@ namespace HaveABreak.Cards
                 objectName,
                 typeof(RectTransform),
                 typeof(Text));
-            child.transform.SetParent(parent ?? transform, false);
+            child.transform.SetParent(
+                parent ?? visualRoot ?? transform,
+                false);
             Text text = child.GetComponent<Text>();
             text.font = cardFont ?? Resources.GetBuiltinResource<Font>(
                 "LegacyRuntime.ttf");
@@ -286,7 +343,12 @@ namespace HaveABreak.Cards
             text.color = Color.white;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.alignByGeometry = true;
             SetRect(text.rectTransform, anchorMin, anchorMax);
+            Shadow shadow = child.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.82f);
+            shadow.effectDistance = new Vector2(1f, -1f);
+            shadow.useGraphicAlpha = true;
             return text;
         }
 
@@ -301,25 +363,24 @@ namespace HaveABreak.Cards
             rect.offsetMax = Vector2.zero;
         }
 
-        private static void EnableBestFit(
-            Text text,
-            int minimumSize,
-            int maximumSize)
-        {
-            text.resizeTextForBestFit = true;
-            text.resizeTextMinSize = minimumSize;
-            text.resizeTextMaxSize = maximumSize;
-        }
-
         private CardLayoutSettings Layout =>
             layoutSettings != null ? layoutSettings : DefaultLayout.Instance;
 
         private Font CreateCardFont()
         {
-            string fontName = layoutSettings != null
+            string preferredFont = layoutSettings != null
                 ? layoutSettings.KoreanOsFontName
                 : "Malgun Gothic";
-            Font font = Font.CreateDynamicFontFromOSFont(fontName, 32);
+            string[] candidates =
+            {
+                preferredFont,
+                "Malgun Gothic",
+                "맑은 고딕",
+                "Noto Sans CJK KR",
+                "Noto Sans KR",
+                "Arial Unicode MS"
+            };
+            Font font = Font.CreateDynamicFontFromOSFont(candidates, 96);
             return font != null
                 ? font
                 : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

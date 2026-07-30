@@ -53,6 +53,11 @@ namespace HaveABreak.Cards
                 if (GUILayout.Button("전투 다시 시작")) BeginSelectedBattle();
                 return;
             }
+            if (snapshot.SessionFinished)
+            {
+                SettleBattle();
+                return;
+            }
 
             GUILayout.Label(snapshot.TitleText, headingStyle);
             GUILayout.Label(snapshot.PlayerSummaryText);
@@ -82,11 +87,6 @@ namespace HaveABreak.Cards
                 }
             }
             GUI.enabled = previous;
-            if (snapshot.CanSettle &&
-                GUILayout.Button("전투 정산", GUILayout.Height(44f)))
-            {
-                SettleBattle();
-            }
         }
 
         private void DrawBattleConsumables(BattleScreenSnapshot snapshot)

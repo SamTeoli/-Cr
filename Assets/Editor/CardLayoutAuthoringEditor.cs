@@ -28,6 +28,11 @@ public sealed class CardLayoutAuthoringEditor : Editor
                 Debug.LogError("Card layout could not be saved.");
             }
         }
+        if (GUILayout.Button("Reset Preview To Saved Layout"))
+        {
+            authoring.ResetPreviewToSavedLayout();
+            Debug.Log("Card layout preview reset to saved settings.");
+        }
     }
 }
 
@@ -72,7 +77,9 @@ public static class CardLayoutPreviewMenu
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(452f, 688f);
+        cardRect.sizeDelta = new Vector2(
+            RuntimeCardView.ReferenceWidth,
+            RuntimeCardView.ReferenceHeight);
         cardRect.anchoredPosition = Vector2.zero;
 
         RuntimeCardView view =
