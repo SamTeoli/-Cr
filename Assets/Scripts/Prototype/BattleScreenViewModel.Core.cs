@@ -91,7 +91,8 @@ namespace HaveABreak.Cards
                         card.Ids.BattleCardId) != null,
                     runtime.PlayerSkillPositions.FindPosition(
                         card.Ids.BattleCardId) ??
-                    PlayerMonsterFieldPosition.Left))
+                    PlayerMonsterFieldPosition.Left,
+                    CreateFieldCardPresentation(card)))
                 .ToArray();
             IReadOnlyList<BattleEventRecord> eventLog =
                 runtime.EventLog.Events;
@@ -230,15 +231,15 @@ namespace HaveABreak.Cards
         }
 
         public BattleCardPlayCommandResult TryPlayCard(
-    RunEncounterProgressState progress,
-    string battleCardId,
-    PlayerMonsterFieldPosition position)
-{
-    return actions.TryPlayCard(
-        progress?.ActiveEncounter,
-        battleCardId,
-        position);
-}
+            RunEncounterProgressState progress,
+            string battleCardId,
+            PlayerMonsterFieldPosition position)
+        {
+            return actions.TryPlayCard(
+                progress?.ActiveEncounter,
+                battleCardId,
+                position);
+        }
 
         public BattleMonsterAttackCommandResult TryAttack(
             RunEncounterProgressState progress,
