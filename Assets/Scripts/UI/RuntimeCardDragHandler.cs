@@ -220,9 +220,10 @@ namespace HaveABreak.Cards
             RuntimeCardPresentation presentation)
         {
             activePresentation = presentation;
+            RegisteredZones.RemoveWhere(zone => zone == null);
             foreach (RuntimeCardDropZone zone in RegisteredZones)
             {
-                zone?.RefreshHighlight();
+                zone.RefreshHighlight();
             }
         }
 
@@ -234,13 +235,12 @@ namespace HaveABreak.Cards
 
         private void OnDisable()
         {
-            RegisteredZones.Remove(this);
-            pointerInside = false;
-            IsAvailableHighlighted = false;
-            if (highlightGraphic != null)
-            {
-                highlightGraphic.color = idleColor;
-            }
+            Unregister();
+        }
+
+        private void OnDestroy()
+        {
+            Unregister();
         }
 
         public void Configure(
@@ -250,6 +250,7 @@ namespace HaveABreak.Cards
             Color hover,
             Func<RuntimeCardPresentation, bool> cardPredicate = null)
         {
+            RegisteredZones.Add(this);
             TargetCommandId = targetCommandId ?? string.Empty;
             AcceptsCards = !string.IsNullOrWhiteSpace(TargetCommandId);
             acceptsPresentation = cardPredicate;
@@ -281,6 +282,17 @@ namespace HaveABreak.Cards
         {
             pointerInside = false;
             RefreshHighlight();
+        }
+
+        private void Unregister()
+        {
+            RegisteredZones.Remove(this);
+            pointerInside = false;
+            IsAvailableHighlighted = false;
+            if (highlightGraphic != null)
+            {
+                highlightGraphic.color = idleColor;
+            }
         }
 
         private void RefreshHighlight()
