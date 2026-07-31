@@ -119,7 +119,9 @@ namespace HaveABreak.Editor
                            plate.CenterGlyph.transform.localScale.x > 1f;
                 }) && field.SkillSlots.All(slot =>
                     !slot.DropZone.IsAvailableHighlighted);
-                bool handSeparated = fieldRect.offsetMin.y >= 270f;
+                bool handSeparated = fieldRect.offsetMin.y >=
+                                     RuntimeBattleFieldResponsiveLayout
+                                         .ReservedBottomHeight;
 
                 bool valid = fieldRegion && slotsExpanded && cardsReadable &&
                              pulse && handSeparated;
