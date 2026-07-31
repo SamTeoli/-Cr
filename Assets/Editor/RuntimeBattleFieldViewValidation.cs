@@ -22,12 +22,20 @@ namespace HaveABreak.Editor
                 typeof(RectTransform),
                 typeof(RuntimeBattleFieldView));
             string commandId = null;
+            RuntimeBattleFieldSlotPresentation inspected = null;
 
             try
             {
+                RuntimeCardPresentation fieldMonsterCard =
+                    CreateCard(CardType.Monster, "검증 몬스터 카드");
+                RuntimeCardPresentation fieldSkillCard =
+                    CreateCard(CardType.Skill, "검증 스킬 카드");
+
                 RuntimeBattleFieldView view =
                     host.GetComponent<RuntimeBattleFieldView>();
-                view.Initialize(value => commandId = value);
+                view.Initialize(
+                    value => commandId = value,
+                    value => inspected = value);
                 RuntimeBattleFieldPresentation presentation = new(
                     new[]
                     {
@@ -43,7 +51,8 @@ namespace HaveABreak.Editor
                             RuntimeBattleFieldZone.PlayerMonster, 0,
                             "검증 몬스터", "공격 가능",
                             true, false, true,
-                            "attack:MONSTER-01", string.Empty),
+                            "attack:MONSTER-01", string.Empty,
+                            fieldMonsterCard),
                         new RuntimeBattleFieldSlotPresentation(
                             RuntimeBattleFieldZone.PlayerMonster, 1,
                             "빈 몬스터존", "몬스터 카드를 놓아 소환",
@@ -59,9 +68,10 @@ namespace HaveABreak.Editor
                     {
                         new RuntimeBattleFieldSlotPresentation(
                             RuntimeBattleFieldZone.PlayerSkill, 0,
-                            "빈 스킬존", "스킬 카드를 놓아 설치",
-                            false, false, false,
-                            string.Empty, "field:skill:0"),
+                            "검증 설치 카드", "설치 상태 확인",
+                            true, false, true,
+                            string.Empty, string.Empty,
+                            fieldSkillCard),
                         new RuntimeBattleFieldSlotPresentation(
                             RuntimeBattleFieldZone.PlayerSkill, 1,
                             "빈 스킬존", "스킬 카드를 놓아 설치",
@@ -83,7 +93,7 @@ namespace HaveABreak.Editor
                 RuntimeBattleFieldSlotView occupiedMonster = view.MonsterSlots[0];
                 RuntimeBattleFieldSlotView centerDrop = view.MonsterSlots[1];
                 RuntimeBattleFieldSlotView rightDrop = view.MonsterSlots[2];
-                RuntimeBattleFieldSlotView skillDrop = view.SkillSlots[0];
+                RuntimeBattleFieldSlotView occupiedSkill = view.SkillSlots[0];
                 RuntimeBattleFieldSlotView centerSkillDrop =
                     view.SkillSlots[1];
                 RuntimeBattleFieldSlotView rightSkillDrop =
@@ -94,11 +104,14 @@ namespace HaveABreak.Editor
                                     enemy.Presentation.Selected &&
                                     enemy.GetComponent<Outline>().enabled;
                 commandId = null;
-                occupiedMonster.Button.onClick.Invoke();
+                occupiedMonster.CardView.ClickButton.onClick.Invoke();
                 bool monsterCommand = commandId == "attack:MONSTER-01" &&
                                       !occupiedMonster.DropZone.AcceptsCards &&
                                       centerDrop.DropZone.AcceptsCards &&
                                       rightDrop.DropZone.AcceptsCards;
+
+                occupiedSkill.CardView.ClickButton.onClick.Invoke();
+                bool skillInspect = inspected == occupiedSkill.Presentation;
 
                 RuntimeCardPresentation monsterCard =
                     CreateCard(CardType.Monster, "검증 몬스터 카드");
@@ -113,12 +126,12 @@ namespace HaveABreak.Editor
                     rightDrop.DropZone.Accepts(monsterCard) &&
                     !enemy.DropZone.Accepts(monsterCard) &&
                     !centerDrop.DropZone.Accepts(skillCard) &&
-                    skillDrop.DropZone.Accepts(skillCard) &&
                     centerSkillDrop.DropZone.Accepts(skillCard) &&
                     rightSkillDrop.DropZone.Accepts(skillCard) &&
-                    skillDrop.DropZone.Accepts(trapCard) &&
-                    skillDrop.DropZone.Accepts(barrierCard) &&
-                    !skillDrop.DropZone.Accepts(monsterCard);
+                    centerSkillDrop.DropZone.Accepts(trapCard) &&
+                    centerSkillDrop.DropZone.Accepts(barrierCard) &&
+                    !centerSkillDrop.DropZone.Accepts(monsterCard) &&
+                    !occupiedSkill.DropZone.AcceptsCards;
 
                 RuntimeCardDropZone.SetActivePresentation(monsterCard);
                 bool allEmptyMonsterZonesHighlighted =
@@ -126,18 +139,42 @@ namespace HaveABreak.Editor
                     !enemy.DropZone.IsAvailableHighlighted &&
                     centerDrop.DropZone.IsAvailableHighlighted &&
                     rightDrop.DropZone.IsAvailableHighlighted &&
-                    !skillDrop.DropZone.IsAvailableHighlighted;
+                    !centerSkillDrop.DropZone.IsAvailableHighlighted;
                 RuntimeCardDropZone.SetActivePresentation(skillCard);
                 bool skillOnlyHighlight =
                     !centerDrop.DropZone.IsAvailableHighlighted &&
                     !rightDrop.DropZone.IsAvailableHighlighted &&
-                    skillDrop.DropZone.IsAvailableHighlighted &&
+                    !occupiedSkill.DropZone.IsAvailableHighlighted &&
                     centerSkillDrop.DropZone.IsAvailableHighlighted &&
                     rightSkillDrop.DropZone.IsAvailableHighlighted;
                 RuntimeCardDropZone.SetActivePresentation(null);
 
+                RectTransform monsterCardRect =
+                    occupiedMonster.CardView.transform as RectTransform;
+                RectTransform skillCardRect =
+                    occupiedSkill.CardView.transform as RectTransform;
+                float expectedAspect = RuntimeCardView.ReferenceWidth /
+                                       RuntimeCardView.ReferenceHeight;
+                bool fieldCardShape =
+                    occupiedMonster.IsShowingCard &&
+                    occupiedSkill.IsShowingCard &&
+                    occupiedMonster.CardView.Presentation.DisplayName ==
+                    "검증 몬스터 카드" &&
+                    occupiedSkill.CardView.Presentation.DisplayName ==
+                    "검증 스킬 카드" &&
+                    monsterCardRect != null && skillCardRect != null &&
+                    Mathf.Abs(
+                        monsterCardRect.rect.width /
+                        monsterCardRect.rect.height - expectedAspect) < 0.001f &&
+                    Mathf.Abs(
+                        skillCardRect.rect.width /
+                        skillCardRect.rect.height - expectedAspect) < 0.001f &&
+                    !occupiedMonster.LabelText.gameObject.activeSelf &&
+                    !occupiedSkill.LabelText.gameObject.activeSelf &&
+                    !centerDrop.IsShowingCard &&
+                    centerDrop.LabelText.gameObject.activeSelf;
+
                 bool labels = enemy.LabelText.text.Contains("검증 적") &&
-                              occupiedMonster.LabelText.text.Contains("검증 몬스터") &&
                               centerDrop.LabelText.text.Contains("빈 몬스터존") &&
                               rightDrop.LabelText.text.Contains("빈 몬스터존");
 
@@ -146,18 +183,26 @@ namespace HaveABreak.Editor
                         !slot.Presentation.Occupied &&
                         !slot.Button.interactable &&
                         !slot.DropZone.AcceptsCards) &&
-                    view.MonsterSlots.All(slot => !slot.Presentation.Occupied) &&
-                    view.SkillSlots.All(slot => !slot.Presentation.Occupied);
+                    view.MonsterSlots.All(slot =>
+                        !slot.Presentation.Occupied &&
+                        !slot.IsShowingCard &&
+                        slot.LabelText.gameObject.activeSelf) &&
+                    view.SkillSlots.All(slot =>
+                        !slot.Presentation.Occupied &&
+                        !slot.IsShowingCard &&
+                        slot.LabelText.gameObject.activeSelf);
 
                 bool valid = slotCounts && enemyCommand && monsterCommand &&
-                             cardTypeRouting && allEmptyMonsterZonesHighlighted &&
-                             skillOnlyHighlight && labels && emptyRebind;
+                             skillInspect && cardTypeRouting &&
+                             allEmptyMonsterZonesHighlighted &&
+                             skillOnlyHighlight && fieldCardShape &&
+                             labels && emptyRebind;
                 if (valid)
                 {
                     Debug.Log(
-                        "Runtime battle field validation passed: all empty " +
-                        "monster zones accept and highlight for monster cards, " +
-                        "while occupied and wrong-type zones remain blocked.");
+                        "Runtime battle field validation passed: occupied " +
+                        "monster and skill slots preserve the complete card " +
+                        "shape while empty zones retain drop behavior.");
                 }
                 else
                 {
@@ -165,9 +210,11 @@ namespace HaveABreak.Editor
                         "Runtime battle field validation failed. " +
                         $"slotCounts={slotCounts}, enemyCommand={enemyCommand}, " +
                         $"monsterCommand={monsterCommand}, " +
+                        $"skillInspect={skillInspect}, " +
                         $"cardTypeRouting={cardTypeRouting}, " +
                         $"allEmptyHighlights={allEmptyMonsterZonesHighlighted}, " +
                         $"skillOnlyHighlight={skillOnlyHighlight}, " +
+                        $"fieldCardShape={fieldCardShape}, " +
                         $"labels={labels}, emptyRebind={emptyRebind}");
                 }
                 return valid;
