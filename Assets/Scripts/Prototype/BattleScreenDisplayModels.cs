@@ -32,11 +32,13 @@ namespace HaveABreak.Cards
         internal BattleMonsterDisplayOption(
             BattleMonsterAttackActionOption action,
             string displayText,
-            string statusText)
+            string statusText,
+            RuntimeCardPresentation cardPresentation = null)
         {
             Action = action;
             DisplayText = displayText ?? string.Empty;
             StatusText = statusText;
+            CardPresentation = cardPresentation;
         }
 
         public BattleMonsterAttackActionOption Action { get; }
@@ -47,6 +49,7 @@ namespace HaveABreak.Cards
         public string BlockReason => Action.BlockReason;
         public string DisplayText { get; }
         public string StatusText { get; }
+        public RuntimeCardPresentation CardPresentation { get; }
     }
 
     public sealed class BattleInstalledCardDisplayOption
@@ -56,13 +59,15 @@ namespace HaveABreak.Cards
             string displayName,
             CardType cardType,
             bool isRegisteredTrap,
-            PlayerMonsterFieldPosition position)
+            PlayerMonsterFieldPosition position,
+            RuntimeCardPresentation cardPresentation = null)
         {
             BattleCardId = battleCardId;
             DisplayName = displayName ?? string.Empty;
             CardType = cardType;
             IsRegisteredTrap = isRegisteredTrap;
             Position = position;
+            CardPresentation = cardPresentation;
         }
 
         public string BattleCardId { get; }
@@ -70,6 +75,7 @@ namespace HaveABreak.Cards
         public CardType CardType { get; }
         public bool IsRegisteredTrap { get; }
         public PlayerMonsterFieldPosition Position { get; }
+        public RuntimeCardPresentation CardPresentation { get; }
         public string DisplayText =>
             $"{DisplayName}\n{CardType}" +
             (IsRegisteredTrap ? " · 대기 중" : string.Empty);
