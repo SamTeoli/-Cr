@@ -63,7 +63,7 @@ namespace HaveABreak.Cards
             int? attackOverride = null,
             int? healthOverride = null)
         {
-            if (card?.SourceCard == null || card.Resolved == null)
+            if (card?.SourceCard == null)
             {
                 return null;
             }
