@@ -66,6 +66,9 @@ namespace HaveABreak.Editor
                     null,
                     "확대 검증 카드");
                 RuntimeCardDropZone.SetActivePresentation(monster);
+                Canvas.ForceUpdateCanvases();
+                responsive?.ApplyNow(1f);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(panel);
                 responsive?.ApplyNow(1f);
 
                 RectTransform fieldRect =
@@ -87,26 +90,57 @@ namespace HaveABreak.Editor
                     .Concat(field.MonsterSlots)
                     .Concat(field.SkillSlots)
                     .ToArray();
-                bool slotsExpanded = allSlots.Length == 9 &&
-                                     allSlots.All(slot =>
-                                     {
-                                         LayoutElement element =
-                                             slot.GetComponent<LayoutElement>();
-                                         return element != null &&
-                                                element.preferredWidth >=
-                                                RuntimeBattleFieldResponsiveLayout
-                                                    .SlotWidth;
-                                     });
-                bool cardsReadable = field.MonsterSlots
+                bool squareSlots = allSlots.Length == 9 &&
+                                   allSlots.All(slot =>
+                                   {
+                                       LayoutElement element =
+                                           slot.GetComponent<LayoutElement>();
+                                       if (element == null || responsive == null)
+                                       {
+                                           return false;
+                                       }
+
+                                       return Mathf.Approximately(
+                                                  element.preferredWidth,
+                                                  element.preferredHeight) &&
+                                              Mathf.Abs(
+                                                  element.preferredWidth -
+                                                  responsive.CurrentSlotSize) <
+                                              0.01f;
+                                   });
+                bool responsiveSize = responsive != null &&
+                                      responsive.CurrentSlotSize >=
+                                      RuntimeBattleFieldResponsiveLayout
+                                          .MinimumSlotSize &&
+                                      responsive.CurrentSlotSize <=
+                                      RuntimeBattleFieldResponsiveLayout
+                                          .MaximumSlotSize;
+                bool equalRows = new[]
+                    {
+                        "EnemyRow", "MonsterRow", "SkillRow"
+                    }
+                    .All(rowName =>
+                    {
+                        LayoutElement row = fieldObject.transform
+                            .Find(rowName)?.GetComponent<LayoutElement>();
+                        return row != null && responsive != null &&
+                               Mathf.Abs(
+                                   row.preferredHeight -
+                                   responsive.CurrentSlotSize - 6f) < 0.01f;
+                    });
+                bool cardsFitSquare = field.MonsterSlots
                     .Concat(field.SkillSlots)
                     .All(slot =>
                     {
                         RectTransform card =
                             slot.CardView?.transform as RectTransform;
-                        return card != null &&
-                               card.localScale.x >=
-                               RuntimeBattleFieldResponsiveLayout
-                                   .FieldCardScale - 0.001f;
+                        return card != null && responsive != null &&
+                               Mathf.Abs(
+                                   card.localScale.x -
+                                   responsive.CurrentCardScale) < 0.001f &&
+                               RuntimeCardView.ReferenceHeight *
+                               card.localScale.x <=
+                               responsive.CurrentSlotSize + 0.01f;
                     });
                 bool pulse = field.MonsterSlots.All(slot =>
                 {
@@ -123,22 +157,24 @@ namespace HaveABreak.Editor
                                      RuntimeBattleFieldResponsiveLayout
                                          .ReservedBottomHeight;
 
-                bool valid = fieldRegion && slotsExpanded && cardsReadable &&
-                             pulse && handSeparated;
+                bool valid = fieldRegion && squareSlots && responsiveSize &&
+                             equalRows && cardsFitSquare && pulse &&
+                             handSeparated;
                 if (valid)
                 {
                     Debug.Log(
                         "Runtime battle field responsive layout validation " +
-                        "passed: the field fills the HUD-to-hand region, " +
-                        "cards are enlarged, and available slots pulse.");
+                        "passed: all nine zones are equal squares, the three " +
+                        "rows fill the field, cards fit, and highlights pulse.");
                 }
                 else
                 {
                     Debug.LogError(
                         "Runtime battle field responsive layout validation " +
                         $"failed. fieldRegion={fieldRegion}, " +
-                        $"slotsExpanded={slotsExpanded}, " +
-                        $"cardsReadable={cardsReadable}, pulse={pulse}, " +
+                        $"squareSlots={squareSlots}, " +
+                        $"responsiveSize={responsiveSize}, equalRows={equalRows}, " +
+                        $"cardsFitSquare={cardsFitSquare}, pulse={pulse}, " +
                         $"handSeparated={handSeparated}");
                 }
                 return valid;
