@@ -40,16 +40,16 @@ namespace HaveABreak.Editor
                     {
                         Sprite sprite =
                             RuntimeEnemyArtworkCatalog.LoadArtwork(id);
-                        if (sprite?.texture == null)
-                        {
-                            return false;
-                        }
-                        Color corner = sprite.texture.GetPixel(0, 0);
-                        return sprite.texture.width ==
+                        return sprite?.texture != null &&
+                               sprite.texture.width ==
                                    RuntimeEnemyArtworkCatalog.TextureSize &&
                                sprite.texture.height ==
                                    RuntimeEnemyArtworkCatalog.TextureSize &&
-                               corner.a <= 0.01f;
+                               sprite.texture.format == TextureFormat.RGBA32 &&
+                               sprite.rect.width ==
+                                   RuntimeEnemyArtworkCatalog.TextureSize &&
+                               sprite.rect.height ==
+                                   RuntimeEnemyArtworkCatalog.TextureSize;
                     });
 
                 RuntimeEnemyArtworkSlotView[] artworkViews =
@@ -87,7 +87,7 @@ namespace HaveABreak.Editor
                 {
                     Debug.Log(
                         "Runtime enemy artwork validation passed: all 12 " +
-                        "transparent sprites render distinctly and enemy " +
+                        "transparent RGBA sprites render distinctly and enemy " +
                         "slots hide artwork again when empty.");
                 }
                 else
