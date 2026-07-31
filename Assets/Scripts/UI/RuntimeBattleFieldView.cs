@@ -101,7 +101,9 @@ namespace HaveABreak.Cards
             row.childControlHeight = true;
             row.childForceExpandWidth = false;
             row.childForceExpandHeight = false;
-            rowObject.GetComponent<LayoutElement>().preferredHeight = 148f;
+            bool cardZone = zone != RuntimeBattleFieldZone.Enemy;
+            rowObject.GetComponent<LayoutElement>().preferredHeight =
+                cardZone ? 174f : 148f;
 
             Text rowLabel = CreateText(
                 "ZoneLabel",
@@ -133,7 +135,7 @@ namespace HaveABreak.Cards
                 LayoutElement slotLayout = slotObject.GetComponent<LayoutElement>();
                 slotLayout.preferredWidth = 170f;
                 slotLayout.flexibleWidth = 0f;
-                slotLayout.preferredHeight = 142f;
+                slotLayout.preferredHeight = cardZone ? 168f : 142f;
 
                 Text text = CreateText(
                     "Label",
@@ -150,8 +152,12 @@ namespace HaveABreak.Cards
 
                 RuntimeBattleFieldSlotView slot =
                     slotObject.GetComponent<RuntimeBattleFieldSlotView>();
-                slot.Initialize(text, image, slotObject.GetComponent<Button>(),
-                    slotObject.GetComponent<Outline>());
+                slot.Initialize(
+                    text,
+                    image,
+                    slotObject.GetComponent<Button>(),
+                    slotObject.GetComponent<Outline>(),
+                    cardZone);
                 slots.Add(slot);
             }
         }
@@ -244,32 +250,45 @@ namespace HaveABreak.Cards
     [DisallowMultipleComponent]
     public sealed class RuntimeBattleFieldSlotView : MonoBehaviour
     {
+        private const float FieldCardScale = 0.45f;
+
         private Text labelText;
         private Image background;
         private Button button;
         private Outline selectionOutline;
         private RuntimeCardDropZone dropZone;
         private RuntimeBattleFieldSlotPresentation presentation;
+        private RuntimeCardView cardView;
+        private bool supportsCardView;
 
         public RuntimeBattleFieldSlotPresentation Presentation => presentation;
         public Text LabelText => labelText;
         public Button Button => button;
         public RuntimeCardDropZone DropZone => dropZone;
+        public RuntimeCardView CardView => cardView;
+        public bool IsShowingCard =>
+            cardView != null && cardView.gameObject.activeSelf;
 
         public void Initialize(
             Text label,
             Image image,
             Button slotButton,
-            Outline outline)
+            Outline outline,
+            bool createCardView = false)
         {
             labelText = label;
             background = image;
             button = slotButton;
             selectionOutline = outline;
+            supportsCardView = createCardView;
             dropZone = gameObject.GetComponent<RuntimeCardDropZone>();
             if (dropZone == null)
             {
                 dropZone = gameObject.AddComponent<RuntimeCardDropZone>();
+            }
+            if (supportsCardView)
+            {
+                CreateCardView();
             }
         }
 
@@ -283,6 +302,7 @@ namespace HaveABreak.Cards
         {
             presentation = value;
             bool occupied = value?.Occupied == true;
+            bool showCard = supportsCardView && value?.ShowsCard == true;
             Color idleColor = occupied ? occupiedColor : emptyColor;
             if (background != null)
             {
@@ -296,7 +316,11 @@ namespace HaveABreak.Cards
                     ? title
                     : $"{title}\n{detail}";
                 labelText.fontStyle = occupied ? FontStyle.Bold : FontStyle.Italic;
+                labelText.gameObject.SetActive(!showCard);
             }
+
+            BindCardView(value, showCard, command, inspect);
+
             if (selectionOutline != null)
             {
                 bool targetableEnemy =
@@ -313,20 +337,10 @@ namespace HaveABreak.Cards
             {
                 button.onClick.RemoveAllListeners();
                 button.interactable = value?.Interactable == true;
-                string clickCommand = value?.ClickCommandId;
                 if (button.interactable)
                 {
                     button.onClick.AddListener(() =>
-                    {
-                        if (!string.IsNullOrWhiteSpace(clickCommand))
-                        {
-                            command?.Invoke(clickCommand);
-                        }
-                        else
-                        {
-                            inspect?.Invoke(value);
-                        }
-                    });
+                        InvokePrimaryAction(value, command, inspect));
                 }
             }
 
@@ -340,6 +354,91 @@ namespace HaveABreak.Cards
                 card => RuntimeBattleFieldView.AcceptsCard(
                     zone,
                     card));
+        }
+
+        private void CreateCardView()
+        {
+            GameObject cardObject = new(
+                "FieldCard",
+                typeof(RectTransform),
+                typeof(RuntimeCardView));
+            RectTransform cardRect = cardObject.GetComponent<RectTransform>();
+            cardRect.SetParent(transform, false);
+            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.pivot = new Vector2(0.5f, 0.5f);
+            cardRect.sizeDelta = new Vector2(
+                RuntimeCardView.ReferenceWidth,
+                RuntimeCardView.ReferenceHeight);
+            cardRect.anchoredPosition = Vector2.zero;
+            cardRect.localRotation = Quaternion.identity;
+            cardRect.localScale = Vector3.one * FieldCardScale;
+
+            cardView = cardObject.GetComponent<RuntimeCardView>();
+            cardView.Initialize();
+            LayoutElement layout = cardObject.GetComponent<LayoutElement>();
+            if (layout != null)
+            {
+                layout.ignoreLayout = true;
+            }
+            cardObject.SetActive(false);
+        }
+
+        private void BindCardView(
+            RuntimeBattleFieldSlotPresentation value,
+            bool showCard,
+            Action<string> command,
+            Action<RuntimeBattleFieldSlotPresentation> inspect)
+        {
+            if (cardView == null)
+            {
+                return;
+            }
+
+            cardView.gameObject.SetActive(showCard);
+            if (!showCard)
+            {
+                return;
+            }
+
+            RuntimeCardPresentation source = value.CardPresentation;
+            RuntimeCardPresentation fieldCard = source.WithInteraction(
+                value.ClickCommandId,
+                value.Selected,
+                true,
+                null,
+                value.Detail);
+            cardView.Bind(
+                fieldCard,
+                _ => InvokePrimaryAction(value, command, inspect));
+
+            RectTransform cardRect = cardView.transform as RectTransform;
+            if (cardRect != null)
+            {
+                cardRect.anchoredPosition = Vector2.zero;
+                cardRect.localRotation = Quaternion.identity;
+                cardRect.localScale = Vector3.one * FieldCardScale;
+                cardRect.SetAsLastSibling();
+            }
+        }
+
+        private static void InvokePrimaryAction(
+            RuntimeBattleFieldSlotPresentation value,
+            Action<string> command,
+            Action<RuntimeBattleFieldSlotPresentation> inspect)
+        {
+            if (value == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(value.ClickCommandId))
+            {
+                command?.Invoke(value.ClickCommandId);
+                return;
+            }
+
+            inspect?.Invoke(value);
         }
     }
 }
