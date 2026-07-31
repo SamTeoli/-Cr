@@ -21,7 +21,8 @@ namespace HaveABreak.Cards
             bool interactable,
             string clickCommandId,
             string dropCommandId,
-            RuntimeCardPresentation cardPresentation = null)
+            RuntimeCardPresentation cardPresentation = null,
+            string artworkKey = null)
         {
             Zone = zone;
             Index = Math.Max(0, index);
@@ -33,6 +34,7 @@ namespace HaveABreak.Cards
             ClickCommandId = clickCommandId ?? string.Empty;
             DropCommandId = dropCommandId ?? string.Empty;
             CardPresentation = cardPresentation;
+            ArtworkKey = artworkKey ?? string.Empty;
         }
 
         public RuntimeBattleFieldZone Zone { get; }
@@ -45,8 +47,11 @@ namespace HaveABreak.Cards
         public string ClickCommandId { get; }
         public string DropCommandId { get; }
         public RuntimeCardPresentation CardPresentation { get; }
+        public string ArtworkKey { get; }
         public bool AcceptsCards => !string.IsNullOrWhiteSpace(DropCommandId);
         public bool ShowsCard => Occupied && CardPresentation != null;
+        public bool ShowsArtwork => Occupied &&
+                                    !string.IsNullOrWhiteSpace(ArtworkKey);
     }
 
     public sealed class RuntimeBattleFieldPresentation
@@ -117,7 +122,9 @@ namespace HaveABreak.Cards
                     enemy?.IsSelected == true,
                     enemyOccupied,
                     enemyClickCommand,
-                    enemyDropCommand);
+                    enemyDropCommand,
+                    null,
+                    enemy?.EnemyId);
 
                 BattleMonsterDisplayOption monster =
                     index < snapshot.Monsters.Length
