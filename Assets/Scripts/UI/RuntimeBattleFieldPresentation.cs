@@ -20,7 +20,8 @@ namespace HaveABreak.Cards
             bool selected,
             bool interactable,
             string clickCommandId,
-            string dropCommandId)
+            string dropCommandId,
+            RuntimeCardPresentation cardPresentation = null)
         {
             Zone = zone;
             Index = Math.Max(0, index);
@@ -31,6 +32,7 @@ namespace HaveABreak.Cards
             Interactable = interactable;
             ClickCommandId = clickCommandId ?? string.Empty;
             DropCommandId = dropCommandId ?? string.Empty;
+            CardPresentation = cardPresentation;
         }
 
         public RuntimeBattleFieldZone Zone { get; }
@@ -42,7 +44,9 @@ namespace HaveABreak.Cards
         public bool Interactable { get; }
         public string ClickCommandId { get; }
         public string DropCommandId { get; }
+        public RuntimeCardPresentation CardPresentation { get; }
         public bool AcceptsCards => !string.IsNullOrWhiteSpace(DropCommandId);
+        public bool ShowsCard => Occupied && CardPresentation != null;
     }
 
     public sealed class RuntimeBattleFieldPresentation
@@ -139,7 +143,8 @@ namespace HaveABreak.Cards
                         : string.Empty,
                     acceptsMonster
                         ? $"field:monster:{index}"
-                        : string.Empty);
+                        : string.Empty,
+                    monster?.CardPresentation);
 
                 BattleInstalledCardDisplayOption installed =
                     Array.Find(
@@ -164,7 +169,8 @@ namespace HaveABreak.Cards
                     string.Empty,
                     acceptsSkill
                         ? $"field:skill:{index}"
-                        : string.Empty);
+                        : string.Empty,
+                    installed?.CardPresentation);
             }
 
             return new RuntimeBattleFieldPresentation(
