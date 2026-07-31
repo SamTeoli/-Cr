@@ -8,22 +8,31 @@ namespace HaveABreak.Cards
     [DefaultExecutionOrder(1000)]
     public sealed class RuntimeBattleFieldResponsiveLayout : MonoBehaviour
     {
-        public const float ReservedBottomHeight = 190f;
+        public const float ReservedBottomHeight = 188f;
         public const float ReservedBottomWithCommands = 266f;
-        public const float HorizontalInset = 18f;
-        public const float TopInset = 4f;
-        public const float SlotWidth = 286f;
-        public const float EnemySlotHeight = 160f;
-        public const float PlayerSlotHeight = 188f;
-        public const float FieldCardScale = 0.58f;
+        public const float HorizontalInset = 8f;
+        public const float TopInset = 2f;
+        public const float MinimumSlotSize = 112f;
+        public const float MaximumSlotSize = 244f;
+        public const float MinimumFieldCardScale = 0.36f;
+        public const float MaximumFieldCardScale = 0.67f;
 
-        private const float EnemyRowHeight = 166f;
-        private const float PlayerRowHeight = 196f;
-        private const float StructureRefreshInterval = 0.2f;
+        private const int RootHorizontalPadding = 6;
+        private const int RootVerticalPadding = 5;
+        private const float RootSpacing = 4f;
+        private const int RowHorizontalPadding = 4;
+        private const int RowVerticalPadding = 3;
+        private const float RowSpacing = 10f;
+        private const float ZoneLabelWidth = 70f;
+        private const float DividerHeight = 3f;
+        private const float StructureRefreshInterval = 0.15f;
 
         private RuntimeBattleFieldView fieldView;
         private RectTransform fieldRect;
         private float nextStructureRefresh;
+
+        public float CurrentSlotSize { get; private set; } = 160f;
+        public float CurrentCardScale { get; private set; } = 0.44f;
 
         public void Initialize(RuntimeBattleFieldView view)
         {
@@ -95,26 +104,64 @@ namespace HaveABreak.Cards
                 battlePanel.offsetMax = maximum;
             }
 
+            CurrentSlotSize = CalculateSquareSlotSize();
+            CurrentCardScale = Mathf.Clamp(
+                CurrentSlotSize * 0.95f / RuntimeCardView.ReferenceHeight,
+                MinimumFieldCardScale,
+                MaximumFieldCardScale);
+
             VerticalLayoutGroup rootLayout =
                 GetComponent<VerticalLayoutGroup>();
             if (rootLayout != null)
             {
-                rootLayout.padding = new RectOffset(10, 10, 7, 7);
-                rootLayout.spacing = 4f;
-                rootLayout.childAlignment = TextAnchor.UpperCenter;
+                rootLayout.padding = new RectOffset(
+                    RootHorizontalPadding,
+                    RootHorizontalPadding,
+                    RootVerticalPadding,
+                    RootVerticalPadding);
+                rootLayout.spacing = RootSpacing;
+                rootLayout.childAlignment = TextAnchor.MiddleCenter;
                 rootLayout.childControlWidth = true;
                 rootLayout.childControlHeight = true;
                 rootLayout.childForceExpandWidth = true;
                 rootLayout.childForceExpandHeight = false;
             }
 
-            ConfigureRow("EnemyRow", EnemyRowHeight);
-            ConfigureRow("MonsterRow", PlayerRowHeight);
-            ConfigureRow("SkillRow", PlayerRowHeight);
+            float rowHeight = CurrentSlotSize + RowVerticalPadding * 2f;
+            ConfigureRow("EnemyRow", rowHeight);
+            ConfigureRow("MonsterRow", rowHeight);
+            ConfigureRow("SkillRow", rowHeight);
+            ConfigureDivider();
 
-            ConfigureSlots(fieldView.EnemySlots, EnemySlotHeight);
-            ConfigureSlots(fieldView.MonsterSlots, PlayerSlotHeight);
-            ConfigureSlots(fieldView.SkillSlots, PlayerSlotHeight);
+            ConfigureSlots(fieldView.EnemySlots, CurrentSlotSize);
+            ConfigureSlots(fieldView.MonsterSlots, CurrentSlotSize);
+            ConfigureSlots(fieldView.SkillSlots, CurrentSlotSize);
+        }
+
+        private float CalculateSquareSlotSize()
+        {
+            float fieldWidth = Mathf.Max(480f, fieldRect.rect.width);
+            float fieldHeight = Mathf.Max(360f, fieldRect.rect.height);
+
+            float widthForSlots = fieldWidth -
+                                  RootHorizontalPadding * 2f -
+                                  RowHorizontalPadding * 2f -
+                                  ZoneLabelWidth -
+                                  RowSpacing * 3f;
+            float sizeFromWidth = widthForSlots /
+                                  RuntimeBattleFieldPresentation.SlotCount;
+
+            float fixedVertical = RootVerticalPadding * 2f +
+                                  RootSpacing * 3f +
+                                  DividerHeight +
+                                  RowVerticalPadding * 6f;
+            float sizeFromHeight =
+                (fieldHeight - fixedVertical) / 3f;
+
+            return Mathf.Clamp(
+                Mathf.Min(sizeFromWidth, sizeFromHeight),
+                MinimumSlotSize,
+                MaximumSlotSize);
         }
 
         private float ResolveReservedBottomHeight()
@@ -148,8 +195,12 @@ namespace HaveABreak.Cards
                 rowTransform.GetComponent<HorizontalLayoutGroup>();
             if (row != null)
             {
-                row.padding = new RectOffset(4, 4, 3, 3);
-                row.spacing = 14f;
+                row.padding = new RectOffset(
+                    RowHorizontalPadding,
+                    RowHorizontalPadding,
+                    RowVerticalPadding,
+                    RowVerticalPadding);
+                row.spacing = RowSpacing;
                 row.childAlignment = TextAnchor.MiddleCenter;
                 row.childControlWidth = true;
                 row.childControlHeight = true;
@@ -170,16 +221,30 @@ namespace HaveABreak.Cards
                 zoneLabel.GetComponent<LayoutElement>();
             if (labelElement != null)
             {
-                labelElement.minWidth = 88f;
-                labelElement.preferredWidth = 88f;
+                labelElement.minWidth = ZoneLabelWidth;
+                labelElement.preferredWidth = ZoneLabelWidth;
                 labelElement.flexibleWidth = 0f;
             }
+        }
+
+        private void ConfigureDivider()
+        {
+            Transform divider = transform.Find("FieldCenterLine");
+            LayoutElement dividerLayout = divider?.GetComponent<LayoutElement>();
+            if (dividerLayout == null)
+            {
+                return;
+            }
+
+            dividerLayout.minHeight = DividerHeight;
+            dividerLayout.preferredHeight = DividerHeight;
+            dividerLayout.flexibleHeight = 0f;
         }
 
         private static void ConfigureSlots(
             System.Collections.Generic.IReadOnlyList<
                 RuntimeBattleFieldSlotView> slots,
-            float height)
+            float size)
         {
             if (slots == null)
             {
@@ -196,12 +261,23 @@ namespace HaveABreak.Cards
                 LayoutElement element = slot.GetComponent<LayoutElement>();
                 if (element != null)
                 {
-                    element.minWidth = SlotWidth;
-                    element.preferredWidth = SlotWidth;
+                    element.minWidth = size;
+                    element.preferredWidth = size;
                     element.flexibleWidth = 0f;
-                    element.minHeight = height;
-                    element.preferredHeight = height;
+                    element.minHeight = size;
+                    element.preferredHeight = size;
                     element.flexibleHeight = 0f;
+                }
+
+                RectTransform slotRect = slot.transform as RectTransform;
+                if (slotRect != null)
+                {
+                    slotRect.SetSizeWithCurrentAnchors(
+                        RectTransform.Axis.Horizontal,
+                        size);
+                    slotRect.SetSizeWithCurrentAnchors(
+                        RectTransform.Axis.Vertical,
+                        size);
                 }
 
                 if (slot.LabelText != null)
@@ -231,7 +307,7 @@ namespace HaveABreak.Cards
 
                 cardRect.anchoredPosition = Vector2.zero;
                 cardRect.localRotation = Quaternion.identity;
-                cardRect.localScale = Vector3.one * FieldCardScale;
+                cardRect.localScale = Vector3.one * CurrentCardScale;
                 cardRect.SetAsLastSibling();
 
                 CanvasGroup group = cardRect.GetComponent<CanvasGroup>();
