@@ -8,16 +8,17 @@ namespace HaveABreak.Cards
     [DefaultExecutionOrder(1000)]
     public sealed class RuntimeBattleFieldResponsiveLayout : MonoBehaviour
     {
-        public const float ReservedBottomHeight = 270f;
+        public const float ReservedBottomHeight = 190f;
+        public const float ReservedBottomWithCommands = 266f;
         public const float HorizontalInset = 18f;
         public const float TopInset = 4f;
         public const float SlotWidth = 286f;
-        public const float EnemySlotHeight = 142f;
-        public const float PlayerSlotHeight = 166f;
-        public const float FieldCardScale = 0.53f;
+        public const float EnemySlotHeight = 160f;
+        public const float PlayerSlotHeight = 188f;
+        public const float FieldCardScale = 0.58f;
 
-        private const float EnemyRowHeight = 148f;
-        private const float PlayerRowHeight = 174f;
+        private const float EnemyRowHeight = 166f;
+        private const float PlayerRowHeight = 196f;
         private const float StructureRefreshInterval = 0.2f;
 
         private RuntimeBattleFieldView fieldView;
@@ -73,12 +74,13 @@ namespace HaveABreak.Cards
             }
             fieldElement.ignoreLayout = true;
 
+            float reservedBottom = ResolveReservedBottomHeight();
             fieldRect.anchorMin = Vector2.zero;
             fieldRect.anchorMax = Vector2.one;
             fieldRect.pivot = new Vector2(0.5f, 0.5f);
             fieldRect.anchoredPosition = Vector2.zero;
             fieldRect.offsetMin =
-                new Vector2(HorizontalInset, ReservedBottomHeight);
+                new Vector2(HorizontalInset, reservedBottom);
             fieldRect.offsetMax = new Vector2(-HorizontalInset, -TopInset);
             fieldRect.SetAsFirstSibling();
 
@@ -97,9 +99,9 @@ namespace HaveABreak.Cards
                 GetComponent<VerticalLayoutGroup>();
             if (rootLayout != null)
             {
-                rootLayout.padding = new RectOffset(10, 10, 5, 5);
+                rootLayout.padding = new RectOffset(10, 10, 7, 7);
                 rootLayout.spacing = 4f;
-                rootLayout.childAlignment = TextAnchor.MiddleCenter;
+                rootLayout.childAlignment = TextAnchor.UpperCenter;
                 rootLayout.childControlWidth = true;
                 rootLayout.childControlHeight = true;
                 rootLayout.childForceExpandWidth = true;
@@ -113,6 +115,16 @@ namespace HaveABreak.Cards
             ConfigureSlots(fieldView.EnemySlots, EnemySlotHeight);
             ConfigureSlots(fieldView.MonsterSlots, PlayerSlotHeight);
             ConfigureSlots(fieldView.SkillSlots, PlayerSlotHeight);
+        }
+
+        private float ResolveReservedBottomHeight()
+        {
+            Transform battleScreen = fieldRect?.parent?.parent;
+            Transform commandScroll = battleScreen?.Find("CommandScroll");
+            return commandScroll != null &&
+                   commandScroll.gameObject.activeInHierarchy
+                ? ReservedBottomWithCommands
+                : ReservedBottomHeight;
         }
 
         private void ConfigureRow(string rowName, float rowHeight)
