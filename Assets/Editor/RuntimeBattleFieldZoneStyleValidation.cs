@@ -27,7 +27,7 @@ namespace HaveABreak.Editor
                 RuntimeBattleFieldView field =
                     host.GetComponent<RuntimeBattleFieldView>();
                 field.Initialize(_ => { });
-                field.Bind(RuntimeBattleFieldPresentation.Empty);
+                field.Bind(CreateDropEnabledPresentation());
                 RuntimeBattleFieldZoneStyleBootstrap.ApplyToLoadedFields();
 
                 RuntimeBattleFieldSlotView[] slots = field.EnemySlots
@@ -78,8 +78,12 @@ namespace HaveABreak.Editor
                     "스타일 검증 카드");
                 RuntimeCardDropZone.SetActivePresentation(monster);
                 bool highlightPreserved = field.MonsterSlots.All(slot =>
+                    slot.DropZone.AcceptsCards &&
                     slot.DropZone.IsAvailableHighlighted) &&
                     field.SkillSlots.All(slot =>
+                        slot.DropZone.AcceptsCards &&
+                        !slot.DropZone.IsAvailableHighlighted) &&
+                    field.EnemySlots.All(slot =>
                         !slot.DropZone.IsAvailableHighlighted);
                 RuntimeCardDropZone.SetActivePresentation(null);
 
@@ -105,6 +109,61 @@ namespace HaveABreak.Editor
                 RuntimeCardDropZone.SetActivePresentation(null);
                 Object.DestroyImmediate(host);
             }
+        }
+
+        private static RuntimeBattleFieldPresentation
+            CreateDropEnabledPresentation()
+        {
+            RuntimeBattleFieldSlotPresentation[] enemies =
+                new RuntimeBattleFieldSlotPresentation[
+                    RuntimeBattleFieldPresentation.SlotCount];
+            RuntimeBattleFieldSlotPresentation[] monsters =
+                new RuntimeBattleFieldSlotPresentation[
+                    RuntimeBattleFieldPresentation.SlotCount];
+            RuntimeBattleFieldSlotPresentation[] skills =
+                new RuntimeBattleFieldSlotPresentation[
+                    RuntimeBattleFieldPresentation.SlotCount];
+
+            for (int index = 0;
+                 index < RuntimeBattleFieldPresentation.SlotCount;
+                 index++)
+            {
+                enemies[index] = new RuntimeBattleFieldSlotPresentation(
+                    RuntimeBattleFieldZone.Enemy,
+                    index,
+                    "빈 적 칸",
+                    string.Empty,
+                    false,
+                    false,
+                    false,
+                    string.Empty,
+                    string.Empty);
+                monsters[index] = new RuntimeBattleFieldSlotPresentation(
+                    RuntimeBattleFieldZone.PlayerMonster,
+                    index,
+                    "빈 몬스터존",
+                    "몬스터 카드를 놓아 소환",
+                    false,
+                    false,
+                    false,
+                    string.Empty,
+                    $"field:monster:{index}");
+                skills[index] = new RuntimeBattleFieldSlotPresentation(
+                    RuntimeBattleFieldZone.PlayerSkill,
+                    index,
+                    "빈 스킬존",
+                    "스킬·트랩·결계 카드를 놓아 설치",
+                    false,
+                    false,
+                    false,
+                    string.Empty,
+                    $"field:skill:{index}");
+            }
+
+            return new RuntimeBattleFieldPresentation(
+                enemies,
+                monsters,
+                skills);
         }
     }
 }
