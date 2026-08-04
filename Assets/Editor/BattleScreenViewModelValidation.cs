@@ -164,12 +164,19 @@ namespace HaveABreak.Editor
                 BattleMonsterAttackCommandResult attack = viewModel.TryAttack(
                     progress,
                     c01.Ids.BattleCardId);
+                BattleScreenSnapshot declaredAttack =
+                    viewModel.CreateSnapshot(progress, campaign);
+                BattleChainCommandResult attackChain =
+                    viewModel.TryPassAndResolveChain(progress);
                 BattleScreenSnapshot afterAttack =
                     viewModel.CreateSnapshot(progress, campaign);
                 BattleEnemyDisplayOption attackedEnemy = afterAttack.Enemies
                     .FirstOrDefault(option => option.EnemyId ==
                         selectedEnemy.EnemyId);
-                if (!attack.Succeeded || attack.Result == null ||
+                if (!attack.Succeeded || attack.Result != null ||
+                    declaredAttack.Chain?.CanPlayerPass != true ||
+                    attackChain?.Succeeded != true ||
+                    attackChain.AttackResult == null ||
                     attackedEnemy?.Target?.Enemy == null ||
                     attackedEnemy.Target.Enemy.Vital.CurrentHealth >=
                         enemyHealthBefore ||

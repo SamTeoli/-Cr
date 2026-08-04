@@ -35,6 +35,32 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (playResult.Card.SourceCard.HasEnchantCompatibilityTag(
+                    EnchantCompatibilityTag.FixedSingleEnemyTarget))
+            {
+                string resolvedTargetId = targetDeclaration.HasValue
+                    ? EnchantFixedTargetResolver.Resolve(
+                        targetDeclaration.Value,
+                        runtime.EnemyPositions)
+                    : null;
+                if (!targetDeclaration.HasValue ||
+                    !System.String.Equals(
+                        targetDeclaration.Value.SourceBattleCardId,
+                        playResult.Card.Ids.BattleCardId,
+                        System.StringComparison.OrdinalIgnoreCase) ||
+                    !EffectTargetResolver.TryResolveSingleTarget(
+                        runtime,
+                        registration.ResolveTargetSpec(
+                            playResult.Card.SourceCard),
+                        resolvedTargetId,
+                        out _))
+                {
+                    failure = BattleRuntimeSummonEffectFailure
+                        .MissingTargetDeclaration;
+                    return false;
+                }
+            }
+
             return handler.TryResolve(
                 runtime, playResult, targetDeclaration, out result, out failure);
         }

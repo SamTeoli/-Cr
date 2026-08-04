@@ -55,15 +55,44 @@ namespace HaveABreak.Cards
                 .CreateMonsterAttackOptions(context)
                 .Select(CreateMonsterOption)
                 .ToArray();
-            BattleInstalledCardDisplayOption[] installed = runtime.Deck.Zones
-                .GetCards(CardZone.SkillField)
+            foreach (PlayerMonsterFieldPosition position in
+                     Enum.GetValues(typeof(PlayerMonsterFieldPosition)))
+            {
+                string occupant =
+                    runtime.PlayerSkillPositions.GetOccupant(position);
+                if (!string.IsNullOrWhiteSpace(occupant) &&
+                    runtime.Deck.Zones.Find(occupant)?.Zone !=
+                    CardZone.SkillField)
+                {
+                    runtime.PlayerSkillPositions.TryRemove(occupant);
+                }
+            }
+            IReadOnlyList<BattleCardInstance> installedCards =
+                runtime.Deck.Zones.GetCards(CardZone.SkillField);
+            foreach (BattleCardInstance card in installedCards)
+            {
+                if (!runtime.PlayerSkillPositions.FindPosition(
+                        card.Ids.BattleCardId).HasValue &&
+                    runtime.PlayerSkillPositions.TryGetFirstEmpty(
+                        out PlayerMonsterFieldPosition emptyPosition))
+                {
+                    runtime.PlayerSkillPositions.TryPlace(
+                        card.Ids.BattleCardId,
+                        emptyPosition);
+                }
+            }
+            BattleInstalledCardDisplayOption[] installed = installedCards
                 .Where(card => card != null)
                 .Select(card => new BattleInstalledCardDisplayOption(
                     card.Ids.BattleCardId,
                     card.SourceCard.DisplayName,
                     card.SourceCard.CardType,
                     runtime.TrapInstallations.Find(
-                        card.Ids.BattleCardId) != null))
+                        card.Ids.BattleCardId) != null,
+                    runtime.PlayerSkillPositions.FindPosition(
+                        card.Ids.BattleCardId) ??
+                    PlayerMonsterFieldPosition.Left,
+                    CreateFieldCardPresentation(card)))
                 .ToArray();
             IReadOnlyList<BattleEventRecord> eventLog =
                 runtime.EventLog.Events;
@@ -102,7 +131,14 @@ namespace HaveABreak.Cards
                 monsters,
                 installed,
                 actions.CreateHandOptions(context),
-                recentEvents);
+                recentEvents,
+                actions.IsSelectingEnemyTarget,
+                actions.PendingTargetedCardId ??
+                actions.PendingAttackerId,
+                new BattleChainDisplayOption(
+                    runtime.Chain.Phase,
+                    runtime.Chain.NextParticipant,
+                    runtime.Chain.Links.ToArray()));
         }
 
         public bool SelectEnemy(
@@ -112,6 +148,50 @@ namespace HaveABreak.Cards
             return actions.SelectEnemy(
                 progress?.ActiveEncounter,
                 enemyId);
+        }
+
+        public bool TryBeginCardTargeting(
+            RunEncounterProgressState progress,
+            string battleCardId,
+            out string message)
+        {
+            return actions.TryBeginCardTargeting(
+                progress?.ActiveEncounter,
+                battleCardId,
+                out message);
+        }
+
+        public bool TryBeginAttackTargeting(
+            RunEncounterProgressState progress,
+            string battleCardId,
+            out string message)
+        {
+            return actions.TryBeginAttackTargeting(
+                progress?.ActiveEncounter,
+                battleCardId,
+                out message);
+        }
+
+        public bool TryDeclareTargetedCardActivation(
+            RunEncounterProgressState progress,
+            string battleCardId,
+            out string message)
+        {
+            return actions.TryDeclareTargetedCardActivation(
+                progress?.ActiveEncounter,
+                battleCardId,
+                out message);
+        }
+
+        public string PendingTargetedCardId =>
+            actions.PendingTargetedCardId;
+
+        public string PendingAttackerId => actions.PendingAttackerId;
+        public string SelectedEnemyId => actions.SelectedEnemyId;
+
+        public void ClearPendingTargeting()
+        {
+            actions.ClearPendingTargeting();
         }
 
         public BattleBanishTargetOption CycleBanishTarget(
@@ -150,6 +230,17 @@ namespace HaveABreak.Cards
                 battleCardId);
         }
 
+        public BattleCardPlayCommandResult TryPlayCard(
+            RunEncounterProgressState progress,
+            string battleCardId,
+            PlayerMonsterFieldPosition position)
+        {
+            return actions.TryPlayCard(
+                progress?.ActiveEncounter,
+                battleCardId,
+                position);
+        }
+
         public BattleMonsterAttackCommandResult TryAttack(
             RunEncounterProgressState progress,
             string battleCardId)
@@ -157,6 +248,13 @@ namespace HaveABreak.Cards
             return actions.TryAttack(
                 progress?.ActiveEncounter,
                 battleCardId);
+        }
+
+        public BattleChainCommandResult TryPassAndResolveChain(
+            RunEncounterProgressState progress)
+        {
+            return actions.TryPassAndResolveChain(
+                progress?.ActiveEncounter);
         }
 
         public BattleEndTurnCommandResult TryEndPlayerTurn(

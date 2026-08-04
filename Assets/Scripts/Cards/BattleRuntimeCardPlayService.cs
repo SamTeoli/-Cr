@@ -15,6 +15,7 @@ namespace HaveABreak.Cards
                 runtime,
                 battleCardId,
                 false,
+                null,
                 out result,
                 out failure,
                 out cardPlayFailure);
@@ -24,6 +25,25 @@ namespace HaveABreak.Cards
             BattleRuntimeState runtime,
             string battleCardId,
             bool deferSkillResolution,
+            out BattleRuntimeCardPlayResult result,
+            out BattleRuntimeCardPlayFailure failure,
+            out CardPlayFailure cardPlayFailure)
+        {
+            return TryPlay(
+                runtime,
+                battleCardId,
+                deferSkillResolution,
+                null,
+                out result,
+                out failure,
+                out cardPlayFailure);
+        }
+
+        internal static bool TryPlay(
+            BattleRuntimeState runtime,
+            string battleCardId,
+            bool deferSkillResolution,
+            PlayerMonsterFieldPosition? monsterPosition,
             out BattleRuntimeCardPlayResult result,
             out BattleRuntimeCardPlayFailure failure,
             out CardPlayFailure cardPlayFailure)
@@ -43,6 +63,20 @@ namespace HaveABreak.Cards
             }
 
             BattleCardInstance card = runtime.Deck.Zones.Find(battleCardId);
+            if (monsterPosition.HasValue &&
+                (card?.SourceCard?.CardType != CardType.Monster ||
+                 !Enum.IsDefined(
+                     typeof(PlayerMonsterFieldPosition),
+                     monsterPosition.Value) ||
+                 !string.IsNullOrWhiteSpace(
+                     runtime.PlayerMonsterPositions.GetOccupant(
+                         monsterPosition.Value))))
+            {
+                failure =
+                    BattleRuntimeCardPlayFailure.MonsterRegistrationFailed;
+                return false;
+            }
+
             if (!runtime.CardPlay.TryPreviewPlay(
                     battleCardId, out CardPlayPreview preview, out cardPlayFailure))
             {
@@ -80,8 +114,15 @@ namespace HaveABreak.Cards
             BattleMonsterState summonedMonster = null;
             if (card.SourceCard.CardType == CardType.Monster)
             {
-                if (!runtime.TryRegisterFieldMonster(
-                        card.Ids.BattleCardId, out summonedMonster))
+                bool registered = monsterPosition.HasValue
+                    ? runtime.TryRegisterFieldMonster(
+                        card.Ids.BattleCardId,
+                        monsterPosition.Value,
+                        out summonedMonster)
+                    : runtime.TryRegisterFieldMonster(
+                        card.Ids.BattleCardId,
+                        out summonedMonster);
+                if (!registered)
                 {
                     runtime.Turn.TryCompletePlayerAction(out _);
                     failure = BattleRuntimeCardPlayFailure.MonsterRegistrationFailed;
@@ -162,6 +203,27 @@ namespace HaveABreak.Cards
             out BattleRuntimeCardPlayFailure playFailure,
             out CardPlayFailure cardPlayFailure)
         {
+            return TryValidate(
+                runtime,
+                battleCardId,
+                targetEnemyId,
+                selectedBanishBattleCardId,
+                null,
+                out failure,
+                out playFailure,
+                out cardPlayFailure);
+        }
+
+        public static bool TryValidate(
+            BattleRuntimeState runtime,
+            string battleCardId,
+            string targetEnemyId,
+            string selectedBanishBattleCardId,
+            PlayerMonsterFieldPosition? monsterPosition,
+            out BattleRuntimePlayerCardActionFailure failure,
+            out BattleRuntimeCardPlayFailure playFailure,
+            out CardPlayFailure cardPlayFailure)
+        {
             playFailure = BattleRuntimeCardPlayFailure.None;
             cardPlayFailure = CardPlayFailure.None;
             if (!TryPrepare(
@@ -169,9 +231,19 @@ namespace HaveABreak.Cards
                     battleCardId,
                     targetEnemyId,
                     selectedBanishBattleCardId,
-                    out _,
+                    out BattleCardInstance card,
                     out _,
                     out failure))
+            {
+                return false;
+            }
+
+            if (!TryValidateMonsterPosition(
+                    runtime,
+                    card,
+                    monsterPosition,
+                    out failure,
+                    out playFailure))
             {
                 return false;
             }
@@ -205,6 +277,29 @@ namespace HaveABreak.Cards
             out BattleRuntimeCardPlayFailure playFailure,
             out CardPlayFailure cardPlayFailure)
         {
+            return TryResolve(
+                runtime,
+                battleCardId,
+                targetEnemyId,
+                selectedBanishBattleCardId,
+                null,
+                out result,
+                out failure,
+                out playFailure,
+                out cardPlayFailure);
+        }
+
+        public static bool TryResolve(
+            BattleRuntimeState runtime,
+            string battleCardId,
+            string targetEnemyId,
+            string selectedBanishBattleCardId,
+            PlayerMonsterFieldPosition? monsterPosition,
+            out BattleRuntimePlayerCardActionResult result,
+            out BattleRuntimePlayerCardActionFailure failure,
+            out BattleRuntimeCardPlayFailure playFailure,
+            out CardPlayFailure cardPlayFailure)
+        {
             result = null;
             playFailure = BattleRuntimeCardPlayFailure.None;
             cardPlayFailure = CardPlayFailure.None;
@@ -220,12 +315,23 @@ namespace HaveABreak.Cards
                 return false;
             }
 
+            if (!TryValidateMonsterPosition(
+                    runtime,
+                    card,
+                    monsterPosition,
+                    out failure,
+                    out playFailure))
+            {
+                return false;
+            }
+
             CardEffectRegistration registration = FindRegistration(card);
             bool deferSkillResolution = registration.DefersSkillResolution;
             if (!BattleRuntimeCardPlayService.TryPlay(
                     runtime,
                     battleCardId,
                     deferSkillResolution,
+                    monsterPosition,
                     out BattleRuntimeCardPlayResult play,
                     out playFailure,
                     out cardPlayFailure))
@@ -243,12 +349,20 @@ namespace HaveABreak.Cards
 
             if (registration.Route == CardEffectRoute.Summon)
             {
-                effectResolved = BattleRuntimeSummonEffectService.TryResolve(
-                    runtime,
-                    play,
-                    summonTarget,
-                    out summonEffect,
-                    out _);
+                bool waitsForTarget =
+                    card.SourceCard.HasEnchantCompatibilityTag(
+                        EnchantCompatibilityTag.FixedSingleEnemyTarget) &&
+                    !summonTarget.HasValue;
+                if (!waitsForTarget)
+                {
+                    effectResolved =
+                        BattleRuntimeSummonEffectService.TryResolve(
+                            runtime,
+                            play,
+                            summonTarget,
+                            out summonEffect,
+                            out _);
+                }
             }
             else if (registration.Route == CardEffectRoute.TargetedSkill)
             {
@@ -302,6 +416,38 @@ namespace HaveABreak.Cards
             return true;
         }
 
+        private static bool TryValidateMonsterPosition(
+            BattleRuntimeState runtime,
+            BattleCardInstance card,
+            PlayerMonsterFieldPosition? monsterPosition,
+            out BattleRuntimePlayerCardActionFailure failure,
+            out BattleRuntimeCardPlayFailure playFailure)
+        {
+            failure = BattleRuntimePlayerCardActionFailure.None;
+            playFailure = BattleRuntimeCardPlayFailure.None;
+            if (!monsterPosition.HasValue)
+            {
+                return true;
+            }
+
+            bool validPosition = Enum.IsDefined(
+                typeof(PlayerMonsterFieldPosition),
+                monsterPosition.Value);
+            bool empty = validPosition &&
+                         string.IsNullOrWhiteSpace(
+                             runtime?.PlayerMonsterPositions?.GetOccupant(
+                                 monsterPosition.Value));
+            if (card?.SourceCard?.CardType == CardType.Monster && empty)
+            {
+                return true;
+            }
+
+            failure = BattleRuntimePlayerCardActionFailure.CardPlayFailed;
+            playFailure =
+                BattleRuntimeCardPlayFailure.MonsterRegistrationFailed;
+            return false;
+        }
+
         private static bool TryPrepare(
             BattleRuntimeState runtime,
             string battleCardId,
@@ -340,24 +486,37 @@ namespace HaveABreak.Cards
                 card.SourceCard.HasEnchantCompatibilityTag(
                     EnchantCompatibilityTag.FixedSingleEnemyTarget))
             {
-                if (!EnchantFixedTargetResolver.TryDeclare(
-                        battleCardId,
-                        targetEnemyId,
-                        runtime.EnemyPositions,
-                        runtime.Enchants,
-                        out EnchantFixedTargetDeclaration declaration) ||
-                    !IsActiveEnemy(runtime, targetEnemyId))
+                if (!string.IsNullOrWhiteSpace(targetEnemyId))
                 {
-                    failure =
-                        BattleRuntimePlayerCardActionFailure.MissingTarget;
-                    return false;
-                }
+                    if (!EffectTargetResolver.TryResolveSingleTarget(
+                            runtime,
+                            registration.ResolveTargetSpec(
+                                card.SourceCard),
+                            targetEnemyId,
+                            out EffectTargetCandidate candidate) ||
+                        !EnchantFixedTargetResolver.TryDeclare(
+                            battleCardId,
+                            candidate.TargetId,
+                            runtime.EnemyPositions,
+                            runtime.Enchants,
+                            out EnchantFixedTargetDeclaration declaration))
+                    {
+                        failure =
+                            BattleRuntimePlayerCardActionFailure.MissingTarget;
+                        return false;
+                    }
 
-                summonTarget = declaration;
+                    summonTarget = declaration;
+                }
             }
             else if (registration.Route == CardEffectRoute.TargetedSkill)
             {
-                if (!IsActiveEnemy(runtime, targetEnemyId))
+                if (!EffectTargetResolver.TryResolveSingleTarget(
+                        runtime,
+                        registration.ResolveTargetSpec(
+                            card.SourceCard),
+                        targetEnemyId,
+                        out _))
                 {
                     failure =
                         BattleRuntimePlayerCardActionFailure.MissingTarget;
@@ -366,10 +525,13 @@ namespace HaveABreak.Cards
             }
             else if (registration.Route == CardEffectRoute.BanishSkill)
             {
-                BattleCardInstance selected = runtime.Deck.Zones.Find(
-                    selectedBanishBattleCardId);
-                if (selected == null || selected == card ||
-                    selected.Zone != CardZone.Hand)
+                if (!EffectTargetResolver.TryResolveSingleTarget(
+                        runtime,
+                        registration.ResolveTargetSpec(
+                            card.SourceCard),
+                        selectedBanishBattleCardId,
+                        card.Ids.BattleCardId,
+                        out _))
                 {
                     failure = BattleRuntimePlayerCardActionFailure
                         .InvalidBanishSelection;
@@ -381,21 +543,12 @@ namespace HaveABreak.Cards
             return true;
         }
 
-        private static bool IsActiveEnemy(
-            BattleRuntimeState runtime,
-            string enemyId)
-        {
-            BattleEnemyRuntimeState enemy = runtime.FindEnemy(enemyId);
-            return enemy != null && enemy.IsAlive &&
-                   runtime.LivingEnemies.Contains(enemyId) &&
-                   runtime.EnemyPositions.FindPosition(enemyId).HasValue &&
-                   runtime.EnemyStatuses.Find(enemyId) != null;
-        }
-
-        private static CardEffectRegistration FindRegistration(BattleCardInstance card)
+        private static CardEffectRegistration FindRegistration(
+            BattleCardInstance card)
         {
             CardEffectRegistrationCatalog.TryFind(
-                card.SourceCard.CatalogCardId, out CardEffectRegistration registration);
+                card.SourceCard.CatalogCardId,
+                out CardEffectRegistration registration);
             return registration;
         }
     }

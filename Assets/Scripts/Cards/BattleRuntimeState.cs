@@ -14,6 +14,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleTurnState turn;
         [SerializeField] private BattleMonsterRegistry monsters;
         [SerializeField] private BattlePlayerMonsterPositionState playerMonsterPositions;
+        [SerializeField] private BattlePlayerSkillPositionState playerSkillPositions;
         [SerializeField] private BattlePlayerState player;
         [SerializeField] private BattleEnemyTracker livingEnemies;
         [SerializeField] private BattleEnemyPositionState enemyPositions;
@@ -25,6 +26,7 @@ namespace HaveABreak.Cards
         [SerializeField] private BattleCardTurnTriggerState cardTurnTriggers;
         [SerializeField] private BattleDefenseRetentionState defenseRetention;
         [SerializeField] private BattleRuntimeTrapRegistry trapInstallations;
+        [SerializeField] private BattleRuntimeChainState chain;
 
         private BattleRuntimeState()
         {
@@ -47,6 +49,8 @@ namespace HaveABreak.Cards
             monsters = new BattleMonsterRegistry();
             playerMonsterPositions =
                 new BattlePlayerMonsterPositionState();
+            playerSkillPositions =
+                new BattlePlayerSkillPositionState();
             player = new BattlePlayerState(playerMaximumHealth);
             livingEnemies = new BattleEnemyTracker();
             enemyPositions = new BattleEnemyPositionState();
@@ -58,6 +62,7 @@ namespace HaveABreak.Cards
             cardTurnTriggers = new BattleCardTurnTriggerState();
             defenseRetention = new BattleDefenseRetentionState();
             trapInstallations = new BattleRuntimeTrapRegistry();
+            chain = new BattleRuntimeChainState();
         }
 
         public BattleDeckState Deck => deck;
@@ -69,6 +74,9 @@ namespace HaveABreak.Cards
         public BattlePlayerMonsterPositionState PlayerMonsterPositions =>
             playerMonsterPositions ??=
                 new BattlePlayerMonsterPositionState();
+        public BattlePlayerSkillPositionState PlayerSkillPositions =>
+            playerSkillPositions ??=
+                new BattlePlayerSkillPositionState();
         public BattlePlayerState Player => player;
         public BattleEnemyTracker LivingEnemies => livingEnemies;
         public BattleEnemyPositionState EnemyPositions => enemyPositions;
@@ -80,6 +88,8 @@ namespace HaveABreak.Cards
         public BattleCardTurnTriggerState CardTurnTriggers => cardTurnTriggers;
         public BattleDefenseRetentionState DefenseRetention => defenseRetention;
         public BattleRuntimeTrapRegistry TrapInstallations => trapInstallations;
+        public BattleRuntimeChainState Chain =>
+            chain ??= new BattleRuntimeChainState();
 
         public bool TryAddEnemy(
             string enemyId,

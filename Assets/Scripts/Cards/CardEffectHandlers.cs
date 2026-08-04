@@ -221,11 +221,24 @@ namespace HaveABreak.Cards
     internal sealed class C11CardEffectHandler : IPlayerTurnStartCardEffectHandler
     {
         public bool TryResolve(BattleRuntimeState runtime, BattleCardInstance card,
-            out int drawn, out string defendedMonsterId) =>
-            C11LateNightWaitingRoomResolver.TryResolve(card,
+            out int drawn, out string defendedMonsterId)
+        {
+            CardEffectRegistrationCatalog.TryFind(
+                card.SourceCard.CatalogCardId,
+                out CardEffectRegistration registration);
+            EffectTargetSelectionPolicy
+                .TrySelectLowestHealthAllyMonster(
+                    runtime,
+                    registration?.ResolveTargetSpec(card.SourceCard),
+                    out EffectTargetCandidate defenseTarget);
+            return C11LateNightWaitingRoomResolver.TryResolve(card,
                 runtime.Turn.PlayerTurnNumber, runtime.Deck, runtime.Monsters,
+                defenseTarget == null
+                    ? null
+                    : runtime.Monsters.Find(defenseTarget.TargetId),
                 runtime.EventLog, runtime.EffectResolutions, out drawn,
                 out defendedMonsterId);
+        }
     }
 
     internal sealed class C08CardEffectHandler : IEnemyMoveTrapCardEffectHandler

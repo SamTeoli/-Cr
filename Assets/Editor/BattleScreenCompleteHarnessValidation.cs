@@ -42,7 +42,8 @@ namespace HaveABreak.Editor
 
         internal static bool Run()
         {
-            System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Stopwatch stopwatch =
+                System.Diagnostics.Stopwatch.StartNew();
             bool existing =
                 BattleRuntimeFullRegressionValidation.RunCompleteTestHarness();
             bool screenBoundary =
@@ -62,6 +63,15 @@ namespace HaveABreak.Editor
             bool finalUiRoot = RuntimeGameUiRootValidation.Validate();
             bool finalUiPrototype =
                 RuntimePrototypeFinalUiValidation.Validate();
+            bool finalUiPreviewBootstrap =
+                RuntimeGameUiPreviewBootstrapValidation.Validate();
+            bool finalUiPreviewCommand =
+                RuntimeGameUiPreviewCommandValidation.Validate();
+            bool cardDrag = RuntimeCardDragHandlerValidation.Validate();
+            bool consumableBar = RuntimeConsumableBarValidation.Validate();
+            bool battleField = RuntimeBattleFieldViewValidation.Validate();
+            bool battleFieldBridge =
+                RuntimeBattleFieldBridgeValidation.Validate();
             bool manualE2ETool =
                 RunEndToEndManualValidationToolValidation.Validate();
             bool autoplayBoundary =
@@ -70,14 +80,17 @@ namespace HaveABreak.Editor
             bool fullRun = FullRunEndToEndValidation.Validate();
             bool playerActionFullRun =
                 FullRunPlayerActionEndToEndValidation.Validate();
+
             bool valid = existing && screenBoundary && screen &&
                          settlementBoundary && settlement &&
                          startBoundary && start &&
-                          lifecycleBoundary && lifecycle && finalUiRouter &&
-                          finalUiRoot && finalUiPrototype &&
-                         manualE2ETool &&
-                         autoplayBoundary && autoplay && fullRun &&
-                         playerActionFullRun;
+                         lifecycleBoundary && lifecycle && finalUiRouter &&
+                         finalUiRoot && finalUiPrototype &&
+                         finalUiPreviewBootstrap && finalUiPreviewCommand &&
+                         cardDrag && consumableBar && battleField &&
+                         battleFieldBridge &&
+                         manualE2ETool && autoplayBoundary && autoplay &&
+                         fullRun && playerActionFullRun;
             if (valid)
             {
                 Debug.Log(
@@ -85,9 +98,11 @@ namespace HaveABreak.Editor
                     "existing runtime, source boundaries, value-type comparison " +
                     "guard, display snapshot flow, settlement command flow, " +
                     "battle start checkpoint flow, run lifecycle flow, final " +
-                    "UI screen routing and UGUI start screen, manual " +
-                    "run E2E validation tool, battle player-action autoplay " +
-                    "boundary and command flow, full run " +
+                    "UI screen routing, preview bootstrap and new-run command, " +
+                    "card drag input and layout restore, consumable icon bar, " +
+                    "battle field 3x3 slots and final UI bridge, manual run E2E " +
+                    "validation tool, battle " +
+                    "player-action autoplay boundary and command flow, full run " +
                     "end-to-end progression, and player-action full run " +
                     "progression.");
             }
@@ -102,10 +117,15 @@ namespace HaveABreak.Editor
                     $"lifecycle={lifecycle}, finalUiRouter={finalUiRouter}, " +
                     $"finalUiRoot={finalUiRoot}, " +
                     $"finalUiPrototype={finalUiPrototype}, " +
+                    $"finalUiPreviewBootstrap={finalUiPreviewBootstrap}, " +
+                    $"finalUiPreviewCommand={finalUiPreviewCommand}, " +
+                    $"cardDrag={cardDrag}, consumableBar={consumableBar}, " +
+                    $"battleField={battleField}, " +
+                    $"battleFieldBridge={battleFieldBridge}, " +
                     $"manualE2ETool={manualE2ETool}, " +
-                    $"autoplayBoundary=" +
-                    $"{autoplayBoundary}, autoplay={autoplay}, fullRun=" +
-                    $"{fullRun}, playerActionFullRun={playerActionFullRun}");
+                    $"autoplayBoundary={autoplayBoundary}, " +
+                    $"autoplay={autoplay}, fullRun={fullRun}, " +
+                    $"playerActionFullRun={playerActionFullRun}");
             }
 
             stopwatch.Stop();

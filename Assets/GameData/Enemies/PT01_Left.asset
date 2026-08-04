@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PT01_Left
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EnemyDefinitionData
   enemyId: TEST-ENEMY-DEFINITION-LEFT
-  displayName: "시험 적 · 좌측"
+  displayName: "승차권 허물"
   attack: 1
   maximumHealth: 12
   actionPattern:

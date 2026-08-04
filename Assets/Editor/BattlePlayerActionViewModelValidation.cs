@@ -149,15 +149,45 @@ namespace HaveABreak.Editor
                 BattleCardPlayCommandResult play =
                     viewModel.TryPlayCard(
                         context,
-                        c01.Ids.BattleCardId);
+                        c01.Ids.BattleCardId,
+                        PlayerMonsterFieldPosition.Right);
                 if (c01Option == null || !c01Option.CanPlay ||
                     !play.Succeeded || play.Result == null ||
                     string.IsNullOrWhiteSpace(play.Message) ||
+                    runtime.PlayerMonsterPositions.GetOccupant(
+                PlayerMonsterFieldPosition.Right) !=
+            c01.Ids.BattleCardId ||
+            !string.IsNullOrWhiteSpace(
+                runtime.PlayerMonsterPositions.GetOccupant(
+                    PlayerMonsterFieldPosition.Left)) ||
+            !string.IsNullOrWhiteSpace(
+                runtime.PlayerMonsterPositions.GetOccupant(
+                    PlayerMonsterFieldPosition.Center)) ||
                     runtime.Deck.Zones.Count(CardZone.Hand) !=
                         handCountBeforeInvalid - 1 ||
+                    play.Result.SummonEffect != null ||
+                    !viewModel.IsSelectingEnemyTarget ||
+                    viewModel.PendingTargetedCardId !=
+                        c01.Ids.BattleCardId ||
                     viewModel.TryPlayCard(
                         context,
                         c01.Ids.BattleCardId).Succeeded)
+                {
+                    return false;
+                }
+
+                if (!viewModel.SelectEnemy(
+                        context,
+                        selectedEnemy.EnemyId) ||
+                    !viewModel.TryDeclareTargetedCardActivation(
+                        context,
+                        c01.Ids.BattleCardId,
+                        out string summonEffectMessage) ||
+                    string.IsNullOrWhiteSpace(summonEffectMessage) ||
+                    viewModel.IsSelectingEnemyTarget ||
+                    runtime.EnemyPositions.FindPosition(
+                        selectedEnemy.EnemyId) !=
+                    EnemyFieldPosition.Left)
                 {
                     return false;
                 }
@@ -172,11 +202,15 @@ namespace HaveABreak.Editor
                     viewModel.TryAttack(
                         context,
                         c01.Ids.BattleCardId);
+                BattleChainCommandResult attackChain =
+                    viewModel.TryPassAndResolveChain(context);
                 if (monster == null || !monster.CanAttack ||
                     invalidAttack.Succeeded ||
                     string.IsNullOrWhiteSpace(invalidAttack.Message) ||
-                    !attack.Succeeded || attack.Result == null ||
-                    attack.Result.DamageApplied <= 0 ||
+                    !attack.Succeeded || attack.Result != null ||
+                    attackChain?.Succeeded != true ||
+                    attackChain.AttackResult == null ||
+                    attackChain.AttackResult.DamageApplied <= 0 ||
                     string.IsNullOrWhiteSpace(attack.Message))
                 {
                     return false;

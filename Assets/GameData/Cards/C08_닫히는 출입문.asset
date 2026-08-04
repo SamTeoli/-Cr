@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: "\uB2EB\uD788\uB294 \uCD9C\uC785\uBB38"
   rarity: 0
   manaCost: 1
+  effectTextAsset: {fileID: 11400000, guid: 0c3687f5b62c0694096c8bcc4cfdf474, type: 2}
   rulesText: "\uB2E4\uC74C \uC801 \uD134 \uCC98\uC74C \uC774\uB3D9\uD558\uB294 \uC801\uC758
     \uC774\uB3D9\uC744 0\uCE78\uC73C\uB85C \uB300\uCCB4\uD558\uACE0 \uC18D\uBC15
     1\uC744 \uBD80\uC5EC\uD55C\uB2E4."
@@ -24,7 +25,7 @@ MonoBehaviour:
     \uACE0\uC815\uC73C\uB85C \uC774\uB3D9 \uBA85\uB839 \uC790\uCCB4\uAC00 \uC131\uB9BD\uD558\uC9C0
     \uC54A\uB294 \uD589\uB3D9\uC740 \uC720\uD6A8 \uC0AC\uAC74\uC774 \uC544\uB2C8\uBBC0\uB85C
     \uBC1C\uB3D9\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4."
-  artwork: {fileID: 0}
+  artwork: {fileID: 21300000, guid: 7fe39bb8d8e94cf7a4fd5c903ca2dc08, type: 3}
   baseEnchantSlots: 1
   role: "\uC774\uB3D9 \uC81C\uC5B4 / \uC18D\uBC15 / \uC57D\uD654"
   sourceVersion: v0.4 / 2026-07-17
@@ -58,5 +59,6 @@ MonoBehaviour:
     attack: 0
     health: 0
     rulesText: "\uC18D\uBC15 2"
+  effectTargetSpec: {fileID: 11400000, guid: cd5501e6ce974adbac9c8e0a1028aa16, type: 2}
   effects: []
   activatesAtEnemyTurnStart: 1

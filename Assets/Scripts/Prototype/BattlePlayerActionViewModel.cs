@@ -133,12 +133,16 @@ namespace HaveABreak.Cards
             PlayerMonsterFieldPosition position,
             BattleMonsterState monster,
             string selectedEnemyId,
-            bool sessionFinished)
+            bool sessionFinished,
+            bool chainLocked,
+            bool targetingLocked)
         {
             Position = position;
             Monster = monster;
             SelectedEnemyId = selectedEnemyId;
             SessionFinished = sessionFinished;
+            ChainLocked = chainLocked;
+            TargetingLocked = targetingLocked;
         }
 
         public PlayerMonsterFieldPosition Position { get; }
@@ -146,15 +150,23 @@ namespace HaveABreak.Cards
         public string BattleCardId => Monster?.BattleCardId;
         public string SelectedEnemyId { get; }
         public bool SessionFinished { get; }
+        public bool ChainLocked { get; }
+        public bool TargetingLocked { get; }
         public bool IsOccupied => Monster != null;
         public bool CanAttack => Monster?.Status?.CanAttack == true &&
                                  !SessionFinished &&
+                                 !ChainLocked &&
+                                 !TargetingLocked &&
                                  !string.IsNullOrWhiteSpace(SelectedEnemyId);
         public string BlockReason => !IsOccupied
             ? null
             : SessionFinished
                 ? "종료된 전투에서는 공격할 수 없음"
-                : string.IsNullOrWhiteSpace(SelectedEnemyId)
+                : ChainLocked
+                    ? "체인 처리 중에는 공격할 수 없음"
+                    : TargetingLocked
+                        ? "현재 대상 선택을 먼저 완료해야 함"
+                    : string.IsNullOrWhiteSpace(SelectedEnemyId)
                     ? "적 대상 필요"
                     : Monster.Status?.CanAttack != true
                         ? "속박·기절로 공격 불가"
@@ -242,6 +254,32 @@ namespace HaveABreak.Cards
         public string Message { get; }
     }
 
+    public sealed class BattleChainCommandResult
+    {
+        internal BattleChainCommandResult(
+            bool succeeded,
+            BattleRuntimePlayerAttackResult attackResult,
+            BattleRuntimePlayerAttackFailure attackFailure,
+            BattleCardPlayCommandResult cardResult,
+            BattleOutcome outcome,
+            string message)
+        {
+            Succeeded = succeeded;
+            AttackResult = attackResult;
+            AttackFailure = attackFailure;
+            CardResult = cardResult;
+            Outcome = outcome;
+            Message = message;
+        }
+
+        public bool Succeeded { get; }
+        public BattleRuntimePlayerAttackResult AttackResult { get; }
+        public BattleRuntimePlayerAttackFailure AttackFailure { get; }
+        public BattleCardPlayCommandResult CardResult { get; }
+        public BattleOutcome Outcome { get; }
+        public string Message { get; }
+    }
+
     public sealed class BattleEndTurnCommandResult
     {
         internal BattleEndTurnCommandResult(
@@ -285,16 +323,35 @@ namespace HaveABreak.Cards
 
     public sealed class BattlePlayerActionViewModel
     {
-        private readonly Dictionary<string, string> selectedBanishCardIds =
-            new(StringComparer.OrdinalIgnoreCase);
         private string selectedEnemyId;
+        private string pendingAttackerId;
+        private PendingEffectActivation pendingCardEffect;
+        private BattleRuntimePlayerAttackDeclaration pendingAttackDeclaration;
 
         public string SelectedEnemyId => selectedEnemyId;
+        public string PendingTargetedCardId =>
+            IsSelectingEnemyEffectTarget
+                ? pendingCardEffect.SourceCardId
+                : null;
+        public string PendingAttackerId => pendingAttackerId;
+        public bool IsSelectingEnemyTarget =>
+            IsSelectingEnemyEffectTarget ||
+            !string.IsNullOrWhiteSpace(pendingAttackerId);
+        private bool HasPendingEffectTargetSelection =>
+            pendingCardEffect?.IsAwaitingTarget == true;
+        private bool IsSelectingEnemyEffectTarget =>
+            HasPendingEffectTargetSelection &&
+            pendingCardEffect.TargetSpec?.Side ==
+                EffectTargetSide.Enemy &&
+            pendingCardEffect.TargetSpec.Kind ==
+                EffectTargetKind.Monster;
 
         public void Reset()
         {
             selectedEnemyId = null;
-            selectedBanishCardIds.Clear();
+            pendingAttackerId = null;
+            pendingCardEffect = null;
+            pendingAttackDeclaration = null;
         }
 
         public void Refresh(BattleRuntimeEncounterContext context)
@@ -306,30 +363,52 @@ namespace HaveABreak.Cards
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(selectedEnemyId) ||
+            if (!string.IsNullOrWhiteSpace(selectedEnemyId) &&
                 !runtime.LivingEnemies.Contains(selectedEnemyId))
             {
-                selectedEnemyId = runtime.Enemies.FirstOrDefault(enemy =>
-                    enemy != null && enemy.IsAlive)?.EnemyId;
+                selectedEnemyId = null;
+            }
+            if (pendingCardEffect?.IsAwaitingTarget == true)
+            {
+                CardZone expectedZone =
+                    pendingCardEffect.HasPlacementResult
+                        ? CardZone.MonsterField
+                        : CardZone.Hand;
+                if (runtime.Deck.Zones.Find(
+                        pendingCardEffect.SourceCardId)?.Zone !=
+                    expectedZone)
+                {
+                    pendingCardEffect = null;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(pendingAttackerId) &&
+                runtime.Monsters.Find(pendingAttackerId) == null)
+            {
+                pendingAttackerId = null;
+            }
+            if (runtime.Chain.Phase == BattleChainPhase.Idle &&
+                runtime.Turn.Phase != BattleTurnPhase.PlayerActionResolving)
+            {
+                pendingAttackDeclaration = null;
+                if (pendingCardEffect?.Phase ==
+                    PendingEffectActivationPhase.Declared)
+                {
+                    pendingCardEffect = null;
+                }
             }
 
-            HashSet<string> handIds = runtime.Deck.Zones
-                .GetCards(CardZone.Hand)
-                .Where(card => card != null)
-                .Select(card => card.Ids.BattleCardId)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (string sourceId in selectedBanishCardIds.Keys.ToArray())
+            if (pendingCardEffect?.TargetSpec?.Kind ==
+                    EffectTargetKind.HandCard &&
+                !string.IsNullOrWhiteSpace(
+                    pendingCardEffect.SingleTargetId) &&
+                !EffectTargetResolver.TryResolveSingleTarget(
+                    runtime,
+                    pendingCardEffect.TargetSpec,
+                    pendingCardEffect.SingleTargetId,
+                    pendingCardEffect.SourceCardId,
+                    out _))
             {
-                string targetId = selectedBanishCardIds[sourceId];
-                if (!handIds.Contains(sourceId) ||
-                    !handIds.Contains(targetId) ||
-                    string.Equals(
-                        sourceId,
-                        targetId,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    selectedBanishCardIds.Remove(sourceId);
-                }
+                pendingCardEffect = null;
             }
         }
 
@@ -407,6 +486,208 @@ namespace HaveABreak.Cards
                     normalized,
                     StringComparison.OrdinalIgnoreCase))?.EnemyId;
             return !string.IsNullOrWhiteSpace(selectedEnemyId);
+        }
+
+        public bool TryBeginCardTargeting(
+            BattleRuntimeEncounterContext context,
+            string battleCardId,
+            out string message)
+        {
+            message = null;
+            BattleCardInstance card =
+                context?.Runtime?.Deck.Zones.Find(battleCardId);
+            if (card?.Zone != CardZone.Hand ||
+                !RequiresEnemyTarget(card) ||
+                FindTargetSpec(card) == null)
+            {
+                message = "대상을 선택할 카드가 아닙니다.";
+                return false;
+            }
+
+            string targetProbe = FirstLivingEnemyId(context.Runtime);
+            if (string.IsNullOrWhiteSpace(targetProbe))
+            {
+                message = "선택할 수 있는 적이 없습니다.";
+                return false;
+            }
+
+            BattleBanishTargetOption[] banishTargets =
+                CreateBanishTargets(context, battleCardId);
+            string banishTargetId = banishTargets
+                .FirstOrDefault(option => option.IsSelected)?.BattleCardId;
+            if (!BattleRuntimePlayerCardActionService.TryValidate(
+                    context.Runtime,
+                    battleCardId,
+                    targetProbe,
+                    banishTargetId,
+                    out BattleRuntimePlayerCardActionFailure actionFailure,
+                    out BattleRuntimeCardPlayFailure playFailure,
+                    out CardPlayFailure cardFailure))
+            {
+                message = "카드 사용 불가: " + DescribeCardBlock(
+                    actionFailure,
+                    playFailure,
+                    cardFailure);
+                return false;
+            }
+
+            selectedEnemyId = null;
+            pendingCardEffect = new PendingEffectActivation(
+                card.Ids.BattleCardId,
+                card.SourceCard.CatalogCardId,
+                FindTargetSpec(card));
+            pendingAttackerId = null;
+            message = $"{card.SourceCard.DisplayName}: 효과 대상을 선택하세요.";
+            return true;
+        }
+
+        public bool TryBeginAttackTargeting(
+            BattleRuntimeEncounterContext context,
+            string battleCardId,
+            out string message)
+        {
+            message = null;
+            string targetProbe = FirstLivingEnemyId(context?.Runtime);
+            BattleMonsterAttackActionOption option =
+                CreateMonsterAttackOptions(context, targetProbe)
+                    .FirstOrDefault(value => string.Equals(
+                        value.BattleCardId,
+                        battleCardId,
+                        StringComparison.OrdinalIgnoreCase));
+            if (option == null || !option.CanAttack)
+            {
+                message = "공격 선언 실패: " +
+                          (option?.BlockReason ??
+                           "공격할 아군 몬스터를 찾을 수 없습니다.");
+                return false;
+            }
+
+            selectedEnemyId = null;
+            pendingCardEffect = null;
+            pendingAttackerId = option.BattleCardId;
+            message = "공격할 적을 선택하세요.";
+            return true;
+        }
+
+        public void ClearPendingTargeting()
+        {
+            pendingAttackerId = null;
+            pendingCardEffect = null;
+            selectedEnemyId = null;
+        }
+
+        public bool TryDeclareTargetedCardActivation(
+            BattleRuntimeEncounterContext context,
+            string battleCardId,
+            out string message)
+        {
+            message = null;
+            BattleRuntimeState runtime = context?.Runtime;
+            if (pendingCardEffect?.HasPlacementResult == true &&
+                pendingCardEffect.MatchesSource(battleCardId))
+            {
+                if (runtime == null ||
+                    string.IsNullOrWhiteSpace(selectedEnemyId) ||
+                    !pendingCardEffect.TrySelectSingleTarget(
+                        runtime,
+                        selectedEnemyId,
+                        out EffectTargetCandidate candidate) ||
+                    !pendingCardEffect.TryDeclare(runtime) ||
+                    !EnchantFixedTargetResolver.TryDeclare(
+                        battleCardId,
+                        candidate.TargetId,
+                        runtime.EnemyPositions,
+                        runtime.Enchants,
+                        out EnchantFixedTargetDeclaration declaration))
+                {
+                    message = "소환 효과 발동 실패: 올바른 적 대상을 선택해야 합니다.";
+                    return false;
+                }
+
+                BattleRuntimeCardPlayResult pendingPlay =
+                    pendingCardEffect.PlacementResult;
+                if (!BattleRuntimeSummonEffectService.TryResolve(
+                        runtime,
+                        pendingPlay,
+                        declaration,
+                        out _,
+                        out BattleRuntimeSummonEffectFailure failure))
+                {
+                    message = $"소환 효과 발동 실패: {failure}";
+                    return false;
+                }
+
+                string cardName =
+                    pendingPlay.Card.SourceCard.DisplayName;
+                pendingCardEffect = null;
+                selectedEnemyId = null;
+                Refresh(context);
+                message = $"{cardName} 소환 효과 해결 완료.";
+                return true;
+            }
+
+            BattleCardInstance card =
+                runtime?.Deck.Zones.Find(battleCardId);
+            if (card?.Zone != CardZone.Hand ||
+                !RequiresEnemyTarget(card) ||
+                pendingCardEffect?.HasPlacementResult != false ||
+                !pendingCardEffect.MatchesSource(battleCardId) ||
+                string.IsNullOrWhiteSpace(selectedEnemyId) ||
+                !pendingCardEffect.TrySelectSingleTarget(
+                    runtime,
+                    selectedEnemyId,
+                    out EffectTargetCandidate selectedTarget))
+            {
+                message = "효과 발동 실패: 올바른 적 대상을 선택해야 합니다.";
+                return false;
+            }
+
+            BattleHandCardActionOption option = CreateHandOptions(context)
+                .FirstOrDefault(value => string.Equals(
+                    value.BattleCardId,
+                    battleCardId,
+                    StringComparison.OrdinalIgnoreCase));
+            if (option?.CanPlay != true)
+            {
+                message = "효과 발동 실패: " +
+                          (option?.BlockReason ??
+                           "현재 사용할 수 없는 카드입니다.");
+                return false;
+            }
+
+            string targetId = selectedTarget.TargetId;
+            BattleActivationContext activation = new(
+                option.BattleCardId,
+                card.SourceCard.CatalogCardId,
+                BattleChainParticipant.Player,
+                "CardEffectActivated",
+                0,
+                new[]
+                {
+                    new BattleEffectTarget(
+                        targetId,
+                        "EnemyMonster")
+                });
+            if (!runtime.Chain.TryBegin(
+                    activation,
+                    out BattleChainLink firstLink) ||
+                firstLink == null ||
+                !runtime.Chain.TryPass(BattleChainParticipant.Enemy))
+            {
+                message = "효과 발동 실패: 체인을 시작할 수 없습니다.";
+                return false;
+            }
+
+            if (!pendingCardEffect.TryDeclare(runtime))
+            {
+                message = "효과 발동 실패: 대상을 확정할 수 없습니다.";
+                return false;
+            }
+            pendingAttackerId = null;
+            selectedEnemyId = null;
+            message = $"{card.SourceCard.DisplayName} 효과 발동 · " +
+                      "체인 1. 체인 해결을 누르세요.";
+            return true;
         }
 
         public BattleConsumableActionOption[] CreateConsumableOptions(
@@ -515,48 +796,42 @@ namespace HaveABreak.Cards
             }
 
             Refresh(context);
-            List<BattleCardInstance> hand = context.Runtime.Deck.Zones
-                .GetCards(CardZone.Hand)
-                .Where(card => card != null)
-                .ToList();
-            BattleCardInstance source = hand.FirstOrDefault(card =>
-                string.Equals(
-                    card.Ids.BattleCardId,
-                    sourceBattleCardId,
-                    StringComparison.OrdinalIgnoreCase));
-            if (source == null || !string.Equals(
+            BattleCardInstance source = context.Runtime.Deck.Zones.Find(
+                sourceBattleCardId);
+            if (source?.Zone != CardZone.Hand ||
+                !CardEffectRegistrationCatalog.TryFind(
                     source.SourceCard.CatalogCardId,
-                    TestContentIds.C07,
-                    StringComparison.OrdinalIgnoreCase))
+                    out CardEffectRegistration registration) ||
+                registration.Route != CardEffectRoute.BanishSkill)
             {
-                selectedBanishCardIds.Remove(sourceBattleCardId);
                 return Array.Empty<BattleBanishTargetOption>();
             }
 
-            BattleCardInstance[] candidates = hand
-                .Where(card => !string.Equals(
-                    card.Ids.BattleCardId,
-                    source.Ids.BattleCardId,
-                    StringComparison.OrdinalIgnoreCase))
+            BattleCardInstance[] candidates = EffectTargetResolver
+                .GetLegalTargets(
+                    context.Runtime,
+                    registration.ResolveTargetSpec(source.SourceCard),
+                    source.Ids.BattleCardId)
+                .Select(candidate =>
+                    context.Runtime.Deck.Zones.Find(candidate.TargetId))
+                .Where(card => card != null)
                 .ToArray();
             if (candidates.Length == 0)
             {
-                selectedBanishCardIds.Remove(source.Ids.BattleCardId);
                 return Array.Empty<BattleBanishTargetOption>();
             }
 
-            string selectedId = selectedBanishCardIds.TryGetValue(
-                    source.Ids.BattleCardId,
-                    out string current)
-                ? current
-                : null;
+            string selectedId =
+                pendingCardEffect?.TargetSpec?.Kind ==
+                    EffectTargetKind.HandCard &&
+                pendingCardEffect.MatchesSource(source.Ids.BattleCardId)
+                    ? pendingCardEffect.SingleTargetId
+                    : null;
             BattleCardInstance selected = candidates.FirstOrDefault(card =>
                 string.Equals(
                     card.Ids.BattleCardId,
                     selectedId,
                     StringComparison.OrdinalIgnoreCase)) ?? candidates[0];
-            selectedBanishCardIds[source.Ids.BattleCardId] =
-                selected.Ids.BattleCardId;
             return candidates.Select(card => new BattleBanishTargetOption(
                     source,
                     card,
@@ -589,9 +864,22 @@ namespace HaveABreak.Cards
                 return false;
             }
 
-            selectedBanishCardIds[target.SourceBattleCardId] =
-                target.BattleCardId;
-            return true;
+            if (pendingCardEffect == null ||
+                !pendingCardEffect.MatchesSource(
+                    target.SourceBattleCardId) ||
+                pendingCardEffect.TargetSpec?.Kind !=
+                    EffectTargetKind.HandCard)
+            {
+                pendingCardEffect = new PendingEffectActivation(
+                    target.SourceBattleCardId,
+                    target.Source.SourceCard.CatalogCardId,
+                    FindTargetSpec(target.Source));
+            }
+
+            return pendingCardEffect.TrySelectSingleTarget(
+                context.Runtime,
+                target.BattleCardId,
+                out _);
         }
 
         public BattleBanishTargetOption CycleBanishTarget(
@@ -611,7 +899,13 @@ namespace HaveABreak.Cards
                 option => option.IsSelected);
             int nextIndex = (selectedIndex + 1 + options.Length) % options.Length;
             BattleBanishTargetOption next = options[nextIndex];
-            selectedBanishCardIds[next.SourceBattleCardId] = next.BattleCardId;
+            if (!SelectBanishTarget(
+                    context,
+                    next.SourceBattleCardId,
+                    next.BattleCardId))
+            {
+                return null;
+            }
             return new BattleBanishTargetOption(
                 next.Source,
                 next.Target,
@@ -621,12 +915,22 @@ namespace HaveABreak.Cards
         public BattleHandCardActionOption[] CreateHandOptions(
             BattleRuntimeEncounterContext context)
         {
+            return CreateHandOptions(context, false);
+        }
+
+        private BattleHandCardActionOption[] CreateHandOptions(
+            BattleRuntimeEncounterContext context,
+            bool ignoreChainLock)
+        {
             if (context?.Runtime == null)
             {
                 return Array.Empty<BattleHandCardActionOption>();
             }
 
             Refresh(context);
+            bool chainLocked =
+                !ignoreChainLock &&
+                context.Runtime.Chain.Phase != BattleChainPhase.Idle;
             List<BattleCardInstance> hand = context.Runtime.Deck.Zones
                 .GetCards(CardZone.Hand)
                 .Where(card => card != null)
@@ -639,14 +943,34 @@ namespace HaveABreak.Cards
                 string banishTargetId = banishTargets
                     .FirstOrDefault(option => option.IsSelected)?
                     .BattleCardId;
+                string validationEnemyId = selectedEnemyId;
+                if (RequiresEnemyTarget(card) &&
+                    string.IsNullOrWhiteSpace(validationEnemyId))
+                {
+                    validationEnemyId = FirstLivingEnemyId(context.Runtime);
+                }
                 bool canPlay = BattleRuntimePlayerCardActionService.TryValidate(
                     context.Runtime,
                     card.Ids.BattleCardId,
-                    selectedEnemyId,
+                    validationEnemyId,
                     banishTargetId,
                     out BattleRuntimePlayerCardActionFailure actionFailure,
                     out BattleRuntimeCardPlayFailure playFailure,
                     out CardPlayFailure cardFailure);
+                bool targetingLocked =
+                    HasPendingEffectTargetSelection &&
+                    !string.Equals(
+                        pendingCardEffect.SourceCardId,
+                        card.Ids.BattleCardId,
+                        StringComparison.OrdinalIgnoreCase);
+                if (chainLocked)
+                {
+                    canPlay = false;
+                }
+                if (targetingLocked)
+                {
+                    canPlay = false;
+                }
                 options.Add(new BattleHandCardActionOption(
                     card,
                     banishTargets,
@@ -656,7 +980,11 @@ namespace HaveABreak.Cards
                     cardFailure,
                     canPlay
                         ? null
-                        : DescribeCardBlock(
+                        : chainLocked
+                            ? "체인 처리 중에는 새 카드를 사용할 수 없습니다."
+                            : targetingLocked
+                                ? "현재 대상 선택을 먼저 완료해야 합니다."
+                            : DescribeCardBlock(
                             actionFailure,
                             playFailure,
                             cardFailure)));
@@ -666,85 +994,118 @@ namespace HaveABreak.Cards
         }
 
         public BattleCardPlayCommandResult TryPlayCard(
-            BattleRuntimeEncounterContext context,
-            string battleCardId)
-        {
-            BattleHandCardActionOption option = CreateHandOptions(context)
-                .FirstOrDefault(value => string.Equals(
-                    value.BattleCardId,
-                    battleCardId,
-                    StringComparison.OrdinalIgnoreCase));
-            if (option == null)
-            {
-                return new BattleCardPlayCommandResult(
-                    false,
-                    null,
-                    null,
-                    default,
-                    default,
-                    default,
-                    context?.Session?.Outcome ?? BattleOutcome.Ongoing,
-                    "카드 사용 실패: 선택한 카드를 현재 패에서 찾을 수 없습니다.");
-            }
+    BattleRuntimeEncounterContext context,
+    string battleCardId)
+{
+    return TryPlayCard(context, battleCardId, null, false);
+}
 
-            if (!option.CanPlay)
-            {
-                return new BattleCardPlayCommandResult(
-                    false,
-                    option,
-                    null,
-                    option.ActionFailure,
-                    option.PlayFailure,
-                    option.CardFailure,
-                    context?.Session?.Outcome ?? BattleOutcome.Ongoing,
-                    $"카드 사용 실패: {option.BlockReason}");
-            }
+public BattleCardPlayCommandResult TryPlayCard(
+    BattleRuntimeEncounterContext context,
+    string battleCardId,
+    PlayerMonsterFieldPosition? monsterPosition)
+{
+    return TryPlayCard(
+        context,
+        battleCardId,
+        monsterPosition,
+        false);
+}
 
-            if (!BattleRuntimePlayerCardActionService.TryResolve(
-                    context.Runtime,
-                    option.BattleCardId,
-                    selectedEnemyId,
-                    option.SelectedBanishTargetId,
-                    out BattleRuntimePlayerCardActionResult result,
-                    out BattleRuntimePlayerCardActionFailure actionFailure,
-                    out BattleRuntimeCardPlayFailure playFailure,
-                    out CardPlayFailure cardFailure))
-            {
-                return new BattleCardPlayCommandResult(
-                    false,
-                    option,
-                    null,
-                    actionFailure,
-                    playFailure,
-                    cardFailure,
-                    context.Session.Outcome,
-                    $"카드 사용 실패: {actionFailure} / {playFailure} / " +
-                    $"{cardFailure}");
-            }
-
-            selectedBanishCardIds.Remove(option.BattleCardId);
-            BattleOutcome outcome = FinalizeOutcome(context);
-            Refresh(context);
-            string message =
-                $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
-            if (outcome != BattleOutcome.Ongoing)
-            {
-                message += $" 전투 종료 · {outcome}";
-            }
-
-            return new BattleCardPlayCommandResult(
-                true,
-                option,
-                result,
-                actionFailure,
-                playFailure,
-                cardFailure,
-                outcome,
-                message);
-        }
+private BattleCardPlayCommandResult TryPlayCard(
+    BattleRuntimeEncounterContext context,
+    string battleCardId,
+    PlayerMonsterFieldPosition? monsterPosition,
+    bool ignoreChainLock)
+{
+    BattleHandCardActionOption option = CreateHandOptions(
+            context,
+            ignoreChainLock)
+        .FirstOrDefault(value => string.Equals(
+            value.BattleCardId,
+            battleCardId,
+            StringComparison.OrdinalIgnoreCase));
+    if (option == null)
+    {
+        return new BattleCardPlayCommandResult(
+            false, null, null, default, default, default,
+            context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+            "카드 사용 실패: 선택한 카드를 현재 패에서 찾을 수 없습니다.");
+    }
+    if (!option.CanPlay)
+    {
+        return new BattleCardPlayCommandResult(
+            false, option, null,
+            option.ActionFailure, option.PlayFailure, option.CardFailure,
+            context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+            $"카드 사용 실패: {option.BlockReason}");
+    }
+    string actionTarget = RequiresPostSummonEnemyTarget(option.Card)
+        ? null
+        : selectedEnemyId;
+    if (!BattleRuntimePlayerCardActionService.TryResolve(
+            context.Runtime,
+            option.BattleCardId,
+            actionTarget,
+            option.SelectedBanishTargetId,
+            monsterPosition,
+            out BattleRuntimePlayerCardActionResult result,
+            out BattleRuntimePlayerCardActionFailure actionFailure,
+            out BattleRuntimeCardPlayFailure playFailure,
+            out CardPlayFailure cardFailure))
+    {
+        string positionText = monsterPosition.HasValue
+            ? $" / 몬스터존 {monsterPosition.Value}"
+            : string.Empty;
+        return new BattleCardPlayCommandResult(
+            false, option, null,
+            actionFailure, playFailure, cardFailure,
+            context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+            $"카드 사용 실패{positionText}: {actionFailure} / " +
+            $"{playFailure} / {cardFailure}");
+    }
+    bool waitsForSummonTarget =
+        RequiresPostSummonEnemyTarget(result.Play.Card) &&
+        result.SummonEffect == null;
+    pendingCardEffect = waitsForSummonTarget
+        ? new PendingEffectActivation(
+            result.Play.Card.Ids.BattleCardId,
+            result.Play.Card.SourceCard.CatalogCardId,
+            FindTargetSpec(result.Play.Card),
+            result.Play)
+        : null;
+    selectedEnemyId = null;
+    BattleOutcome outcome = FinalizeOutcome(context);
+    Refresh(context);
+    string message = waitsForSummonTarget
+        ? $"{result.Play.Card.SourceCard.DisplayName} 소환 완료 · " +
+          "효과 대상을 선택하세요."
+        : monsterPosition.HasValue
+        ? $"{result.Play.Card.SourceCard.DisplayName} 사용 완료 · " +
+          $"몬스터존 {monsterPosition.Value}"
+        : $"{result.Play.Card.SourceCard.DisplayName} 사용 완료.";
+    if (outcome != BattleOutcome.Ongoing)
+    {
+        message += $" 전투 종료 · {outcome}";
+    }
+    return new BattleCardPlayCommandResult(
+        true, option, result,
+        actionFailure, playFailure, cardFailure,
+        outcome, message);
+}
 
         public BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(
             BattleRuntimeEncounterContext context)
+        {
+            string targetProbe = string.IsNullOrWhiteSpace(selectedEnemyId)
+                ? FirstLivingEnemyId(context?.Runtime)
+                : selectedEnemyId;
+            return CreateMonsterAttackOptions(context, targetProbe);
+        }
+
+        private BattleMonsterAttackActionOption[] CreateMonsterAttackOptions(
+            BattleRuntimeEncounterContext context,
+            string targetEnemyId)
         {
             if (context?.Runtime == null)
             {
@@ -762,11 +1123,19 @@ namespace HaveABreak.Cards
                     string.IsNullOrWhiteSpace(battleCardId)
                         ? null
                         : context.Runtime.Monsters.Find(battleCardId);
+                bool targetingLocked =
+                    IsSelectingEnemyTarget &&
+                    !string.Equals(
+                        pendingAttackerId,
+                        battleCardId,
+                        StringComparison.OrdinalIgnoreCase);
                 options.Add(new BattleMonsterAttackActionOption(
                     position,
                     monster,
-                    selectedEnemyId,
-                    context.Session?.IsFinished == true));
+                    targetEnemyId,
+                    context.Session?.IsFinished == true,
+                    context.Runtime.Chain.Phase != BattleChainPhase.Idle,
+                    targetingLocked));
             }
 
             return options.ToArray();
@@ -795,11 +1164,11 @@ namespace HaveABreak.Cards
                     $"공격 실패: {reason}");
             }
 
-            if (!BattleRuntimePlayerAttackService.TryResolve(
+            if (!BattleRuntimePlayerAttackService.TryDeclare(
                     context.Runtime,
                     option.BattleCardId,
                     selectedEnemyId,
-                    out BattleRuntimePlayerAttackResult result,
+                    out BattleRuntimePlayerAttackDeclaration declaration,
                     out BattleRuntimePlayerAttackFailure failure))
             {
                 return new BattleMonsterAttackCommandResult(
@@ -811,19 +1180,145 @@ namespace HaveABreak.Cards
                     $"공격 실패: {failure}");
             }
 
-            BattleOutcome outcome = FinalizeOutcome(context);
+            BattleActivationContext activation = new(
+                option.BattleCardId,
+                "SYSTEM-PLAYER-MONSTER-ATTACK",
+                BattleChainParticipant.Player,
+                "AttackDeclared",
+                0,
+                new[]
+                {
+                    new BattleEffectTarget(
+                        selectedEnemyId,
+                        "EnemyMonster")
+                });
+            if (!context.Runtime.Chain.TryBegin(
+                    activation,
+                    out BattleChainLink firstLink) ||
+                firstLink == null ||
+                !context.Runtime.Chain.TryPass(
+                    BattleChainParticipant.Enemy))
+            {
+                context.Runtime.Turn.TryCompletePlayerAction(out _);
+                return new BattleMonsterAttackCommandResult(
+                    false,
+                    option,
+                    null,
+                    BattleRuntimePlayerAttackFailure.InvalidDeclaration,
+                    context.Session.Outcome,
+                    "공격 선언 실패: 체인을 시작할 수 없습니다.");
+            }
+
+            pendingAttackDeclaration = declaration;
+            pendingAttackerId = null;
+            selectedEnemyId = null;
             Refresh(context);
-            string message = $"공격 완료 · 피해 {result.DamageApplied}";
+
+            return new BattleMonsterAttackCommandResult(
+                true,
+                option,
+                null,
+                failure,
+                context.Session.Outcome,
+                "공격 선언 · 체인 1. 체인 해결을 누르세요.");
+        }
+
+        public BattleChainCommandResult TryPassAndResolveChain(
+            BattleRuntimeEncounterContext context)
+        {
+            BattleRuntimeState runtime = context?.Runtime;
+            if (runtime == null ||
+                runtime.Chain.Phase != BattleChainPhase.Building ||
+                runtime.Chain.NextParticipant !=
+                BattleChainParticipant.Player ||
+                !runtime.Chain.TryPass(BattleChainParticipant.Player))
+            {
+                return new BattleChainCommandResult(
+                    false,
+                    null,
+                    BattleRuntimePlayerAttackFailure.InvalidDeclaration,
+                    null,
+                    context?.Session?.Outcome ?? BattleOutcome.Ongoing,
+                    "체인 해결 실패: 현재 플레이어가 패스할 차례가 아닙니다.");
+            }
+
+            BattleRuntimePlayerAttackResult attackResult = null;
+            BattleCardPlayCommandResult cardResult = null;
+            BattleRuntimePlayerAttackFailure attackFailure =
+                BattleRuntimePlayerAttackFailure.None;
+            bool succeeded = true;
+            while (runtime.Chain.TryGetNextResolvingLink(
+                       out BattleChainLink link))
+            {
+                BattleChainLinkStatus status =
+                    BattleChainLinkStatus.Resolved;
+                if (pendingAttackDeclaration != null &&
+                    string.Equals(
+                        link.Activation.SourceId,
+                        pendingAttackDeclaration.Attacker.BattleCardId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!BattleRuntimePlayerAttackService.TryResolveDeclared(
+                            runtime,
+                            pendingAttackDeclaration,
+                            out attackResult,
+                            out attackFailure))
+                    {
+                        status = BattleChainLinkStatus.Failed;
+                        succeeded = false;
+                    }
+                    pendingAttackDeclaration = null;
+                }
+                else if (pendingCardEffect?.Phase ==
+                             PendingEffectActivationPhase.Declared &&
+                         pendingCardEffect.MatchesSource(
+                             link.Activation.SourceId))
+                {
+                    string sourceCardId =
+                        pendingCardEffect.SourceCardId;
+                    selectedEnemyId =
+                        pendingCardEffect.SingleTargetId;
+                    cardResult = TryPlayCard(
+                        context,
+                        sourceCardId,
+                        null,
+                        true);
+                    if (cardResult?.Succeeded != true)
+                    {
+                        status = BattleChainLinkStatus.Failed;
+                        succeeded = false;
+                    }
+                    pendingCardEffect = null;
+                    selectedEnemyId = null;
+                }
+
+                runtime.Chain.TryCompleteResolvingLink(link, status);
+            }
+
+            BattleOutcome outcome = FinalizeOutcome(context);
+            runtime.Chain.ClearCompleted();
+            Refresh(context);
+            string message = succeeded
+                ? attackResult == null
+                    ? cardResult?.Succeeded == true
+                        ? $"체인 해결 완료 · " +
+                          $"{cardResult.Option.Card.SourceCard.DisplayName}"
+                        : "체인 해결 완료."
+                    : $"체인 해결 완료 · 공격 피해 " +
+                      $"{attackResult.DamageApplied}"
+                : cardResult != null
+                    ? $"체인 해결 실패: {cardResult.Message}"
+                    : $"체인 해결 실패: {attackFailure}";
             if (outcome != BattleOutcome.Ongoing)
             {
                 message += $" 전투 종료 · {outcome}";
             }
 
-            return new BattleMonsterAttackCommandResult(
-                true,
-                option,
-                result,
-                failure,
+            return new BattleChainCommandResult(
+                succeeded,
+                attackResult,
+                attackFailure,
+                cardResult,
                 outcome,
                 message);
         }
@@ -847,6 +1342,28 @@ namespace HaveABreak.Cards
                     default,
                     -1,
                     "턴 종료 실패: 활성 플레이어 턴이 없습니다.");
+            }
+            if (context.Runtime.Chain.Phase != BattleChainPhase.Idle)
+            {
+                return new BattleEndTurnCommandResult(
+                    false,
+                    null,
+                    default,
+                    default,
+                    default,
+                    default,
+                    default,
+                    default,
+                    default,
+                    -1,
+                    "턴 종료 실패: 체인 처리가 끝난 뒤 턴을 종료할 수 있습니다.");
+            }
+            // A cancelled drag can leave target selection pending. Treat the
+            // end-turn action as an explicit cancellation of that pending UI
+            // state so the player can always finish an otherwise valid turn.
+            if (IsSelectingEnemyTarget)
+            {
+                ClearPendingTargeting();
             }
 
             if (!BattleRuntimeEnemyPatternService.TryEndPlayerTurn(
@@ -879,7 +1396,7 @@ namespace HaveABreak.Cards
                     $"{planFailure} / {enemyTurnFailure} / action {actionIndex}");
             }
 
-            selectedBanishCardIds.Clear();
+            ClearPendingTargeting();
             Refresh(context);
             string message = result.Outcome == BattleOutcome.Ongoing
                 ? $"적 턴 완료 · 플레이어 턴 " +
@@ -947,6 +1464,44 @@ namespace HaveABreak.Cards
                     "행동 불가 단계",
                 _ => actionFailure.ToString()
             };
+        }
+
+        private static bool RequiresEnemyTarget(BattleCardInstance card)
+        {
+            return card != null &&
+                   CardEffectRegistrationCatalog.TryFind(
+                       card.SourceCard.CatalogCardId,
+                       out CardEffectRegistration registration) &&
+                   registration.Route == CardEffectRoute.TargetedSkill;
+        }
+
+        private static bool RequiresPostSummonEnemyTarget(
+            BattleCardInstance card)
+        {
+            return card?.SourceCard != null &&
+                   card.SourceCard.HasEnchantCompatibilityTag(
+                       EnchantCompatibilityTag.FixedSingleEnemyTarget) &&
+                   CardEffectRegistrationCatalog.TryFind(
+                       card.SourceCard.CatalogCardId,
+                       out CardEffectRegistration registration) &&
+                   registration.Route == CardEffectRoute.Summon;
+        }
+
+        private static EffectTargetSpec FindTargetSpec(
+            BattleCardInstance card)
+        {
+            return card?.SourceCard != null &&
+                   CardEffectRegistrationCatalog.TryFind(
+                       card.SourceCard.CatalogCardId,
+                       out CardEffectRegistration registration)
+                ? registration.ResolveTargetSpec(card.SourceCard)
+                : null;
+        }
+
+        private static string FirstLivingEnemyId(BattleRuntimeState runtime)
+        {
+            return runtime?.Enemies.FirstOrDefault(enemy =>
+                enemy != null && enemy.IsAlive)?.EnemyId;
         }
     }
 }

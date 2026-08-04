@@ -54,42 +54,111 @@ namespace HaveABreak.Cards
             {
                 GUILayout.BeginHorizontal(GUI.skin.box);
                 GUILayout.Label(option.DisplayText, wrappedStyle);
-                if (option.BanishTargets.Length > 0)
-                {
-                    string banishLabel =
-                        option.SelectedBanishTarget?.DisplayLabel ??
-                        "소멸 대상 없음";
-                    if (GUILayout.Button(
-                            banishLabel,
-                            GUILayout.Width(170f)))
-                    {
-                        battleScreen.CycleBanishTarget(
-                            progress,
-                            option.BattleCardId);
-                    }
-                }
-
                 bool previous = GUI.enabled;
-                GUI.enabled = option.CanPlay;
-                bool clicked = GUILayout.Button("사용", GUILayout.Width(75f));
+                bool selectingThisCard = string.Equals(
+                    pendingBanishSourceCardId,
+                    option.BattleCardId,
+                    StringComparison.OrdinalIgnoreCase);
+                GUI.enabled = option.CanPlay || selectingThisCard;
+                bool clicked = GUILayout.Button(
+                    selectingThisCard ? "선택 취소" : "사용",
+                    GUILayout.Width(90f));
                 GUI.enabled = previous;
                 if (clicked)
                 {
-                    BattleCardPlayCommandResult command =
-                        battleScreen.TryPlayCard(
-                            progress,
-                            option.BattleCardId);
-                    message = command.Message;
-                    if (command.Succeeded)
+                    if (selectingThisCard)
                     {
-                        SaveRun(null);
+                        pendingBanishSourceCardId = null;
+                        pendingBanishTargetCardId = null;
+                        message = "카드 활성화를 취소했습니다.";
                     }
+                    else if (!BeginBanishTargetSelectionIfRequired(
+                                 option.BattleCardId))
+                    {
+                        BattleCardPlayCommandResult command =
+                            battleScreen.TryPlayCard(
+                                progress,
+                                option.BattleCardId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            SaveRun(null);
+                        }
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(
+                        pendingBanishSourceCardId) &&
+                    !selectingThisCard)
+                {
+                    BattleHandCardActionOption source =
+                        snapshot.Hand.FirstOrDefault(card =>
+                            string.Equals(
+                                card.BattleCardId,
+                                pendingBanishSourceCardId,
+                                StringComparison.OrdinalIgnoreCase));
+                    bool canTarget = source?.BanishTargets.Any(target =>
+                        string.Equals(
+                            target.BattleCardId,
+                            option.BattleCardId,
+                            StringComparison.OrdinalIgnoreCase)) == true;
+                    GUI.enabled = canTarget;
+                    if (GUILayout.Button(
+                            string.Equals(
+                                pendingBanishTargetCardId,
+                                option.BattleCardId,
+                                StringComparison.OrdinalIgnoreCase)
+                                ? "대상 선택됨"
+                                : "효과 대상",
+                            GUILayout.Width(90f)))
+                    {
+                        pendingBanishTargetCardId =
+                            option.BattleCardId;
+                        message =
+                            $"{option.Card.SourceCard.DisplayName}을(를) " +
+                            "효과 대상으로 선택했습니다.";
+                    }
+                    GUI.enabled = previous;
                 }
                 else if (!option.CanPlay)
                 {
                     GUILayout.Label(
                         option.BlockReason,
                         GUILayout.Width(135f));
+                }
+                GUILayout.EndHorizontal();
+            }
+            if (!string.IsNullOrWhiteSpace(pendingBanishSourceCardId))
+            {
+                GUILayout.BeginHorizontal();
+                bool previous = GUI.enabled;
+                GUI.enabled = !string.IsNullOrWhiteSpace(
+                    pendingBanishTargetCardId);
+                if (GUILayout.Button("선택한 대상으로 발동"))
+                {
+                    string sourceId = pendingBanishSourceCardId;
+                    string targetId = pendingBanishTargetCardId;
+                    pendingBanishSourceCardId = null;
+                    pendingBanishTargetCardId = null;
+                    if (battleScreen.SelectBanishTarget(
+                            progress,
+                            sourceId,
+                            targetId))
+                    {
+                        BattleCardPlayCommandResult command =
+                            battleScreen.TryPlayCard(progress, sourceId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            SaveRun(null);
+                        }
+                    }
+                }
+                GUI.enabled = previous;
+                if (GUILayout.Button("활성화 취소"))
+                {
+                    pendingBanishSourceCardId = null;
+                    pendingBanishTargetCardId = null;
+                    message = "카드 활성화를 취소했습니다.";
                 }
                 GUILayout.EndHorizontal();
             }

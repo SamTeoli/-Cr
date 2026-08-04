@@ -152,7 +152,10 @@ namespace HaveABreak.Editor
             bool shown = showFinalUi?.Invoke(prototype, null) as bool? == true;
             bool initial = shown &&
                            root.CurrentScreen == RuntimeGameScreen.Battle &&
-                           root.BattleCommandList.childCount > 0 &&
+                           root.BattleEndTurnButton != null &&
+                           root.BattleHandCardList.childCount > 0 &&
+                           root.BattleHandCardList.GetChild(0)
+                               .GetComponent<RuntimeCardView>() != null &&
                            !string.IsNullOrWhiteSpace(
                                root.BattleSummaryText.text);
             if (!initial)
@@ -161,18 +164,72 @@ namespace HaveABreak.Editor
             }
 
             int commandsBefore = root.BattleCommandList.childCount;
-            Button firstCommand = root.BattleCommandList.GetChild(0)
-                .GetComponent<Button>();
-            bool hadCommand = firstCommand != null &&
-                              firstCommand.interactable;
-            firstCommand?.onClick.Invoke();
+            Button endTurnButton = root.BattleEndTurnButton;
+            bool hadCommand = endTurnButton != null &&
+                              endTurnButton.interactable;
+            endTurnButton?.onClick.Invoke();
             bool battleCommand = hadCommand &&
                                  root.CurrentScreen ==
                                  RuntimeGameScreen.Battle &&
                                  root.BattleCommandList.childCount ==
                                  commandsBefore;
-            return battleCommand &&
-                   ValidateRewardBridge(prototype, root, campaign, progress);
+            RuntimeCardView playableCard = Enumerable.Range(
+                    0,
+                    root.BattleHandCardList.childCount)
+                .Select(index => root.BattleHandCardList.GetChild(index)
+                    .GetComponent<RuntimeCardView>())
+                .FirstOrDefault(card =>
+                    card != null && card.ClickButton.interactable);
+            for (int attempt = 0;
+                 playableCard == null && attempt < 2;
+                 attempt++)
+            {
+                root.BattleEndTurnButton?.onClick.Invoke();
+                playableCard = Enumerable.Range(
+                        0,
+                        root.BattleHandCardList.childCount)
+                    .Select(index => root.BattleHandCardList.GetChild(index)
+                        .GetComponent<RuntimeCardView>())
+                    .FirstOrDefault(card =>
+                        card != null && card.ClickButton.interactable);
+            }
+            string playedCommand = playableCard?.Presentation.CommandId;
+            bool hadPlayableCard = playableCard != null;
+            playableCard?.ClickButton.onClick.Invoke();
+            bool detailOpened =
+                root.BattleDetailPanel?.activeSelf == true &&
+                root.BattleDetailActionButton.interactable;
+            root.BattleDetailActionButton?.onClick.Invoke();
+            bool cardCommand = hadPlayableCard &&
+                               detailOpened &&
+                               root.CurrentScreen ==
+                               RuntimeGameScreen.Battle &&
+                               !Enumerable.Range(
+                                       0,
+                                       root.BattleHandCardList.childCount)
+                                   .Select(index =>
+                                       root.BattleHandCardList.GetChild(index)
+                                           .GetComponent<RuntimeCardView>())
+                                   .Any(card =>
+                                       card?.Presentation.CommandId ==
+                                       playedCommand);
+            bool rewardBridge = battleCommand && cardCommand &&
+                                ValidateRewardBridge(
+                                    prototype,
+                                    root,
+                                    campaign,
+                                    progress);
+            if (!rewardBridge)
+            {
+                Debug.LogError(
+                    "Final UI battle card bridge detail: " +
+                    $"initial={initial}, hadCommand={hadCommand}, " +
+                    $"battleCommand={battleCommand}, " +
+                    $"playableCard={hadPlayableCard}, " +
+                    $"playedCommand={playedCommand}, " +
+                    $"cardCommand={cardCommand}, rewardBridge={rewardBridge}");
+            }
+            return rewardBridge;
         }
 
         private static bool ValidateRewardBridge(

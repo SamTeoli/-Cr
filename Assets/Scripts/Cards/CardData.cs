@@ -15,6 +15,7 @@ namespace HaveABreak.Cards
         [SerializeField, Min(0)] private int manaCost;
 
         [Header("Presentation")]
+        [SerializeField] private CardEffectTextAsset effectTextAsset;
         [SerializeField, TextArea(2, 6)] private string rulesText;
         [SerializeField, TextArea(3, 10)] private string detailedRulesText;
         [SerializeField] private Sprite artwork;
@@ -30,6 +31,7 @@ namespace HaveABreak.Cards
         [SerializeField] private List<CardLevelData> levels = new();
 
         [Header("Effects")]
+        [SerializeField] private EffectTargetSpec effectTargetSpec;
         [SerializeField] private List<CardEffectData> effects = new();
 
         public string CatalogCardId => catalogCardId;
@@ -38,6 +40,7 @@ namespace HaveABreak.Cards
         public int ManaCost => manaCost;
         public string RulesText => rulesText;
         public string DetailedRulesText => detailedRulesText;
+        public CardEffectTextAsset EffectTextAsset => effectTextAsset;
         public Sprite Artwork => artwork;
         public int BaseEnchantSlots => baseEnchantSlots;
         public string Role => role;
@@ -45,6 +48,7 @@ namespace HaveABreak.Cards
         public string SourceDocument => sourceDocument;
         public IReadOnlyList<EnchantCompatibilityTag> EnchantCompatibilityTags => enchantCompatibilityTags;
         public IReadOnlyList<CardLevelData> Levels => levels;
+        public EffectTargetSpec EffectTargetSpec => effectTargetSpec;
         public IReadOnlyList<CardEffectData> Effects => effects;
         public abstract CardType CardType { get; }
 
@@ -68,6 +72,42 @@ namespace HaveABreak.Cards
             return null;
         }
 
+        public string ResolveRulesText(
+            int requestedLevel = 0,
+            CardTextLocale? locale = null)
+        {
+            int level = requestedLevel <= 0
+                ? 0
+                : Mathf.Clamp(requestedLevel, MinimumLevel, MaximumLevel);
+            string authored = effectTextAsset?.ResolveRulesText(
+                locale ?? CardTextLocaleProvider.Current,
+                level);
+            if (!string.IsNullOrWhiteSpace(authored))
+            {
+                return authored;
+            }
+
+            if (level > 0)
+            {
+                string levelFallback = GetLevelData(level)?.RulesText;
+                if (!string.IsNullOrWhiteSpace(levelFallback))
+                {
+                    return levelFallback;
+                }
+            }
+
+            return rulesText ?? string.Empty;
+        }
+
+        public string ResolveDetailedRulesText(CardTextLocale? locale = null)
+        {
+            string authored = effectTextAsset?.ResolveDetailedRulesText(
+                locale ?? CardTextLocaleProvider.Current);
+            return !string.IsNullOrWhiteSpace(authored)
+                ? authored
+                : detailedRulesText ?? string.Empty;
+        }
+
         public ResolvedCardData ResolveLevel(int requestedLevel)
         {
             int level = Mathf.Clamp(requestedLevel, MinimumLevel, MaximumLevel);
@@ -79,7 +119,16 @@ namespace HaveABreak.Cards
             {
                 Debug.LogError($"Missing level {level} data for card '{catalogCardId}'.", this);
                 return new ResolvedCardData(
-                    this, requestedLevel, level, manaCost, fallbackAttack, fallbackHealth, rulesText);
+                    this,
+                    requestedLevel,
+                    level,
+                    manaCost,
+                    fallbackAttack,
+                    fallbackHealth,
+                    CardEffectTextFormatter.BuildCardRulesText(
+                        this,
+                        ResolveRulesText(level),
+                        level));
             }
 
             return new ResolvedCardData(
@@ -89,7 +138,10 @@ namespace HaveABreak.Cards
                 levelData.ManaCost,
                 levelData.Attack,
                 levelData.Health,
-                levelData.RulesText);
+                CardEffectTextFormatter.BuildCardRulesText(
+                    this,
+                    ResolveRulesText(level),
+                    level));
         }
 
 #if UNITY_EDITOR

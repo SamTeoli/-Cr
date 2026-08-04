@@ -32,11 +32,13 @@ namespace HaveABreak.Cards
         internal BattleMonsterDisplayOption(
             BattleMonsterAttackActionOption action,
             string displayText,
-            string statusText)
+            string statusText,
+            RuntimeCardPresentation cardPresentation = null)
         {
             Action = action;
             DisplayText = displayText ?? string.Empty;
             StatusText = statusText;
+            CardPresentation = cardPresentation;
         }
 
         public BattleMonsterAttackActionOption Action { get; }
@@ -47,6 +49,7 @@ namespace HaveABreak.Cards
         public string BlockReason => Action.BlockReason;
         public string DisplayText { get; }
         public string StatusText { get; }
+        public RuntimeCardPresentation CardPresentation { get; }
     }
 
     public sealed class BattleInstalledCardDisplayOption
@@ -55,18 +58,24 @@ namespace HaveABreak.Cards
             string battleCardId,
             string displayName,
             CardType cardType,
-            bool isRegisteredTrap)
+            bool isRegisteredTrap,
+            PlayerMonsterFieldPosition position,
+            RuntimeCardPresentation cardPresentation = null)
         {
             BattleCardId = battleCardId;
             DisplayName = displayName ?? string.Empty;
             CardType = cardType;
             IsRegisteredTrap = isRegisteredTrap;
+            Position = position;
+            CardPresentation = cardPresentation;
         }
 
         public string BattleCardId { get; }
         public string DisplayName { get; }
         public CardType CardType { get; }
         public bool IsRegisteredTrap { get; }
+        public PlayerMonsterFieldPosition Position { get; }
+        public RuntimeCardPresentation CardPresentation { get; }
         public string DisplayText =>
             $"{DisplayName}\n{CardType}" +
             (IsRegisteredTrap ? " · 대기 중" : string.Empty);
@@ -86,6 +95,48 @@ namespace HaveABreak.Cards
               $"{Record.ActorId} → {Record.TargetId}";
     }
 
+    public sealed class BattleChainDisplayOption
+    {
+        internal BattleChainDisplayOption(
+            BattleChainPhase phase,
+            BattleChainParticipant nextParticipant,
+            BattleChainLink[] links)
+        {
+            Phase = phase;
+            NextParticipant = nextParticipant;
+            Links = links ?? Array.Empty<BattleChainLink>();
+        }
+
+        public BattleChainPhase Phase { get; }
+        public BattleChainParticipant NextParticipant { get; }
+        public BattleChainLink[] Links { get; }
+        public bool IsActive => Phase != BattleChainPhase.Idle;
+        public bool CanPlayerPass =>
+            Phase == BattleChainPhase.Building &&
+            NextParticipant == BattleChainParticipant.Player;
+        public string DisplayText
+        {
+            get
+            {
+                if (!IsActive)
+                {
+                    return null;
+                }
+
+                string links = string.Join(
+                    " → ",
+                    Array.ConvertAll(
+                        Links,
+                        link => $"체인 {link.LinkIndex} " +
+                                $"{link.Activation.EffectId}"));
+                string turn = Phase == BattleChainPhase.Building
+                    ? $"다음 응답: {NextParticipant}"
+                    : "역순 해결 중";
+                return $"{links}\n{turn}";
+            }
+        }
+    }
+
     public sealed class BattleScreenSnapshot
     {
         internal BattleScreenSnapshot(
@@ -103,7 +154,10 @@ namespace HaveABreak.Cards
             BattleMonsterDisplayOption[] monsters,
             BattleInstalledCardDisplayOption[] installedCards,
             BattleHandCardActionOption[] hand,
-            BattleEventDisplayOption[] recentEvents)
+            BattleEventDisplayOption[] recentEvents,
+            bool selectingEnemyTarget = false,
+            string pendingTargetSourceId = null,
+            BattleChainDisplayOption chain = null)
         {
             Available = available;
             ErrorText = errorText;
@@ -123,6 +177,12 @@ namespace HaveABreak.Cards
             Hand = hand ?? Array.Empty<BattleHandCardActionOption>();
             RecentEvents = recentEvents ??
                            Array.Empty<BattleEventDisplayOption>();
+            SelectingEnemyTarget = selectingEnemyTarget;
+            PendingTargetSourceId = pendingTargetSourceId;
+            Chain = chain ?? new BattleChainDisplayOption(
+                BattleChainPhase.Idle,
+                BattleChainParticipant.Player,
+                null);
         }
 
         public bool Available { get; }
@@ -134,7 +194,9 @@ namespace HaveABreak.Cards
         public string CheckpointNoticeText { get; }
         public BattleOutcome Outcome { get; }
         public bool SessionFinished { get; }
-        public bool CanEndTurn => Available && !SessionFinished;
+        public bool CanEndTurn =>
+            Available && !SessionFinished &&
+            !Chain.IsActive;
         public bool CanSettle => Available && SessionFinished;
         public string FinishedText => CanSettle
             ? $"전투 종료: {Outcome}. 정산을 진행하세요."
@@ -145,5 +207,8 @@ namespace HaveABreak.Cards
         public BattleInstalledCardDisplayOption[] InstalledCards { get; }
         public BattleHandCardActionOption[] Hand { get; }
         public BattleEventDisplayOption[] RecentEvents { get; }
+        public bool SelectingEnemyTarget { get; }
+        public string PendingTargetSourceId { get; }
+        public BattleChainDisplayOption Chain { get; }
     }
 }

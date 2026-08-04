@@ -438,6 +438,21 @@ namespace HaveABreak.Cards
                         "전투 자동 진행 실패: 몬스터 공격 명령 실패 · " +
                         (command?.Message ?? attacker.BattleCardId));
                 }
+                BattleChainCommandResult chain =
+                    battleScreen.TryPassAndResolveChain(progress);
+                if (chain == null || !chain.Succeeded ||
+                    chain.AttackResult == null)
+                {
+                    return Failure(
+                        BattleAutoplayFailure.AttackActionFailed,
+                        progress,
+                        turnsCompleted,
+                        cardsPlayed,
+                        attacksResolved,
+                        consumablesUsed,
+                        "전투 자동 진행 실패: 공격 체인 해결 실패 · " +
+                        (chain?.Message ?? attacker.BattleCardId));
+                }
 
                 attacksResolved++;
                 actionsThisTurn++;

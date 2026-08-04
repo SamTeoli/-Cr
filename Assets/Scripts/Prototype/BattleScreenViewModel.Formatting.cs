@@ -51,7 +51,51 @@ namespace HaveABreak.Cards
                 $"{monster.Card.SourceCard.DisplayName}\n" +
                 $"공격 {monster.Attack} · HP {monster.CurrentHealth}/" +
                 $"{monster.MaximumHealth}",
-                DescribeStatus(monster.Status));
+                DescribeStatus(monster.Status),
+                CreateFieldCardPresentation(
+                    monster.Card,
+                    monster.Attack,
+                    monster.CurrentHealth));
+        }
+
+        private static RuntimeCardPresentation CreateFieldCardPresentation(
+            BattleCardInstance card,
+            int? attackOverride = null,
+            int? healthOverride = null)
+        {
+            if (card?.SourceCard == null)
+            {
+                return null;
+            }
+
+            bool isMonster = card.SourceCard.CardType == CardType.Monster;
+            int? attack = isMonster
+                ? attackOverride ?? card.Resolved.Attack
+                : null;
+            int? health = isMonster
+                ? healthOverride ?? card.Resolved.Health
+                : null;
+            string accessibility =
+                $"필드 카드 {card.SourceCard.DisplayName}, " +
+                $"{card.SourceCard.CardType}, {card.SourceCard.Rarity}, " +
+                $"마력 {card.Resolved.ManaCost}. {card.Resolved.RulesText}";
+
+            return new RuntimeCardPresentation(
+                card.Ids.BattleCardId,
+                card.SourceCard.DisplayName,
+                card.SourceCard.CatalogCardId,
+                card.SourceCard.CardType,
+                card.SourceCard.Rarity,
+                card.Resolved.ManaCost,
+                attack,
+                health,
+                card.Resolved.RulesText,
+                false,
+                0,
+                true,
+                null,
+                accessibility,
+                card.SourceCard.Artwork);
         }
 
         private static Dictionary<string, string> BuildEnemyIntentLabels(

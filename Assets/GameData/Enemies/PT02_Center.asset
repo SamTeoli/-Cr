@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PT02_Center
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EnemyDefinitionData
   enemyId: TEST-ENEMY-DEFINITION-CENTER
-  displayName: "시험 적 · 중앙"
+  displayName: "유령 차장"
   attack: 1
   maximumHealth: 12
   actionPattern:

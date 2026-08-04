@@ -50,12 +50,43 @@ namespace HaveABreak.Cards
         InvalidTurnPhase,
         InvalidAttacker,
         InvalidTarget,
+        InvalidDeclaration,
         ActionBlockedByStatus,
         AttackAlreadyUsed,
         BeginActionFailed,
         EnemyCleanupFailed,
         CompletionFailed,
         CompleteActionFailed
+    }
+
+    public sealed class BattleRuntimePlayerAttackDeclaration
+    {
+        internal BattleRuntimePlayerAttackDeclaration(
+            BattleMonsterState attacker,
+            BattleEnemyRuntimeState target,
+            int baseAttack,
+            int weakenReduction,
+            int adjustedAttack,
+            int vulnerableBonus,
+            BattleEventRecord declaredAttack)
+        {
+            Attacker = attacker;
+            Target = target;
+            BaseAttack = baseAttack;
+            WeakenReduction = weakenReduction;
+            AdjustedAttack = adjustedAttack;
+            VulnerableBonus = vulnerableBonus;
+            DeclaredAttack = declaredAttack;
+        }
+
+        public BattleMonsterState Attacker { get; }
+        public BattleEnemyRuntimeState Target { get; }
+        public int BaseAttack { get; }
+        public int WeakenReduction { get; }
+        public int AdjustedAttack { get; }
+        public int VulnerableBonus { get; }
+        public int FinalDamage => AdjustedAttack + VulnerableBonus;
+        public BattleEventRecord DeclaredAttack { get; }
     }
 
     public sealed class BattleRuntimePlayerAttackResult
@@ -116,6 +147,31 @@ namespace HaveABreak.Cards
             out BattleRuntimePlayerAttackFailure failure)
         {
             result = null;
+            if (!TryDeclare(
+                    runtime,
+                    attackerBattleCardId,
+                    targetEnemyId,
+                    out BattleRuntimePlayerAttackDeclaration declaration,
+                    out failure))
+            {
+                return false;
+            }
+
+            return TryResolveDeclared(
+                runtime,
+                declaration,
+                out result,
+                out failure);
+        }
+
+        public static bool TryDeclare(
+            BattleRuntimeState runtime,
+            string attackerBattleCardId,
+            string targetEnemyId,
+            out BattleRuntimePlayerAttackDeclaration declaration,
+            out BattleRuntimePlayerAttackFailure failure)
+        {
+            declaration = null;
             if (runtime == null)
             {
                 failure = BattleRuntimePlayerAttackFailure.InvalidRuntime;
@@ -197,6 +253,65 @@ namespace HaveABreak.Cards
                 beforeValue: 0,
                 afterValue: finalDamage);
 
+            declaration = new BattleRuntimePlayerAttackDeclaration(
+                attacker,
+                target,
+                attacker.Attack,
+                weakenReduction,
+                adjustedAttack,
+                vulnerableBonus,
+                declaredAttack);
+            failure = BattleRuntimePlayerAttackFailure.None;
+            return true;
+        }
+
+        public static bool TryResolveDeclared(
+            BattleRuntimeState runtime,
+            BattleRuntimePlayerAttackDeclaration declaration,
+            out BattleRuntimePlayerAttackResult result,
+            out BattleRuntimePlayerAttackFailure failure)
+        {
+            result = null;
+            if (runtime == null)
+            {
+                failure = BattleRuntimePlayerAttackFailure.InvalidRuntime;
+                return false;
+            }
+
+            if (runtime.Turn.Phase != BattleTurnPhase.PlayerActionResolving ||
+                declaration?.Attacker == null ||
+                declaration.Target == null ||
+                declaration.DeclaredAttack == null ||
+                runtime.EventLog.Find(
+                    declaration.DeclaredAttack.EventId) !=
+                declaration.DeclaredAttack)
+            {
+                failure =
+                    BattleRuntimePlayerAttackFailure.InvalidDeclaration;
+                return false;
+            }
+
+            BattleMonsterState attacker = declaration.Attacker;
+            BattleEnemyRuntimeState target = declaration.Target;
+            BattleEnemyStatusState targetStatus =
+                runtime.EnemyStatuses.Find(target.EnemyId);
+            if (attacker.Card.Zone != CardZone.MonsterField ||
+                attacker.IsDestructionCandidate ||
+                !runtime.PlayerMonsterPositions.FindPosition(
+                    attacker.BattleCardId).HasValue ||
+                !attacker.Status.CanAttack ||
+                !target.IsAlive ||
+                targetStatus == null ||
+                !runtime.LivingEnemies.Contains(target.EnemyId) ||
+                !runtime.EnemyPositions.FindPosition(target.EnemyId).HasValue)
+            {
+                runtime.Turn.TryCompletePlayerAction(out _);
+                failure = BattleRuntimePlayerAttackFailure.InvalidTarget;
+                return false;
+            }
+
+            BattleEventRecord declaredAttack = declaration.DeclaredAttack;
+            int vulnerableBonus = declaration.VulnerableBonus;
             BattleEventRecord vulnerableConsumedEvent = null;
             if (vulnerableBonus > 0)
             {
@@ -213,7 +328,8 @@ namespace HaveABreak.Cards
             }
 
             int healthBefore = target.Vital.CurrentHealth;
-            int damageApplied = target.Vital.ApplyDamage(finalDamage);
+            int damageApplied = target.Vital.ApplyDamage(
+                declaration.FinalDamage);
             BattleEventRecord damageEvent = damageApplied > 0
                 ? runtime.EventLog.Record(
                     BattleEventType.DamageApplied,
@@ -257,10 +373,10 @@ namespace HaveABreak.Cards
             result = new BattleRuntimePlayerAttackResult(
                 attacker,
                 target,
-                attacker.Attack,
-                weakenReduction,
-                adjustedAttack,
-                vulnerableBonus,
+                declaration.BaseAttack,
+                declaration.WeakenReduction,
+                declaration.AdjustedAttack,
+                declaration.VulnerableBonus,
                 damageApplied,
                 targetDefeated,
                 declaredAttack,

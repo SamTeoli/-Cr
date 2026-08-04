@@ -89,6 +89,12 @@ namespace HaveABreak.Editor
                 "Runtime state composition",
                 BattleRuntimeStateValidation.Validate);
             valid &= Run(
+                "Effect target specification and legal target resolution",
+                EffectTargetResolverValidation.Validate);
+            valid &= Run(
+                "Battle chain foundation",
+                BattleRuntimeChainStateValidation.Validate);
+            valid &= Run(
                 "Runtime card play events",
                 BattleRuntimeCardPlayServiceValidation.Validate);
             valid &= Run(

@@ -49,6 +49,18 @@ namespace HaveABreak.Editor
                 return false;
             }
 
+            if (BattleRuntimeSkillEffectService.TryResolve(
+                    runtime,
+                    playResult,
+                    "MISSING-ENEMY",
+                    out _,
+                    out BattleRuntimeSkillEffectFailure invalidFailure) ||
+                invalidFailure !=
+                    BattleRuntimeSkillEffectFailure.MissingTarget)
+            {
+                return false;
+            }
+
             bool valid = BattleRuntimeSkillEffectService.TryResolve(
                 runtime,
                 playResult,
@@ -93,6 +105,18 @@ namespace HaveABreak.Editor
                     out BattleRuntimeCardPlayResult playResult,
                     out _,
                     out _))
+            {
+                return false;
+            }
+
+            if (BattleRuntimeSkillEffectService.TryResolve(
+                    runtime,
+                    playResult,
+                    "MISSING-ENEMY",
+                    out _,
+                    out BattleRuntimeSkillEffectFailure invalidFailure) ||
+                invalidFailure !=
+                    BattleRuntimeSkillEffectFailure.MissingTarget)
             {
                 return false;
             }

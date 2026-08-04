@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -8,6 +9,8 @@ namespace HaveABreak.Cards
     {
         private RuntimeGameScreen? finalCampaignScreen;
         private bool finalStartScreenRequested;
+        private string pendingBanishSourceCardId;
+        private string pendingBanishTargetCardId;
 
         private void InitializeFinalUi()
         {
@@ -29,6 +32,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeResolutionCommandRequested +=
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested += ExecuteFinalBattleCommand;
+            FinalUiRoot.BattleCardDropped += ExecuteFinalBattleCardDrop;
             FinalUiRoot.RewardCommandRequested += ExecuteFinalRewardCommand;
             FinalUiRoot.RunResultNewRunRequested += RequestFinalStartNewRun;
             FinalUiRoot.ReturnToStartRequested += ShowFinalStartScreen;
@@ -55,6 +59,7 @@ namespace HaveABreak.Cards
             FinalUiRoot.NodeResolutionCommandRequested -=
                 ExecuteFinalNodeCommand;
             FinalUiRoot.BattleCommandRequested -= ExecuteFinalBattleCommand;
+            FinalUiRoot.BattleCardDropped -= ExecuteFinalBattleCardDrop;
             FinalUiRoot.RewardCommandRequested -= ExecuteFinalRewardCommand;
             FinalUiRoot.RunResultNewRunRequested -= RequestFinalStartNewRun;
             FinalUiRoot.ReturnToStartRequested -= ShowFinalStartScreen;
@@ -380,10 +385,16 @@ namespace HaveABreak.Cards
                             option.BlockReason)
                             ? option.DisplayText
                             : $"{option.DisplayText} · {option.BlockReason}";
+                        bool canAfford = progress.RunState.Gold >= option.Price;
+                        detail = $"{detail}\n가격 {option.Price}G";
+                        if (!canAfford && !option.Purchased)
+                        {
+                            detail += " · 골드 부족";
+                        }
                         options.Add(new RuntimeGameCommandOption(
                             $"buy:{option.SlotId}",
                             detail,
-                            option.CanPurchase));
+                            option.CanPurchase && canAfford));
                     }
                     int rerollCost = shop.GetRerollCost(
                         campaign,
@@ -634,10 +645,51 @@ namespace HaveABreak.Cards
                     options,
                     snapshot.ErrorText ?? "활성 전투를 찾을 수 없습니다.",
                     message);
+                FinalUiRoot.BindBattleHud(
+                    progress.RunState.CurrentHealth,
+                    progress.RunState.MaximumHealth,
+                    progress.RunState.Gold,
+                    campaign.CompletedNodeCount + 1,
+                    0,
+                    0,
+                    "활성 전투가 없습니다.",
+                    $"덱 {progress.RunDeck.Count}장");
+                FinalUiRoot.BindBattleHand(
+                    System.Array.Empty<RuntimeCardPresentation>());
+                FinalUiRoot.BindBattleConsumables(
+                    System.Array.Empty<BattleConsumableActionOption>());
                 finalCampaignScreen = RuntimeGameScreen.Battle;
                 return;
             }
+            if (snapshot.SessionFinished)
+            {
+                SettleBattle();
+                finalCampaignScreen = null;
+                if (campaign.Phase != RunCampaignPhase.Battle)
+                {
+                    RefreshFinalUiVisibility();
+                }
+                return;
+            }
 
+            List<RuntimeCardPresentation> handCards =
+                new(snapshot.Hand.Length);
+            BattleHandCardActionOption pendingBanishSource =
+                string.IsNullOrWhiteSpace(pendingBanishSourceCardId)
+                    ? null
+                    : snapshot.Hand.FirstOrDefault(card =>
+                        string.Equals(
+                            card.BattleCardId,
+                            pendingBanishSourceCardId,
+                            System.StringComparison.OrdinalIgnoreCase));
+            if (pendingBanishSource == null ||
+                pendingBanishSource.BanishTargets.Length == 0)
+            {
+                pendingBanishSourceCardId = null;
+                pendingBanishTargetCardId = null;
+                pendingBanishSource = null;
+            }
+            bool selectingBanishTarget = pendingBanishSource != null;
             foreach (BattleEnemyDisplayOption enemy in snapshot.Enemies)
             {
                 if (!enemy.IsOccupied)
@@ -655,23 +707,53 @@ namespace HaveABreak.Cards
 
             foreach (BattleHandCardActionOption card in snapshot.Hand)
             {
-                if (card.BanishTargets.Length > 0)
+                if (!string.IsNullOrWhiteSpace(
+                        pendingTargetedSkillPlacementCardId) &&
+                    string.Equals(
+                        card.BattleCardId,
+                        pendingTargetedSkillPlacementCardId,
+                        System.StringComparison.OrdinalIgnoreCase))
                 {
-                    string target =
-                        card.SelectedBanishTarget?.DisplayLabel ??
-                        "소멸 대상 선택";
-                    options.Add(new RuntimeGameCommandOption(
-                        $"banish:{card.BattleCardId}",
-                        $"[소멸 대상 변경] {target}",
-                        !snapshot.SessionFinished));
+                    continue;
                 }
-                string block = string.IsNullOrWhiteSpace(card.BlockReason)
-                    ? string.Empty
-                    : $"\n{card.BlockReason}";
-                options.Add(new RuntimeGameCommandOption(
-                    $"play:{card.BattleCardId}",
-                    $"[카드 사용] {card.DisplayText}{block}",
-                    card.CanPlay));
+                RuntimeCardPresentation presentation =
+                    RuntimeCardPresentation.FromBattleHand(card);
+                if (selectingBanishTarget)
+                {
+                    bool isSource = string.Equals(
+                        card.BattleCardId,
+                        pendingBanishSource.BattleCardId,
+                        System.StringComparison.OrdinalIgnoreCase);
+                    bool isTarget = pendingBanishSource.BanishTargets.Any(
+                        target => string.Equals(
+                            target.BattleCardId,
+                            card.BattleCardId,
+                            System.StringComparison.OrdinalIgnoreCase));
+                    bool isSelectedTarget = isTarget && string.Equals(
+                        card.BattleCardId,
+                        pendingBanishTargetCardId,
+                        System.StringComparison.OrdinalIgnoreCase);
+                    if (isSource)
+                    {
+                        continue;
+                    }
+                    presentation = isTarget
+                        ? presentation.WithInteraction(
+                            $"effect-target:{card.BattleCardId}",
+                            isSelectedTarget,
+                            true,
+                            null,
+                            isSelectedTarget
+                                ? "선택된 효과 대상."
+                                : "효과 대상. 클릭하여 선택.")
+                        : presentation.WithInteraction(
+                            "effect-blocked",
+                            false,
+                            false,
+                            "이 효과의 대상이 아닙니다.",
+                            "효과 대상으로 선택할 수 없음.");
+                }
+                handCards.Add(presentation);
             }
 
             foreach (BattleMonsterDisplayOption monster in snapshot.Monsters)
@@ -689,23 +771,32 @@ namespace HaveABreak.Cards
                     monster.CanAttack));
             }
 
-            foreach (BattleConsumableActionOption consumable in
-                     snapshot.Consumables)
-            {
-                options.Add(new RuntimeGameCommandOption(
-                    $"consumable:{consumable.ItemId}",
-                    $"[소모품] {consumable.DisplayLabel}",
-                    consumable.CanUse));
-            }
-
             options.Add(new RuntimeGameCommandOption(
                 "end-turn",
                 "턴 종료",
                 snapshot.CanEndTurn));
-            options.Add(new RuntimeGameCommandOption(
-                "settle",
-                snapshot.FinishedText ?? "전투 정산",
-                snapshot.CanSettle));
+            if (snapshot.Chain.CanPlayerPass)
+            {
+                options.Add(new RuntimeGameCommandOption(
+                    "chain-pass",
+                    "체인 해결",
+                    true));
+            }
+            if (selectingBanishTarget)
+            {
+                options.Clear();
+                options.Add(new RuntimeGameCommandOption(
+                    "confirm-effect-target",
+                    string.IsNullOrWhiteSpace(pendingBanishTargetCardId)
+                        ? "대상을 선택하세요"
+                        : "선택한 대상으로 발동",
+                    !string.IsNullOrWhiteSpace(
+                        pendingBanishTargetCardId)));
+                options.Add(new RuntimeGameCommandOption(
+                    "cancel-effect-target",
+                    "카드 활성화 취소",
+                    true));
+            }
 
             List<string> summaryParts = new()
             {
@@ -724,14 +815,9 @@ namespace HaveABreak.Cards
                         snapshot.InstalledCards.Select(
                             option => option.DisplayName)));
             }
-            if (snapshot.RecentEvents.Length > 0)
+            if (snapshot.Chain.IsActive)
             {
-                summaryParts.Add(
-                    "최근: " + string.Join(
-                        "\n",
-                        snapshot.RecentEvents
-                            .TakeLast(3)
-                            .Select(option => option.DisplayText)));
+                summaryParts.Add(snapshot.Chain.DisplayText);
             }
 
             FinalUiRoot.BindBattle(
@@ -739,7 +825,90 @@ namespace HaveABreak.Cards
                 options,
                 string.Join("\n", summaryParts),
                 message);
+            BattleRuntimeState runtime =
+                progress.ActiveEncounter?.Session?.Runtime;
+            string path = campaign.SelectedNodePath.Count == 0
+                ? "아직 이동한 노드가 없습니다."
+                : string.Join(
+                    "\n",
+                    campaign.SelectedNodePath.Select(
+                        (nodeId, index) => $"{index + 1}. {nodeId}"));
+            string currentNode = campaign.ActiveNode == null
+                ? string.Empty
+                : $"\n\n현재: {campaign.ActiveNode.DisplayName}";
+            string deckDetails = string.Join(
+                "\n",
+                progress.RunDeck.Cards.Select(
+                    (card, index) =>
+                        $"{index + 1}. " +
+                        $"{card?.Card?.DisplayName ?? "알 수 없는 카드"}"));
+            FinalUiRoot.BindBattleHud(
+                runtime?.Player.CurrentHealth ??
+                    progress.RunState.CurrentHealth,
+                runtime?.Player.MaximumHealth ??
+                    progress.RunState.MaximumHealth,
+                progress.RunState.Gold,
+                campaign.CompletedNodeCount + 1,
+                runtime?.CardPlay.Mana.CurrentMana ?? 0,
+                runtime?.CardPlay.Mana.MaximumMana ?? 0,
+                path + currentNode,
+                string.IsNullOrWhiteSpace(deckDetails)
+                    ? "덱이 비어 있습니다."
+                    : deckDetails);
+            HashSet<string> drawnCardIds = snapshot.RecentEvents
+                .Where(option => option?.Record != null &&
+                    option.Record.EventType == BattleEventType.CardMoved &&
+                    option.Record.HasZoneChange &&
+                    option.Record.FromZone == CardZone.DrawPile &&
+                    option.Record.ToZone == CardZone.Hand)
+                .Select(option => option.Record.TargetId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            FinalUiRoot.BindBattleHand(handCards, drawnCardIds);
+            FinalUiRoot.BindBattleLog(
+                snapshot.RecentEvents.Length == 0
+                    ? "아직 기록된 플레이 로그가 없습니다."
+                    : string.Join(
+                        "\n",
+                        snapshot.RecentEvents.Select(
+                            option => option.DisplayText)));
+            FinalUiRoot.BindBattleConsumables(snapshot.Consumables);
             finalCampaignScreen = RuntimeGameScreen.Battle;
+        }
+
+        private void ExecuteFinalBattleCardDrop(
+            string cardCommandId,
+            string targetCommandId)
+        {
+    if (TryExecuteFinalFieldCardDrop(
+            cardCommandId,
+            targetCommandId))
+    {
+        return;
+    }
+
+            if (!string.IsNullOrWhiteSpace(targetCommandId) &&
+                TryReadCommandValue(
+                    targetCommandId,
+                    "enemy:",
+                    out string enemyId))
+            {
+                if (TryReadCommandValue(
+                        cardCommandId,
+                        "play:",
+                        out string droppedCardId) &&
+                    string.IsNullOrWhiteSpace(
+                        battleScreen.PendingTargetedCardId))
+                {
+                    battleScreen.TryBeginCardTargeting(
+                        progress,
+                        droppedCardId,
+                        out message);
+                }
+                battleScreen.SelectEnemy(progress, enemyId);
+            }
+
+            ExecuteFinalBattleCommand(cardCommandId);
         }
 
         private void ExecuteFinalBattleCommand(string commandId)
@@ -764,35 +933,181 @@ namespace HaveABreak.Cards
                     SaveRun(null);
                 }
             }
-            else if (commandId == "settle")
+            else if (commandId == "chain-pass")
             {
-                SettleBattle();
+                BattleChainCommandResult command =
+                    battleScreen.TryPassAndResolveChain(progress);
+                message = command.Message;
+                if (command.Succeeded)
+                {
+                    SaveRun(null);
+                }
             }
             else if (TryReadCommandValue(
                          commandId,
                          "enemy:",
                          out string enemyId))
             {
-                battleScreen.SelectEnemy(progress, enemyId);
+                string pendingCardId =
+                    battleScreen.PendingTargetedCardId;
+                string pendingAttackerId =
+                    battleScreen.PendingAttackerId;
+                if (battleScreen.SelectEnemy(progress, enemyId))
+                {
+                    if (!string.IsNullOrWhiteSpace(pendingCardId))
+                    {
+                        bool declared = battleScreen.TryDeclareTargetedCardActivation(
+                            progress,
+                            pendingCardId,
+                            out message);
+                        if (declared)
+                        {
+                            ResolveActiveChainAutomatically();
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(
+                                 pendingAttackerId))
+                    {
+                        BattleMonsterAttackCommandResult command =
+                            battleScreen.TryAttack(
+                                progress,
+                                pendingAttackerId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            ResolveActiveChainAutomatically();
+                        }
+                    }
+                }
+            }
+            else if (commandId == "cancel-effect-target")
+            {
+                pendingBanishSourceCardId = null;
+                pendingBanishTargetCardId = null;
+                message = "카드 활성화를 취소했습니다.";
+            }
+            else if (commandId == "effect-blocked")
+            {
+                message = "이 카드는 현재 효과 대상으로 선택할 수 없습니다.";
+            }
+            else if (commandId == "confirm-effect-target")
+            {
+                string sourceId = pendingBanishSourceCardId;
+                string targetId = pendingBanishTargetCardId;
+                if (string.IsNullOrWhiteSpace(sourceId) ||
+                    string.IsNullOrWhiteSpace(targetId))
+                {
+                    message = "먼저 효과 대상을 선택하세요.";
+                }
+                else
+                {
+                    pendingBanishSourceCardId = null;
+                    pendingBanishTargetCardId = null;
+                    if (!battleScreen.SelectBanishTarget(
+                            progress,
+                            sourceId,
+                            targetId))
+                    {
+                        message = "선택한 대상을 지정할 수 없습니다.";
+                    }
+                    else
+                    {
+                        BattleCardPlayCommandResult command =
+                            battleScreen.TryPlayCard(progress, sourceId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            SaveRun(null);
+                        }
+                    }
+                }
             }
             else if (TryReadCommandValue(
                          commandId,
-                         "banish:",
-                         out string banishSourceId))
+                         "effect-target:",
+                         out string effectTargetId))
             {
-                battleScreen.CycleBanishTarget(progress, banishSourceId);
+                BattleHandCardActionOption source = battleScreen
+                    .CreateSnapshot(progress, campaign)
+                    .Hand
+                    .FirstOrDefault(card => string.Equals(
+                        card.BattleCardId,
+                        pendingBanishSourceCardId,
+                        System.StringComparison.OrdinalIgnoreCase));
+                bool validTarget = source?.BanishTargets.Any(target =>
+                    string.Equals(
+                        target.BattleCardId,
+                        effectTargetId,
+                        System.StringComparison.OrdinalIgnoreCase)) == true;
+                if (!validTarget)
+                {
+                    message = "효과 대상을 선택할 수 없습니다.";
+                }
+                else
+                {
+                    pendingBanishTargetCardId = effectTargetId;
+                    BattleBanishTargetOption target =
+                        source.BanishTargets.First(option => string.Equals(
+                            option.BattleCardId,
+                            effectTargetId,
+                            System.StringComparison.OrdinalIgnoreCase));
+                    message =
+                        $"{target.DisplayName}을(를) 대상으로 선택했습니다. " +
+                        "확인하면 효과가 처리됩니다.";
+                }
             }
             else if (TryReadCommandValue(
                          commandId,
                          "play:",
                          out string cardId))
             {
-                BattleCardPlayCommandResult command =
-                    battleScreen.TryPlayCard(progress, cardId);
-                message = command.Message;
-                if (command.Succeeded)
+                if (BeginBanishTargetSelectionIfRequired(cardId))
                 {
-                    SaveRun(null);
+                    finalCampaignScreen = null;
+                    RefreshFinalBattle();
+                    SetFinalUiActive(true);
+                    FinalUiRoot.ShowScreen(RuntimeGameScreen.Battle);
+                    return;
+                }
+                BattleCardInstance card = progress.ActiveEncounter?
+                    .Session?.Runtime?.Deck.Zones.Find(cardId);
+                bool requiresTarget = card != null &&
+                    CardEffectRegistrationCatalog.TryFind(
+                        card.SourceCard.CatalogCardId,
+                        out CardEffectRegistration registration) &&
+                    registration.Route == CardEffectRoute.TargetedSkill;
+                if (requiresTarget &&
+                    string.IsNullOrWhiteSpace(
+                        battleScreen.SelectedEnemyId))
+                {
+                    battleScreen.TryBeginCardTargeting(
+                        progress,
+                        cardId,
+                        out message);
+                }
+                else
+                {
+                    if (requiresTarget)
+                    {
+                        bool declared = battleScreen.TryDeclareTargetedCardActivation(
+                            progress,
+                            cardId,
+                            out message);
+                        if (declared)
+                        {
+                            ResolveActiveChainAutomatically();
+                        }
+                    }
+                    else
+                    {
+                        BattleCardPlayCommandResult command =
+                            battleScreen.TryPlayCard(progress, cardId);
+                        message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            SaveRun(null);
+                        }
+                    }
                 }
             }
             else if (TryReadCommandValue(
@@ -800,13 +1115,10 @@ namespace HaveABreak.Cards
                          "attack:",
                          out string monsterId))
             {
-                BattleMonsterAttackCommandResult command =
-                    battleScreen.TryAttack(progress, monsterId);
-                message = command.Message;
-                if (command.Succeeded)
-                {
-                    SaveRun(null);
-                }
+                battleScreen.TryBeginAttackTargeting(
+                    progress,
+                    monsterId,
+                    out message);
             }
             else if (TryReadCommandValue(
                          commandId,
@@ -833,6 +1145,47 @@ namespace HaveABreak.Cards
             {
                 RefreshFinalUiVisibility();
             }
+        }
+
+        private void ResolveActiveChainAutomatically()
+        {
+            BattleChainCommandResult chain =
+                battleScreen.TryPassAndResolveChain(progress);
+            message = chain.Message;
+            if (chain.Succeeded)
+            {
+                SaveRun(null);
+            }
+        }
+
+        private bool BeginBanishTargetSelectionIfRequired(
+            string battleCardId)
+        {
+            if (string.IsNullOrWhiteSpace(battleCardId) ||
+                progress == null ||
+                campaign == null)
+            {
+                return false;
+            }
+
+            BattleHandCardActionOption source = battleScreen
+                .CreateSnapshot(progress, campaign)
+                .Hand
+                .FirstOrDefault(card => string.Equals(
+                    card.BattleCardId,
+                    battleCardId,
+                    System.StringComparison.OrdinalIgnoreCase));
+            if (source == null || source.BanishTargets.Length == 0)
+            {
+                return false;
+            }
+
+            pendingBanishSourceCardId = source.BattleCardId;
+            pendingBanishTargetCardId = null;
+            message =
+                $"{source.Card.SourceCard.DisplayName}을(를) 활성화했습니다. " +
+                "효과 대상을 선택하세요.";
+            return true;
         }
 
         private void RefreshFinalReward()
@@ -891,7 +1244,7 @@ namespace HaveABreak.Cards
             if (progress.ActiveEncounter?.VictoryRewards
                     ?.GrantsFinalBossPermanentReward == true)
             {
-                summaryParts.Add("영구 카드 보상 · 전투 정산 시 적용 완료");
+                summaryParts.Add("영구 카드 보상 · 승리 시 자동 적용 완료");
             }
             FinalUiRoot.BindReward(
                 options,

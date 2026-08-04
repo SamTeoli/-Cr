@@ -131,6 +131,7 @@ namespace HaveABreak.Editor
             CardData c03 = FindCard(TestContentIds.C03);
             CardData c04 = FindCard(TestContentIds.C04);
             bool valid = c03 != null && c04 != null &&
+                         ValidateDeclarationDefersDamage(c04) &&
                          ValidateFirstTurnVictoryAndVulnerable(c04) &&
                          ValidateAttackLimitAndNextTurn(c04) &&
                          ValidateC03AttackEvent(c03);
@@ -145,6 +146,62 @@ namespace HaveABreak.Editor
             }
 
             return valid;
+        }
+
+        private static bool ValidateDeclarationDefersDamage(CardData card)
+        {
+            BattleRuntimeState runtime = Start(
+                card,
+                "ATTACK-DECLARATION",
+                3,
+                new[]
+                {
+                    new EnemySetup(
+                        "ENEMY-ATTACK-DECLARATION",
+                        10,
+                        EnemyFieldPosition.Center)
+                },
+                out BattleMonsterState attacker);
+            BattleEnemyRuntimeState target =
+                runtime?.FindEnemy("ENEMY-ATTACK-DECLARATION");
+            if (runtime == null || attacker == null || target == null)
+            {
+                return false;
+            }
+
+            int healthBefore = target.Vital.CurrentHealth;
+            if (!BattleRuntimePlayerAttackService.TryDeclare(
+                    runtime,
+                    attacker.BattleCardId,
+                    target.EnemyId,
+                    out BattleRuntimePlayerAttackDeclaration declaration,
+                    out BattleRuntimePlayerAttackFailure declareFailure))
+            {
+                return false;
+            }
+
+            bool declaredOnly =
+                declareFailure == BattleRuntimePlayerAttackFailure.None &&
+                declaration != null &&
+                declaration.DeclaredAttack.EventType ==
+                BattleEventType.AttackDeclared &&
+                target.Vital.CurrentHealth == healthBefore &&
+                runtime.Turn.Phase ==
+                BattleTurnPhase.PlayerActionResolving;
+            bool resolved =
+                BattleRuntimePlayerAttackService.TryResolveDeclared(
+                    runtime,
+                    declaration,
+                    out BattleRuntimePlayerAttackResult result,
+                    out BattleRuntimePlayerAttackFailure resolveFailure);
+            return declaredOnly &&
+                   resolved &&
+                   resolveFailure == BattleRuntimePlayerAttackFailure.None &&
+                   result != null &&
+                   result.DamageApplied == declaration.FinalDamage &&
+                   target.Vital.CurrentHealth ==
+                   healthBefore - declaration.FinalDamage &&
+                   runtime.Turn.Phase == BattleTurnPhase.PlayerAction;
         }
 
         private static bool ValidateFirstTurnVictoryAndVulnerable(

@@ -66,6 +66,16 @@ namespace HaveABreak.Editor
                 return false;
             }
 
+            if (BattleRuntimeC07EffectService.TryResolve(
+                    runtime,
+                    playResult,
+                    source.Ids.BattleCardId,
+                    out _) ||
+                selected.Zone != CardZone.Hand)
+            {
+                return false;
+            }
+
             bool valid = BattleRuntimeC07EffectService.TryResolve(
                 runtime,
                 playResult,

@@ -40,6 +40,10 @@ namespace HaveABreak.EditorTools
                             message = command.Message;
                             if (command.Succeeded)
                             {
+                                BattleChainCommandResult chain =
+                                    battleScreen.TryPassAndResolveChain(
+                                        progress);
+                                message = chain.Message;
                                 SaveRun(null);
                             }
                         }
