@@ -12,6 +12,17 @@ namespace HaveABreak.Cards
         public CardLayoutSettings Settings => settings;
         public RuntimeCardView CardView => cardView;
 
+        private void Awake()
+        {
+            // This object is an edit-time layout preview, not battle UI.
+            // Recovery scenes can retain it, so always hide the whole editor
+            // root when entering Play Mode.
+            if (Application.isPlaying)
+            {
+                gameObject.SetActive(false);
+            }
+        }
+
         public void Initialize(
             CardLayoutSettings layoutSettings,
             RuntimeCardView view)

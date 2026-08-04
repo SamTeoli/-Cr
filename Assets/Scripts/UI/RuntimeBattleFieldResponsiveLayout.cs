@@ -8,8 +8,11 @@ namespace HaveABreak.Cards
     [DefaultExecutionOrder(1000)]
     public sealed class RuntimeBattleFieldResponsiveLayout : MonoBehaviour
     {
-        public const float ReservedBottomHeight = 188f;
-        public const float ReservedBottomWithCommands = 266f;
+        // The battle panel itself begins 16 px above the screen bottom. These
+        // panel-local reservations therefore place the field at screen Y=138,
+        // exactly on the hand viewport's upper edge.
+        public const float ReservedBottomHeight = 122f;
+        public const float ReservedBottomWithCommands = 250f;
         public const float HorizontalInset = 8f;
         public const float TopInset = 2f;
         public const float MinimumSlotSize = 112f;
@@ -120,7 +123,9 @@ namespace HaveABreak.Cards
                     RootVerticalPadding,
                     RootVerticalPadding);
                 rootLayout.spacing = RootSpacing;
-                rootLayout.childAlignment = TextAnchor.MiddleCenter;
+                // Keep the three field rows packed against the hand instead
+                // of vertically centering them in the remaining screen area.
+                rootLayout.childAlignment = TextAnchor.LowerCenter;
                 rootLayout.childControlWidth = true;
                 rootLayout.childControlHeight = true;
                 rootLayout.childForceExpandWidth = true;
@@ -201,7 +206,12 @@ namespace HaveABreak.Cards
                     RowVerticalPadding,
                     RowVerticalPadding);
                 row.spacing = RowSpacing;
-                row.childAlignment = TextAnchor.MiddleCenter;
+                row.childAlignment = rowName switch
+                {
+                    "EnemyRow" => TextAnchor.LowerCenter,
+                    "MonsterRow" => TextAnchor.UpperCenter,
+                    _ => TextAnchor.MiddleCenter
+                };
                 row.childControlWidth = true;
                 row.childControlHeight = true;
                 row.childForceExpandWidth = false;

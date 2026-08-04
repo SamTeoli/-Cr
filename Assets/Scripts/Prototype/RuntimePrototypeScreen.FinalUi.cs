@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -384,10 +385,16 @@ namespace HaveABreak.Cards
                             option.BlockReason)
                             ? option.DisplayText
                             : $"{option.DisplayText} · {option.BlockReason}";
+                        bool canAfford = progress.RunState.Gold >= option.Price;
+                        detail = $"{detail}\n가격 {option.Price}G";
+                        if (!canAfford && !option.Purchased)
+                        {
+                            detail += " · 골드 부족";
+                        }
                         options.Add(new RuntimeGameCommandOption(
                             $"buy:{option.SlotId}",
                             detail,
-                            option.CanPurchase));
+                            option.CanPurchase && canAfford));
                     }
                     int rerollCost = shop.GetRerollCost(
                         campaign,
@@ -848,7 +855,16 @@ namespace HaveABreak.Cards
                 string.IsNullOrWhiteSpace(deckDetails)
                     ? "덱이 비어 있습니다."
                     : deckDetails);
-            FinalUiRoot.BindBattleHand(handCards);
+            HashSet<string> drawnCardIds = snapshot.RecentEvents
+                .Where(option => option?.Record != null &&
+                    option.Record.EventType == BattleEventType.CardMoved &&
+                    option.Record.HasZoneChange &&
+                    option.Record.FromZone == CardZone.DrawPile &&
+                    option.Record.ToZone == CardZone.Hand)
+                .Select(option => option.Record.TargetId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            FinalUiRoot.BindBattleHand(handCards, drawnCardIds);
             FinalUiRoot.BindBattleLog(
                 snapshot.RecentEvents.Length == 0
                     ? "아직 기록된 플레이 로그가 없습니다."
@@ -877,6 +893,18 @@ namespace HaveABreak.Cards
                     "enemy:",
                     out string enemyId))
             {
+                if (TryReadCommandValue(
+                        cardCommandId,
+                        "play:",
+                        out string droppedCardId) &&
+                    string.IsNullOrWhiteSpace(
+                        battleScreen.PendingTargetedCardId))
+                {
+                    battleScreen.TryBeginCardTargeting(
+                        progress,
+                        droppedCardId,
+                        out message);
+                }
                 battleScreen.SelectEnemy(progress, enemyId);
             }
 
@@ -928,10 +956,14 @@ namespace HaveABreak.Cards
                 {
                     if (!string.IsNullOrWhiteSpace(pendingCardId))
                     {
-                        battleScreen.TryDeclareTargetedCardActivation(
+                        bool declared = battleScreen.TryDeclareTargetedCardActivation(
                             progress,
                             pendingCardId,
                             out message);
+                        if (declared)
+                        {
+                            ResolveActiveChainAutomatically();
+                        }
                     }
                     else if (!string.IsNullOrWhiteSpace(
                                  pendingAttackerId))
@@ -941,6 +973,10 @@ namespace HaveABreak.Cards
                                 progress,
                                 pendingAttackerId);
                         message = command.Message;
+                        if (command.Succeeded)
+                        {
+                            ResolveActiveChainAutomatically();
+                        }
                     }
                 }
             }
@@ -1053,10 +1089,14 @@ namespace HaveABreak.Cards
                 {
                     if (requiresTarget)
                     {
-                        battleScreen.TryDeclareTargetedCardActivation(
+                        bool declared = battleScreen.TryDeclareTargetedCardActivation(
                             progress,
                             cardId,
                             out message);
+                        if (declared)
+                        {
+                            ResolveActiveChainAutomatically();
+                        }
                     }
                     else
                     {
@@ -1104,6 +1144,17 @@ namespace HaveABreak.Cards
             else
             {
                 RefreshFinalUiVisibility();
+            }
+        }
+
+        private void ResolveActiveChainAutomatically()
+        {
+            BattleChainCommandResult chain =
+                battleScreen.TryPassAndResolveChain(progress);
+            message = chain.Message;
+            if (chain.Succeeded)
+            {
+                SaveRun(null);
             }
         }
 

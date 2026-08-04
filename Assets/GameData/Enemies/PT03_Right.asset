@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PT03_Right
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.EnemyDefinitionData
   enemyId: TEST-ENEMY-DEFINITION-RIGHT
-  displayName: "시험 적 · 우측"
+  displayName: "철로 골렘"
   attack: 1
   maximumHealth: 12
   actionPattern:

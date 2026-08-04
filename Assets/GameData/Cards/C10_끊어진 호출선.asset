@@ -25,7 +25,7 @@ MonoBehaviour:
     \uC801 \uB2A5\uB825\uB9CC \uBB34\uD6A8\uD654\uD569\uB2C8\uB2E4. \uB2A5\uB825\uC758
     \uBE44\uC6A9\xB7\uC0AC\uC6A9 \uD69F\uC218\xB7\uD589\uB3D9\uC740 \uBC18\uD658\uD558\uC9C0
     \uC54A\uC2B5\uB2C8\uB2E4."
-  artwork: {fileID: 0}
+  artwork: {fileID: 21300000, guid: 7fe39bb8d8e94cf7a4fd5c903ca2dc10, type: 3}
   baseEnchantSlots: 1
   role: "\uB2A5\uB825 \uBB34\uD6A8 / \uC81C\uC5B4"
   sourceVersion: v0.4 / 2026-07-17

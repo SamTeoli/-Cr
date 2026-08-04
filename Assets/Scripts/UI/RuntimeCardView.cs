@@ -38,6 +38,7 @@ namespace HaveABreak.Cards
         public RuntimeCardPresentation Presentation { get; private set; }
 
         private CardLayoutSettings layoutSettings;
+        private CardFrameTheme frameTheme;
         private Font cardFont;
         private RectTransform visualRoot;
 
@@ -59,6 +60,8 @@ namespace HaveABreak.Cards
             FrameImage.preserveAspect = false;
             layoutSettings = Resources.Load<CardLayoutSettings>(
                 "UI/CardLayoutSettings");
+            frameTheme = Resources.Load<CardFrameTheme>(
+                "UI/CardFrameTheme");
             cardFont = CreateCardFont();
 
             ClickButton = gameObject.GetComponent<Button>() ??
@@ -76,58 +79,66 @@ namespace HaveABreak.Cards
 
             TypeSurfaceImage = CreateImage(
                 "TypeSurface",
-                Color.white,
+                Color.clear,
                 new Vector2(0.018f, 0.013f),
                 new Vector2(0.982f, 0.987f));
             TypeSurfaceImage.raycastTarget = false;
 
             Image innerSurface = CreateImage(
                 "InnerSurface",
-                new Color(0.025f, 0.03f, 0.04f, 1f),
+                Color.clear,
                 new Vector2(0.038f, 0.035f),
                 new Vector2(0.962f, 0.965f));
             innerSurface.raycastTarget = false;
 
             ArtworkImage = CreateImage(
                 "Artwork",
-                new Color(0.07f, 0.08f, 0.10f, 1f),
+                Color.white,
                 Min(Layout.Artwork),
                 Max(Layout.Artwork));
-            ArtworkImage.preserveAspect = false;
+            // Show the complete authored illustration without stretching or
+            // cropping it to the card's artwork slot.
+            ArtworkImage.preserveAspect = true;
             ArtworkImage.raycastTarget = false;
             ArtPlaceholderText = null;
 
+            // UI siblings render from first to last. Keep the illustration
+            // behind the authored frame so it cannot cover borders or
+            // ornaments, while all labels created below remain on top.
+            FrameOverlayImage.transform.SetSiblingIndex(
+                ArtworkImage.transform.GetSiblingIndex() + 1);
+
             HeaderPanelImage = CreateImage(
                 "HeaderPanel",
-                new Color(0.015f, 0.02f, 0.028f, 0.94f),
+                Color.clear,
                 new Vector2(0.04f, 0.86f),
                 new Vector2(0.96f, 0.975f));
             HeaderPanelImage.raycastTarget = false;
 
             RulesPanelImage = CreateImage(
                 "RulesPanel",
-                new Color(0.92f, 0.90f, 0.84f, 0.97f),
+                Color.clear,
                 Min(Layout.RulesPanel),
                 Max(Layout.RulesPanel));
             RulesPanelImage.raycastTarget = false;
 
             StatsPanelImage = CreateImage(
                 "StatsPanel",
-                new Color(0.025f, 0.03f, 0.04f, 0.98f),
+                Color.clear,
                 new Vector2(0.04f, 0.025f),
                 new Vector2(0.96f, 0.09f));
             StatsPanelImage.raycastTarget = false;
 
             ManaBadgeImage = CreateImage(
                 "ManaBadge",
-                new Color(0.03f, 0.04f, 0.055f, 1f),
+                Color.clear,
                 Min(Layout.Mana),
                 Max(Layout.Mana));
             ManaBadgeImage.raycastTarget = false;
 
             TypeBadgeImage = CreateImage(
                 "TypeBadge",
-                new Color(0.03f, 0.04f, 0.055f, 1f),
+                Color.clear,
                 Min(Layout.CardType),
                 Max(Layout.CardType));
             TypeBadgeImage.raycastTarget = false;
@@ -224,6 +235,8 @@ namespace HaveABreak.Cards
             MetadataText.text = presentation.TypeLabel;
 
             ArtworkImage.sprite = presentation.Artwork;
+            ArtworkImage.color = Color.white;
+            ArtworkImage.material = null;
             ArtworkImage.gameObject.SetActive(presentation.Artwork != null);
 
             bool hasStats = presentation.HasMonsterStats;
@@ -267,35 +280,26 @@ namespace HaveABreak.Cards
                     : baseColor;
 
             FrameImage.color = Color.clear;
-            FrameOverlayImage.sprite = null;
+            CardFrameTheme.RarityFrame frame = frameTheme != null
+                ? frameTheme.GetFrame(presentation.Rarity, presentation.CardType)
+                : null;
+            FrameOverlayImage.sprite = frame?.FrameSprite;
             FrameOverlayImage.type = Image.Type.Simple;
-            FrameOverlayImage.color = displayColor;
+            FrameOverlayImage.preserveAspect = false;
+            FrameOverlayImage.color = frame?.FrameSprite != null
+                ? (!presentation.Interactable
+                    ? new Color(0.62f, 0.62f, 0.62f, 1f)
+                    : Color.white)
+                : displayColor;
             RarityAccentImage.color = presentation.Rarity == CardRarity.Common
                 ? Color.Lerp(displayColor, Color.black, 0.25f)
                 : Color.Lerp(displayColor, Color.white, 0.28f);
-            TypeSurfaceImage.color = presentation.TypeColor;
-            Color panelTint = Color.Lerp(
-                presentation.TypeColor,
-                Color.black,
-                0.72f);
-            HeaderPanelImage.color = new Color(
-                panelTint.r,
-                panelTint.g,
-                panelTint.b,
-                0.96f);
-            StatsPanelImage.color = new Color(
-                panelTint.r,
-                panelTint.g,
-                panelTint.b,
-                0.98f);
-            ManaBadgeImage.color = Color.Lerp(
-                presentation.RarityColor,
-                Color.black,
-                0.62f);
-            TypeBadgeImage.color = Color.Lerp(
-                presentation.TypeColor,
-                Color.black,
-                0.48f);
+            TypeSurfaceImage.color = Color.clear;
+            HeaderPanelImage.color = Color.clear;
+            RulesPanelImage.color = Color.clear;
+            StatsPanelImage.color = Color.clear;
+            ManaBadgeImage.color = Color.clear;
+            TypeBadgeImage.color = Color.clear;
         }
 
         private Image CreateImage(

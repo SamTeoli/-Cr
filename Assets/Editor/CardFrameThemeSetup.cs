@@ -18,7 +18,13 @@ public static class CardFrameThemeSetup
         FrameFolder + "frame_legendary.png",
         FrameFolder + "frame_nonmonster_common.png",
         FrameFolder + "frame_nonmonster_rare.png",
-        FrameFolder + "frame_nonmonster_legendary.png"
+        FrameFolder + "frame_nonmonster_legendary.png",
+        FrameFolder + "frame_trap_common.png",
+        FrameFolder + "frame_trap_rare.png",
+        FrameFolder + "frame_trap_legendary.png",
+        FrameFolder + "frame_barrier_common.png",
+        FrameFolder + "frame_barrier_rare.png",
+        FrameFolder + "frame_barrier_legendary.png"
     };
 
     [InitializeOnLoadMethod]
@@ -38,6 +44,7 @@ public static class CardFrameThemeSetup
         EnsureFolder(ResourcesFolder, "Resources");
         EnsureFolder(UiFolder, "UI");
         EnsureLayoutSettings();
+        EnsurePrototypeCardArtwork();
 
         for (int index = 0; index < FramePaths.Length; index++)
         {
@@ -59,7 +66,13 @@ public static class CardFrameThemeSetup
             LoadFrame(2),
             LoadFrame(3),
             LoadFrame(4),
-            LoadFrame(5));
+            LoadFrame(5),
+            LoadFrame(6),
+            LoadFrame(7),
+            LoadFrame(8),
+            LoadFrame(9),
+            LoadFrame(10),
+            LoadFrame(11));
         EditorUtility.SetDirty(theme);
         AssetDatabase.SaveAssets();
 
@@ -69,7 +82,7 @@ public static class CardFrameThemeSetup
             EditorGUIUtility.PingObject(theme);
         }
 
-        Debug.Log("All six card frames are configured and applied.");
+        Debug.Log("All twelve card frames are configured and applied.");
     }
 
     private static void EnsureLayoutSettings()
@@ -83,6 +96,56 @@ public static class CardFrameThemeSetup
         CardLayoutSettings layout =
             ScriptableObject.CreateInstance<CardLayoutSettings>();
         AssetDatabase.CreateAsset(layout, LayoutAssetPath);
+    }
+
+    private static void EnsurePrototypeCardArtwork()
+    {
+        const string artworkPath =
+            "Assets/Art/CardArtwork/C01_LastTrainSleepingBagKeeper.png";
+        const string cardPath =
+            "Assets/GameData/Cards/C01_막차의 침낭지기.asset";
+
+        AssetDatabase.ImportAsset(
+            artworkPath,
+            ImportAssetOptions.ForceSynchronousImport);
+        if (AssetImporter.GetAtPath(artworkPath) is TextureImporter importer)
+        {
+            bool changed =
+                importer.textureType != TextureImporterType.Sprite ||
+                importer.spriteImportMode != SpriteImportMode.Single ||
+                importer.mipmapEnabled ||
+                importer.maxTextureSize != 2048;
+            if (changed)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.mipmapEnabled = false;
+                importer.maxTextureSize = 2048;
+                importer.textureCompression =
+                    TextureImporterCompression.Uncompressed;
+                importer.SaveAndReimport();
+            }
+        }
+
+        Sprite artwork = AssetDatabase.LoadAssetAtPath<Sprite>(artworkPath);
+        Object card = AssetDatabase.LoadMainAssetAtPath(cardPath);
+        if (artwork == null || card == null)
+        {
+            return;
+        }
+
+        SerializedObject serializedCard = new(card);
+        SerializedProperty property = serializedCard.FindProperty("artwork");
+        if (property == null || property.objectReferenceValue == artwork)
+        {
+            return;
+        }
+
+        property.objectReferenceValue = artwork;
+        serializedCard.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(card);
+        AssetDatabase.SaveAssets();
+        Debug.Log("Applied otaku-style artwork to C01 막차의 침낭지기.");
     }
 
     private static Sprite LoadFrame(int index)

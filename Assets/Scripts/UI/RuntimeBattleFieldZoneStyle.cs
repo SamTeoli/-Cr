@@ -83,6 +83,15 @@ namespace HaveABreak.Cards
             }
 
             RuntimeBattleFieldZone zone = ResolveZone();
+            RuntimeBattleFieldSlotPresentation presentation =
+                slotView?.Presentation;
+            // Enemy artwork replaces its presentation plate, but a summoned
+            // monster card must remain visibly seated inside the monster zone.
+            // Hiding an occupied player plate made the entire zone appear to
+            // disappear as soon as a monster was played.
+            bool hideBehindCard =
+                (zone == RuntimeBattleFieldZone.Enemy &&
+                 presentation?.ShowsArtwork == true);
             if (zone != appliedZone)
             {
                 appliedZone = zone;
@@ -97,13 +106,28 @@ namespace HaveABreak.Cards
                     ? new Color(0.22f, 0.82f, 1f, 1f)
                     : ZoneAccent(zone);
 
+            if (background != null)
+            {
+                Color plateBackground = background.color;
+                plateBackground.a = hideBehindCard
+                    ? 0f
+                    : selected || available
+                        ? 1f
+                        : presentation?.Occupied == true
+                            ? 0.94f
+                            : 0.72f;
+                background.color = plateBackground;
+            }
+
             if (outerFrame != null)
             {
                 outerFrame.color = new Color(
                     accent.r,
                     accent.g,
                     accent.b,
-                    selected || available ? 1f : 0.76f);
+                    hideBehindCard
+                        ? 0f
+                        : selected || available ? 1f : 0.76f);
             }
             if (innerFrame != null)
             {
@@ -111,7 +135,9 @@ namespace HaveABreak.Cards
                     accent.r,
                     accent.g,
                     accent.b,
-                    selected || available ? 0.72f : 0.34f);
+                    hideBehindCard
+                        ? 0f
+                        : selected || available ? 0.72f : 0.34f);
             }
             if (centerGlyph != null)
             {
@@ -119,7 +145,9 @@ namespace HaveABreak.Cards
                     accent.r,
                     accent.g,
                     accent.b,
-                    selected || available ? 0.34f : 0.12f);
+                    hideBehindCard
+                        ? 0f
+                        : selected || available ? 0.34f : 0.12f);
             }
             if (zoneMark != null)
             {
@@ -127,7 +155,9 @@ namespace HaveABreak.Cards
                     accent.r,
                     accent.g,
                     accent.b,
-                    selected || available ? 0.92f : 0.56f);
+                    hideBehindCard
+                        ? 0f
+                        : selected || available ? 0.92f : 0.56f);
             }
         }
 

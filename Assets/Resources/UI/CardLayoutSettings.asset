@@ -14,22 +14,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HaveABreak.Cards.CardLayoutSettings
   mana:
     serializedVersion: 2
-    x: 0.025
-    y: 0.865
-    width: 0.17
-    height: 0.11
+    x: 0.07113418
+    y: 0.8480233
+    width: 0.17000002
+    height: 0.109999835
   cardName:
     serializedVersion: 2
-    x: 0.21
-    y: 0.875
-    width: 0.56
-    height: 0.09
+    x: 0.22000003
+    y: 0.85075575
+    width: 0.55999994
+    height: 0.090000086
   artwork:
     serializedVersion: 2
-    x: 0.04
-    y: 0.35
-    width: 0.92
-    height: 0.5
+    x: 0.04000005
+    y: 0.014795481
+    width: 0.91999996
+    height: 0.958604
   rulesPanel:
     serializedVersion: 2
     x: 0.04
@@ -38,40 +38,40 @@ MonoBehaviour:
     height: 0.235
   effect:
     serializedVersion: 2
-    x: 0.075
-    y: 0.12
-    width: 0.85
-    height: 0.185
+    x: 0.07500016
+    y: 0.14354639
+    width: 0.8499998
+    height: 0.22739741
   attack:
     serializedVersion: 2
-    x: 0.055
-    y: 0.035
-    width: 0.4
-    height: 0.045
+    x: 0.08226611
+    y: 0.079767495
+    width: 0.40000013
+    height: 0.044999942
   health:
     serializedVersion: 2
-    x: 0.545
-    y: 0.035
-    width: 0.4
-    height: 0.045
+    x: 0.51226807
+    y: 0.079767495
+    width: 0.40000013
+    height: 0.044999942
   cardType:
     serializedVersion: 2
-    x: 0.79
-    y: 0.885
-    width: 0.16
-    height: 0.07
+    x: 0.7650001
+    y: 0.85802317
+    width: 0.15999982
+    height: 0.0700001
   selection:
     serializedVersion: 2
-    x: 0.6000001
+    x: 0.59999996
     y: 0.76500005
-    width: 0.2599999
-    height: 0.04999988
+    width: 0.26000014
+    height: 0.049999904
   blockReason:
     serializedVersion: 2
-    x: 0.099999994
+    x: 0.10000003
     y: 0.38999996
-    width: 0.8000001
-    height: 0.08000001
+    width: 0.79999995
+    height: 0.08
   koreanOsFontName: Malgun Gothic
   manaSize: 22
   nameSize: 16

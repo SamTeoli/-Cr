@@ -196,7 +196,7 @@ namespace HaveABreak.Cards
         public bool SessionFinished { get; }
         public bool CanEndTurn =>
             Available && !SessionFinished &&
-            !SelectingEnemyTarget && !Chain.IsActive;
+            !Chain.IsActive;
         public bool CanSettle => Available && SessionFinished;
         public string FinishedText => CanSettle
             ? $"전투 종료: {Outcome}. 정산을 진행하세요."

@@ -9,9 +9,14 @@ namespace HaveABreak.Cards
     [DefaultExecutionOrder(1100)]
     public sealed class RuntimeEnemyArtworkSlotView : MonoBehaviour
     {
+        private const float ArtworkWidthRatio = 0.97f;
+        private const float ArtworkBottomAnchor = 0.135f;
+
         private RuntimeBattleFieldSlotView slotView;
         private Image artworkImage;
         private Image informationBackdrop;
+        private Image healthBarFill;
+        private Text healthValueText;
         private Outline labelOutline;
         private string appliedArtworkKey;
         private string appliedTitle;
@@ -36,6 +41,8 @@ namespace HaveABreak.Cards
             initialized = true;
             CreateArtworkImage();
             CreateInformationBackdrop();
+            CreateHealthBarFill();
+            CreateHealthValueText();
             ConfigureLabelOutline();
             ApplyNow();
         }
@@ -68,6 +75,7 @@ namespace HaveABreak.Cards
                     StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(title, appliedTitle, StringComparison.Ordinal))
             {
+                ConfigureArtworkWidthFit();
                 MaintainSiblingOrder();
                 return;
             }
@@ -81,7 +89,11 @@ namespace HaveABreak.Cards
             artworkImage.sprite = sprite;
             artworkImage.color = Color.white;
             artworkImage.gameObject.SetActive(visible);
+            ConfigureArtworkWidthFit();
             informationBackdrop.gameObject.SetActive(visible);
+            healthBarFill.gameObject.SetActive(visible);
+            healthValueText.gameObject.SetActive(visible);
+            ConfigureHealthBar(visible, presentation);
             ConfigureLabel(visible, presentation);
             MaintainSiblingOrder();
         }
@@ -105,11 +117,70 @@ namespace HaveABreak.Cards
             artworkImage.color = Color.white;
 
             RectTransform rect = artworkImage.rectTransform;
-            rect.anchorMin = new Vector2(0.045f, 0.17f);
-            rect.anchorMax = new Vector2(0.955f, 0.965f);
+            rect.anchorMin = new Vector2(0.015f, ArtworkBottomAnchor);
+            rect.anchorMax = new Vector2(0.985f, ArtworkBottomAnchor);
+            rect.pivot = new Vector2(0.5f, 0f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
+            rect.localScale = Vector3.one;
             artworkObject.SetActive(false);
+        }
+
+        private void ConfigureArtworkWidthFit()
+        {
+            if (artworkImage == null || artworkImage.sprite == null)
+            {
+                return;
+            }
+
+            RectTransform slotRect = transform as RectTransform;
+            RectTransform artworkRect = artworkImage.rectTransform;
+            float spriteWidth = artworkImage.sprite.rect.width;
+            float spriteHeight = artworkImage.sprite.rect.height;
+            if (slotRect == null || slotRect.rect.width <= 0f ||
+                spriteWidth <= 0f || spriteHeight <= 0f)
+            {
+                return;
+            }
+
+            // The enemy art always consumes the available slot width first.
+            // Its height is then derived from the source aspect ratio, so a
+            // portrait sprite is no longer shrunk merely to fit vertically.
+            float pixelsPerUnit = Mathf.Max(
+                0.001f,
+                artworkImage.sprite.pixelsPerUnit);
+            float visibleWidth =
+                artworkImage.sprite.bounds.size.x * pixelsPerUnit;
+            if (visibleWidth <= 0.001f)
+            {
+                visibleWidth = spriteWidth;
+            }
+
+            // Tight sprite geometry describes the non-transparent artwork.
+            // Expand the full image rectangle by the inverse transparent-margin
+            // ratio so the visible monster, rather than its PNG canvas, fills
+            // the requested horizontal width.
+            float visibleTargetWidth =
+                slotRect.rect.width * ArtworkWidthRatio;
+            float fittedWidth =
+                visibleTargetWidth * spriteWidth / visibleWidth;
+            float fittedHeight = fittedWidth * spriteHeight / spriteWidth;
+            float fittedWidthRatio = fittedWidth / slotRect.rect.width;
+            float visibleCenterOffset =
+                artworkImage.sprite.bounds.center.x * pixelsPerUnit /
+                spriteWidth;
+            float normalizedShift =
+                -visibleCenterOffset * fittedWidthRatio;
+            artworkRect.anchorMin = new Vector2(
+                (1f - fittedWidthRatio) * 0.5f + normalizedShift,
+                ArtworkBottomAnchor);
+            artworkRect.anchorMax = new Vector2(
+                1f - (1f - fittedWidthRatio) * 0.5f + normalizedShift,
+                ArtworkBottomAnchor);
+            artworkRect.pivot = new Vector2(0.5f, 0f);
+            artworkRect.offsetMin = Vector2.zero;
+            artworkRect.offsetMax = new Vector2(0f, fittedHeight);
+            artworkRect.localScale = Vector3.one;
         }
 
         private void CreateInformationBackdrop()
@@ -126,11 +197,87 @@ namespace HaveABreak.Cards
             informationBackdrop.raycastTarget = false;
 
             RectTransform rect = informationBackdrop.rectTransform;
-            rect.anchorMin = new Vector2(0.035f, 0.025f);
-            rect.anchorMax = new Vector2(0.965f, 0.315f);
+            rect.anchorMin = new Vector2(0.025f, 0.018f);
+            rect.anchorMax = new Vector2(0.975f, 0.205f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             backdropObject.SetActive(false);
+        }
+
+        private void CreateHealthBarFill()
+        {
+            GameObject fillObject = new(
+                "EnemyHealthBarFill",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            fillObject.transform.SetParent(transform, false);
+            healthBarFill = fillObject.GetComponent<Image>();
+            healthBarFill.color = new Color(0.92f, 0.08f, 0.16f, 0.96f);
+            healthBarFill.raycastTarget = false;
+
+            RectTransform rect = healthBarFill.rectTransform;
+            rect.anchorMin = new Vector2(0.235f, 0.038f);
+            rect.anchorMax = new Vector2(0.945f, 0.075f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            fillObject.SetActive(false);
+        }
+
+        private void CreateHealthValueText()
+        {
+            GameObject textObject = new(
+                "EnemyHealthValue",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Text));
+            textObject.transform.SetParent(transform, false);
+            healthValueText = textObject.GetComponent<Text>();
+            healthValueText.font = slotView.LabelText != null
+                ? slotView.LabelText.font
+                : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            healthValueText.fontSize = 13;
+            healthValueText.fontStyle = FontStyle.Bold;
+            healthValueText.alignment = TextAnchor.MiddleRight;
+            healthValueText.color = Color.white;
+            healthValueText.raycastTarget = false;
+
+            RectTransform rect = healthValueText.rectTransform;
+            rect.anchorMin = new Vector2(0.025f, 0.018f);
+            rect.anchorMax = new Vector2(0.215f, 0.092f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = new Vector2(-3f, 0f);
+
+            Outline outline = textObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+            outline.effectDistance = new Vector2(1f, -1f);
+            textObject.SetActive(false);
+        }
+
+        private void ConfigureHealthBar(
+            bool artworkVisible,
+            RuntimeBattleFieldSlotPresentation presentation)
+        {
+            if (!artworkVisible || healthBarFill == null)
+            {
+                return;
+            }
+
+            ResolveHealth(
+                presentation?.Title,
+                out int current,
+                out int maximum,
+                out float ratio);
+            healthValueText.text = maximum > 0
+                ? $"{current}/{maximum}"
+                : "--/--";
+            RectTransform rect = healthBarFill.rectTransform;
+            rect.anchorMin = new Vector2(0.235f, 0.038f);
+            rect.anchorMax = new Vector2(
+                Mathf.Lerp(0.235f, 0.945f, ratio),
+                0.075f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private void ConfigureLabelOutline()
@@ -164,16 +311,16 @@ namespace HaveABreak.Cards
             RectTransform rect = label.rectTransform;
             if (artworkVisible)
             {
-                rect.anchorMin = new Vector2(0.055f, 0.035f);
-                rect.anchorMax = new Vector2(0.945f, 0.305f);
-                rect.offsetMin = new Vector2(4f, 2f);
-                rect.offsetMax = new Vector2(-4f, -2f);
+                rect.anchorMin = new Vector2(0.055f, 0.078f);
+                rect.anchorMax = new Vector2(0.945f, 0.198f);
+                rect.offsetMin = new Vector2(3f, 0f);
+                rect.offsetMax = new Vector2(-3f, 0f);
                 label.alignment = TextAnchor.MiddleCenter;
-                label.fontSize = 13;
+                label.fontSize = 15;
                 label.fontStyle = FontStyle.Bold;
                 label.horizontalOverflow = HorizontalWrapMode.Wrap;
                 label.verticalOverflow = VerticalWrapMode.Truncate;
-                label.text = CompactTitle(presentation?.Title);
+                label.text = ExtractDisplayName(presentation?.Title);
                 label.color = Color.white;
             }
             else
@@ -192,7 +339,8 @@ namespace HaveABreak.Cards
 
         private void MaintainSiblingOrder()
         {
-            if (artworkImage == null || informationBackdrop == null)
+            if (artworkImage == null || informationBackdrop == null ||
+                healthBarFill == null || healthValueText == null)
             {
                 return;
             }
@@ -202,10 +350,65 @@ namespace HaveABreak.Cards
             int backdropIndex = Mathf.Min(5, transform.childCount - 1);
             informationBackdrop.transform.SetSiblingIndex(
                 Mathf.Max(0, backdropIndex));
+            int healthIndex = Mathf.Min(6, transform.childCount - 1);
+            healthBarFill.transform.SetSiblingIndex(Mathf.Max(0, healthIndex));
+            int healthTextIndex = Mathf.Min(7, transform.childCount - 1);
+            healthValueText.transform.SetSiblingIndex(
+                Mathf.Max(0, healthTextIndex));
             slotView?.LabelText?.transform.SetAsLastSibling();
         }
 
-        private static string CompactTitle(string source)
+        private static void ResolveHealth(
+            string source,
+            out int current,
+            out int maximum,
+            out float ratio)
+        {
+            current = 0;
+            maximum = 0;
+            ratio = 1f;
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                return;
+            }
+
+            int hpIndex = source.IndexOf("HP ", StringComparison.Ordinal);
+            if (hpIndex < 0)
+            {
+                return;
+            }
+
+            int valueStart = hpIndex + 3;
+            int slashIndex = source.IndexOf('/', valueStart);
+            if (slashIndex < 0 ||
+                !int.TryParse(
+                    source.Substring(valueStart, slashIndex - valueStart),
+                    out current))
+            {
+                return;
+            }
+
+            int maximumEnd = slashIndex + 1;
+            while (maximumEnd < source.Length &&
+                   char.IsDigit(source[maximumEnd]))
+            {
+                maximumEnd++;
+            }
+            if (!int.TryParse(
+                    source.Substring(
+                        slashIndex + 1,
+                        maximumEnd - slashIndex - 1),
+                    out maximum) ||
+                maximum <= 0)
+            {
+                maximum = 0;
+                return;
+            }
+
+            ratio = Mathf.Clamp01((float)current / maximum);
+        }
+
+        private static string ExtractDisplayName(string source)
         {
             if (string.IsNullOrWhiteSpace(source))
             {
@@ -215,11 +418,9 @@ namespace HaveABreak.Cards
             string[] lines = source.Split(
                 new[] { '\r', '\n' },
                 StringSplitOptions.RemoveEmptyEntries);
-            if (lines.Length <= 2)
-            {
-                return source.Trim();
-            }
-            return $"{lines[0].Trim()}\n{lines[1].Trim()}";
+            return lines.Length == 0
+                ? string.Empty
+                : lines[0].Trim();
         }
     }
 

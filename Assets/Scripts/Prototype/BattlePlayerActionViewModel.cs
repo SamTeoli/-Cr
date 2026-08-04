@@ -1358,20 +1358,12 @@ private BattleCardPlayCommandResult TryPlayCard(
                     -1,
                     "턴 종료 실패: 체인 처리가 끝난 뒤 턴을 종료할 수 있습니다.");
             }
+            // A cancelled drag can leave target selection pending. Treat the
+            // end-turn action as an explicit cancellation of that pending UI
+            // state so the player can always finish an otherwise valid turn.
             if (IsSelectingEnemyTarget)
             {
-                return new BattleEndTurnCommandResult(
-                    false,
-                    null,
-                    default,
-                    default,
-                    default,
-                    default,
-                    default,
-                    default,
-                    default,
-                    -1,
-                    "턴 종료 실패: 대상 선택을 먼저 완료해야 합니다.");
+                ClearPendingTargeting();
             }
 
             if (!BattleRuntimeEnemyPatternService.TryEndPlayerTurn(

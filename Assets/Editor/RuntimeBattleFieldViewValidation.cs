@@ -105,7 +105,8 @@ namespace HaveABreak.Editor
                                     enemy.GetComponent<Outline>().enabled;
                 commandId = null;
                 occupiedMonster.CardView.ClickButton.onClick.Invoke();
-                bool monsterCommand = commandId == "attack:MONSTER-01" &&
+                bool monsterCommand = commandId == null &&
+                                      inspected == occupiedMonster.Presentation &&
                                       !occupiedMonster.DropZone.AcceptsCards &&
                                       centerDrop.DropZone.AcceptsCards &&
                                       rightDrop.DropZone.AcceptsCards;

@@ -35,10 +35,20 @@ namespace HaveABreak.Cards
         [SerializeField] private RarityFrame rare = new();
         [SerializeField] private RarityFrame legendary = new();
 
-        [Header("Skill, Trap, and Barrier Frames")]
+        [Header("Skill Frames")]
         [SerializeField] private RarityFrame nonMonsterCommon = new();
         [SerializeField] private RarityFrame nonMonsterRare = new();
         [SerializeField] private RarityFrame nonMonsterLegendary = new();
+
+        [Header("Trap Frames")]
+        [SerializeField] private RarityFrame trapCommon = new();
+        [SerializeField] private RarityFrame trapRare = new();
+        [SerializeField] private RarityFrame trapLegendary = new();
+
+        [Header("Barrier Frames")]
+        [SerializeField] private RarityFrame barrierCommon = new();
+        [SerializeField] private RarityFrame barrierRare = new();
+        [SerializeField] private RarityFrame barrierLegendary = new();
 
         public RarityFrame GetFrame(CardRarity rarity)
         {
@@ -47,14 +57,38 @@ namespace HaveABreak.Cards
 
         public RarityFrame GetFrame(CardRarity rarity, CardType cardType)
         {
-            bool usesMonsterStats = cardType == CardType.Monster;
+            RarityFrame commonFrame;
+            RarityFrame rareFrame;
+            RarityFrame legendaryFrame;
+            switch (cardType)
+            {
+                case CardType.Skill:
+                    commonFrame = nonMonsterCommon;
+                    rareFrame = nonMonsterRare;
+                    legendaryFrame = nonMonsterLegendary;
+                    break;
+                case CardType.Trap:
+                    commonFrame = trapCommon;
+                    rareFrame = trapRare;
+                    legendaryFrame = trapLegendary;
+                    break;
+                case CardType.Barrier:
+                    commonFrame = barrierCommon;
+                    rareFrame = barrierRare;
+                    legendaryFrame = barrierLegendary;
+                    break;
+                default:
+                    commonFrame = common;
+                    rareFrame = rare;
+                    legendaryFrame = legendary;
+                    break;
+            }
+
             return rarity switch
             {
-                CardRarity.Rare => usesMonsterStats ? rare : nonMonsterRare,
-                CardRarity.Legendary => usesMonsterStats
-                    ? legendary
-                    : nonMonsterLegendary,
-                _ => usesMonsterStats ? common : nonMonsterCommon
+                CardRarity.Rare => rareFrame,
+                CardRarity.Legendary => legendaryFrame,
+                _ => commonFrame
             };
         }
 
@@ -73,6 +107,12 @@ namespace HaveABreak.Cards
                 new Color(0.18f, 0.48f, 0.72f, 1f));
             nonMonsterLegendary.EditorInitialize(CardRarity.Legendary,
                 new Color(0.82f, 0.55f, 0.12f, 1f));
+            trapCommon.EditorInitialize(CardRarity.Common, Color.white);
+            trapRare.EditorInitialize(CardRarity.Rare, Color.white);
+            trapLegendary.EditorInitialize(CardRarity.Legendary, Color.white);
+            barrierCommon.EditorInitialize(CardRarity.Common, Color.white);
+            barrierRare.EditorInitialize(CardRarity.Rare, Color.white);
+            barrierLegendary.EditorInitialize(CardRarity.Legendary, Color.white);
         }
 
         public void EditorAssignFrames(
@@ -81,7 +121,13 @@ namespace HaveABreak.Cards
             Sprite monsterLegendary,
             Sprite sharedCommon,
             Sprite sharedRare,
-            Sprite sharedLegendary)
+            Sprite sharedLegendary,
+            Sprite trapCommonSprite,
+            Sprite trapRareSprite,
+            Sprite trapLegendarySprite,
+            Sprite barrierCommonSprite,
+            Sprite barrierRareSprite,
+            Sprite barrierLegendarySprite)
         {
             common.EditorAssignSprite(monsterCommon);
             rare.EditorAssignSprite(monsterRare);
@@ -89,6 +135,12 @@ namespace HaveABreak.Cards
             nonMonsterCommon.EditorAssignSprite(sharedCommon);
             nonMonsterRare.EditorAssignSprite(sharedRare);
             nonMonsterLegendary.EditorAssignSprite(sharedLegendary);
+            trapCommon.EditorAssignSprite(trapCommonSprite);
+            trapRare.EditorAssignSprite(trapRareSprite);
+            trapLegendary.EditorAssignSprite(trapLegendarySprite);
+            barrierCommon.EditorAssignSprite(barrierCommonSprite);
+            barrierRare.EditorAssignSprite(barrierRareSprite);
+            barrierLegendary.EditorAssignSprite(barrierLegendarySprite);
         }
 #endif
     }

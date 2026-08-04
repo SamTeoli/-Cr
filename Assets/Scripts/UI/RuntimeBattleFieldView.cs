@@ -432,6 +432,17 @@ namespace HaveABreak.Cards
                 return;
             }
 
+            // A field monster is inspected first. Its attack command is only
+            // dispatched after the player confirms it in the side detail
+            // panel. Enemy target clicks must remain immediate while target
+            // selection is active.
+            if (value.Zone == RuntimeBattleFieldZone.PlayerMonster &&
+                value.Occupied && inspect != null)
+            {
+                inspect(value);
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(value.ClickCommandId))
             {
                 command?.Invoke(value.ClickCommandId);

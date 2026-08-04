@@ -75,6 +75,7 @@ namespace HaveABreak.Cards
         public RectTransform BattleHandCardList { get; private set; }
         public RectTransform BattleCommandList { get; private set; }
         public GameObject BattleDetailPanel { get; private set; }
+        public Image BattleDetailArtworkImage { get; private set; }
         public Text BattleDetailTitleText { get; private set; }
         public Text BattleDetailBodyText { get; private set; }
         public Button BattleDetailActionButton { get; private set; }
@@ -309,6 +310,9 @@ namespace HaveABreak.Cards
             {
                 BattleEndTurnButton.interactable =
                     endTurn?.Interactable == true;
+                // Keep the fixed action above the hand viewport and other
+                // full-screen battle graphics that may receive raycasts.
+                BattleEndTurnButton.transform.SetAsLastSibling();
             }
             BattleTitleText.text = title ?? "전투";
             BattleSummaryText.text = summary ?? string.Empty;
@@ -322,7 +326,8 @@ namespace HaveABreak.Cards
         }
 
         public void BindBattleHand(
-            IReadOnlyList<RuntimeCardPresentation> cards)
+            IReadOnlyList<RuntimeCardPresentation> cards,
+            HashSet<string> drawnCardIds = null)
         {
             if (BattleHandCardList == null)
             {
@@ -343,7 +348,7 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
-                string cardId = card.CommandId ?? $"hand-card:{index}";
+                string cardId = StableHandCardId(card, index);
                 cardsById[cardId] = card;
                 nextCardIds.Add(cardId);
             }
@@ -358,7 +363,7 @@ namespace HaveABreak.Cards
                     continue;
                 }
 
-                string cardId = card.CommandId ?? $"hand-card:{index}";
+                string cardId = StableHandCardId(card, index);
                 if (!battleHandCardOrder.Contains(cardId))
                 {
                     battleHandCardOrder.Add(cardId);
@@ -392,7 +397,12 @@ namespace HaveABreak.Cards
                     ?.Configure(index);
                 bool newlyAdded =
                     !boundBattleHandCardIds.Contains(cardId);
-                if (newlyAdded)
+                bool isActualDraw =
+                    initialHand ||
+                    (newlyAdded &&
+                     drawnCardIds != null &&
+                     drawnCardIds.Contains(cardId));
+                if (isActualDraw)
                 {
                     view.gameObject
                         .AddComponent<RuntimeBattleHandDrawAnimation>()
@@ -410,6 +420,17 @@ namespace HaveABreak.Cards
                 boundBattleHandCardIds.Add(cardId);
             }
             battleHandHasInitialSnapshot = true;
+        }
+
+        private static string StableHandCardId(
+            RuntimeCardPresentation card,
+            int fallbackIndex)
+        {
+            if (!string.IsNullOrWhiteSpace(card?.InstanceId))
+            {
+                return card.InstanceId;
+            }
+            return card?.CommandId ?? $"hand-card:{fallbackIndex}";
         }
 
         public void BindBattleHud(
@@ -862,6 +883,7 @@ namespace HaveABreak.Cards
             BuildBattleUtilityPanel(battleScreen.transform);
             BuildBattleEndTurnButton(battleScreen.transform);
             BattleTopHudBar.SetAsLastSibling();
+            BattleEndTurnButton.transform.SetAsLastSibling();
         }
 
         private string battleMapDetails;
@@ -1114,6 +1136,19 @@ namespace HaveABreak.Cards
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
+            BattleDetailArtworkImage = CreateImage(
+                "Artwork",
+                rect,
+                Color.white);
+            BattleDetailArtworkImage.preserveAspect = true;
+            BattleDetailArtworkImage.raycastTarget = false;
+            LayoutElement artworkLayout =
+                BattleDetailArtworkImage.gameObject.AddComponent<
+                    LayoutElement>();
+            artworkLayout.preferredHeight = 210f;
+            artworkLayout.flexibleHeight = 0f;
+            BattleDetailArtworkImage.gameObject.SetActive(false);
+
             BattleDetailTitleText = CreateText(
                 "Title",
                 rect,
@@ -1127,7 +1162,7 @@ namespace HaveABreak.Cards
                 string.Empty,
                 18,
                 FontStyle.Normal,
-                330f);
+                220f);
             BattleDetailBodyText.alignment = TextAnchor.UpperLeft;
             BattleDetailActionButton = CreateButton(
                 "UseCard",
@@ -1171,6 +1206,7 @@ namespace HaveABreak.Cards
             }
 
             inspectedBattleCardCommand = card.CommandId;
+            ApplyBattleDetailArtwork(card.Artwork);
             BattleDetailTitleText.text = card.DisplayName;
             string stats = card.HasMonsterStats
                 ? $"\n공격 {card.Attack}  생명력 {card.Health}"
@@ -1198,12 +1234,33 @@ namespace HaveABreak.Cards
             }
 
             inspectedBattleCardCommand = slot.ClickCommandId;
-            BattleDetailTitleText.text = slot.Title;
-            BattleDetailBodyText.text = string.IsNullOrWhiteSpace(slot.Detail)
-                ? "상세 정보가 없습니다."
-                : slot.Detail;
+            RuntimeCardPresentation card = slot.CardPresentation;
+            ApplyBattleDetailArtwork(card?.Artwork);
+            BattleDetailTitleText.text = card?.DisplayName ?? slot.Title;
+            if (card != null)
+            {
+                string stats = card.HasMonsterStats
+                    ? $"공격력 {card.Attack}  ·  생명력 {card.Health}\n"
+                    : string.Empty;
+                string fieldState = string.IsNullOrWhiteSpace(slot.Detail)
+                    ? string.Empty
+                    : $"\n\n현재 상태\n{slot.Detail}";
+                BattleDetailBodyText.text =
+                    $"{card.TypeLabel} · {card.RarityLabel}\n" +
+                    $"마력 {card.ManaCost}\n{stats}\n" +
+                    $"{card.EffectText}{fieldState}";
+            }
+            else
+            {
+                BattleDetailBodyText.text =
+                    string.IsNullOrWhiteSpace(slot.Detail)
+                        ? "상세 정보가 없습니다."
+                        : slot.Detail;
+            }
             BattleDetailActionButton.GetComponentInChildren<Text>().text =
-                "행동";
+                slot.Zone == RuntimeBattleFieldZone.PlayerMonster
+                    ? "공격"
+                    : "행동";
             BattleDetailActionButton.interactable =
                 slot.Interactable &&
                 !string.IsNullOrWhiteSpace(slot.ClickCommandId);
@@ -1226,7 +1283,20 @@ namespace HaveABreak.Cards
         private void HideBattleDetail()
         {
             inspectedBattleCardCommand = null;
+            ApplyBattleDetailArtwork(null);
             BattleDetailPanel?.SetActive(false);
+        }
+
+        private void ApplyBattleDetailArtwork(Sprite artwork)
+        {
+            if (BattleDetailArtworkImage == null)
+            {
+                return;
+            }
+
+            BattleDetailArtworkImage.sprite = artwork;
+            BattleDetailArtworkImage.color = Color.white;
+            BattleDetailArtworkImage.gameObject.SetActive(artwork != null);
         }
 
         private void BuildBattleConsumableBar(Transform panel)

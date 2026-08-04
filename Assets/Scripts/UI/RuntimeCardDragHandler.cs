@@ -16,12 +16,18 @@ namespace HaveABreak.Cards
         private RuntimeCardView cardView;
         private RectTransform dragRect;
         private Canvas rootCanvas;
+        private Canvas dragCanvas;
         private CanvasGroup canvasGroup;
         private Transform originalParent;
         private int originalSiblingIndex;
         private Vector2 pointerOffset;
         private Vector3 originalScale;
         private Quaternion originalRotation;
+        private Vector2 originalAnchorMin;
+        private Vector2 originalAnchorMax;
+        private Vector2 originalPivot;
+        private Vector2 originalSizeDelta;
+        private int handLayoutIndex = -1;
         private Action<string, string> dropped;
         private bool dragging;
         private bool suppressNextClick;
@@ -40,6 +46,17 @@ namespace HaveABreak.Cards
             {
                 canvasGroup = gameObject.AddComponent<CanvasGroup>();
             }
+
+            dragCanvas = gameObject.GetComponent<Canvas>();
+            if (dragCanvas == null)
+            {
+                dragCanvas = gameObject.AddComponent<Canvas>();
+            }
+            dragCanvas.overrideSorting = false;
+            if (gameObject.GetComponent<GraphicRaycaster>() == null)
+            {
+                gameObject.AddComponent<GraphicRaycaster>();
+            }
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -57,18 +74,37 @@ namespace HaveABreak.Cards
 
             dragging = true;
             suppressNextClick = true;
+            Vector3 displayedScale = transform.localScale;
             GetComponent<RuntimeBattleHandCardHover>()?.ResetPresentation();
             GetComponent<RuntimeBattleHandDrawAnimation>()?.CompleteImmediately();
+            transform.localScale = displayedScale;
             RuntimeCardDropZone.SetActivePresentation(cardView.Presentation);
             originalParent = transform.parent;
-            originalSiblingIndex = transform.GetSiblingIndex();
-            originalScale = transform.localScale;
+            RuntimeBattleHandCardHover handHover =
+                GetComponent<RuntimeBattleHandCardHover>();
+            handLayoutIndex = handHover != null
+                ? handHover.LayoutIndex
+                : transform.GetSiblingIndex();
+            originalSiblingIndex = handLayoutIndex;
+            originalScale = displayedScale;
             originalRotation = transform.localRotation;
+            originalAnchorMin = dragRect.anchorMin;
+            originalAnchorMax = dragRect.anchorMax;
+            originalPivot = dragRect.pivot;
+            originalSizeDelta = dragRect.sizeDelta;
             transform.SetParent(rootCanvas.transform, true);
+            Vector3 preservedWorldPosition = dragRect.position;
+            dragRect.anchorMin = new Vector2(0.5f, 0.5f);
+            dragRect.anchorMax = new Vector2(0.5f, 0.5f);
+            dragRect.pivot = new Vector2(0.5f, 0.5f);
+            dragRect.position = preservedWorldPosition;
             transform.SetAsLastSibling();
             transform.localRotation = Quaternion.identity;
             canvasGroup.blocksRaycasts = false;
             canvasGroup.alpha = 1f;
+            canvasGroup.ignoreParentGroups = true;
+            dragCanvas.overrideSorting = true;
+            dragCanvas.sortingOrder = short.MaxValue - 8;
 
             RectTransform canvasRect = rootCanvas.transform as RectTransform;
             if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
@@ -77,7 +113,8 @@ namespace HaveABreak.Cards
                     eventData.pressEventCamera,
                     out Vector2 localPointer))
             {
-                pointerOffset = dragRect.anchoredPosition - localPointer;
+                pointerOffset = Vector2.zero;
+                dragRect.anchoredPosition = localPointer + pointerOffset;
             }
             else
             {
@@ -174,6 +211,12 @@ namespace HaveABreak.Cards
             {
                 canvasGroup.blocksRaycasts = true;
                 canvasGroup.alpha = 1f;
+                canvasGroup.ignoreParentGroups = false;
+            }
+
+            if (dragCanvas != null)
+            {
+                dragCanvas.overrideSorting = false;
             }
 
             if (originalParent == null)
@@ -187,6 +230,10 @@ namespace HaveABreak.Cards
             originalParent = null;
 
             transform.SetParent(parent, false);
+            dragRect.anchorMin = originalAnchorMin;
+            dragRect.anchorMax = originalAnchorMax;
+            dragRect.pivot = originalPivot;
+            dragRect.sizeDelta = originalSizeDelta;
             transform.SetSiblingIndex(Mathf.Clamp(
                 siblingIndex,
                 0,

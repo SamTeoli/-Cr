@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -137,6 +138,27 @@ namespace HaveABreak.Cards
                                       0.72f,
                                       hoverScale,
                                       drawProgress);
+            }
+
+            // Render overlap is deterministic: cards farther to the left are
+            // earlier siblings and therefore appear underneath cards to their
+            // right. Only the actively hovered card is temporarily promoted.
+            List<RectTransform> orderedCards = new(rectChildren);
+            orderedCards.Sort((left, right) =>
+            {
+                int leftIndex = left.GetComponent<
+                    RuntimeBattleHandCardHover>()?.LayoutIndex ?? 0;
+                int rightIndex = right.GetComponent<
+                    RuntimeBattleHandCardHover>()?.LayoutIndex ?? 0;
+                return leftIndex.CompareTo(rightIndex);
+            });
+            for (int index = 0; index < orderedCards.Count; index++)
+            {
+                orderedCards[index].SetSiblingIndex(index);
+            }
+            if (hoveredIndex >= 0 && hoveredIndex < orderedCards.Count)
+            {
+                orderedCards[hoveredIndex].SetAsLastSibling();
             }
         }
     }

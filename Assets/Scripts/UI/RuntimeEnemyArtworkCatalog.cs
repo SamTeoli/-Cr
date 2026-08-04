@@ -93,9 +93,21 @@ namespace HaveABreak.Cards
                 return null;
             }
 
-            Sprite sprite = Render(spec.Value);
+            Sprite sprite = LoadAuthoredArtwork(spec.Value.Id) ??
+                            Render(spec.Value);
             Cache[spec.Value.Id] = sprite;
             return sprite;
+        }
+
+        private static Sprite LoadAuthoredArtwork(string artworkId)
+        {
+            Sprite importedSprite = Resources.Load<Sprite>(
+                $"EnemyArtwork/{artworkId}");
+            if (importedSprite == null)
+            {
+                return null;
+            }
+            return importedSprite;
         }
 
         public static string ResolveArtworkId(string enemyId)
